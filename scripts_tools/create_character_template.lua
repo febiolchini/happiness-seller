@@ -1,8 +1,10 @@
--- Starter template for a 16x24 character sprite, aligned to a 16-wide tile grid.
-local W, H = 16, 24
+-- Starter template for a 32x48 "chibi" character sprite (Sea of Stars-ish proportions).
+-- Head ~14px, torso ~16px, legs ~18px. Aligned to a 32px tile grid.
+local W, H = 32, 48
 
 local spr = Sprite(W, H, ColorMode.INDEXED)
-spr.gridBounds = Rectangle(0, 0, 16, 8) -- rough head / torso / legs guide rows
+-- Guide grid marking head / torso / legs bands, not a paint grid
+spr.gridBounds = Rectangle(0, 0, 32, 14)
 
 local palette = Palette(13)
 local colors = {
@@ -30,7 +32,17 @@ spr:newLayer().name = "Shading"
 spr:newLayer().name = "Highlight"
 spr:newLayer().name = "Outline"
 
--- Four directions as tags, one frame each to start (duplicate frames later for walk cycles)
+-- Proportion guide layer: horizontal lines at head(14) / torso(30) boundaries
+local guide = spr:newLayer()
+guide.name = "ProportionGuide"
+guide.opacity = 128
+local cel = spr:newCel(guide, 1)
+local img = cel.image
+for x = 0, W - 1 do
+  img:putPixel(x, 14, Color(255, 0, 0, 200)) -- head/torso line
+  img:putPixel(x, 30, Color(255, 0, 0, 200)) -- torso/legs line
+end
+
 spr:newFrame()
 spr:newFrame()
 spr:newFrame()

@@ -37,8 +37,9 @@ addons/           plugin di terze parti
 
 ## Setup progetto
 
-- Viewport base 320x180 con stretch mode "viewport" (scaling pixel-perfect a schermo intero).
+- Viewport base 640x360 con stretch mode "viewport" (scaling pixel-perfect a schermo intero).
 - Filtro texture di default impostato su Nearest (niente sfocatura sui pixel).
+- Griglia tile: 32x32 px. Personaggi: canvas 32x48 px, proporzioni "chibi" (testa ~14px, torso ~16px, gambe ~18px) in stile Sea of Stars/Eastward.
 
 ## Note tecniche
 
