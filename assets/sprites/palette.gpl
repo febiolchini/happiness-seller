@@ -1,0 +1,17 @@
+GIMP Palette
+Name: Happiness Seller Base
+Columns: 4
+#
+0   0   0  Transparent-placeholder
+20  16  25  Outline
+56  43  51  Shadow Dark
+96  62  60  Shadow
+153 94  76  Mid Tone
+204 138 97  Base Skin/Wood
+230 179 133  Light Tone
+247 226 178  Highlight
+58  82  60  Green Dark
+98  133 76  Green Mid
+160 186 106  Green Light
+53  76  102  Water Shadow
+110 150 176  Water Light
