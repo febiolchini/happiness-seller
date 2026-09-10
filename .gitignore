@@ -13,3 +13,9 @@ data_*/
 
 # System/tool-specific ignores
 .DS_Store
+
+# Il pacchetto di veicoli low-poly porta gli stessi 11 texture atlas due volte,
+# in PNG e in TGA non compresso: 34 MB di doppioni identici pixel per pixel, su
+# 37 totali. I modelli usano i PNG, e da quelli escono gli sprite renderizzati
+# in assets/sprites/props/cars/ (vedi scripts_tools/render_cars.py).
+assets/sprites/props/Low_Poly_Cars_DevilsWorkShop_V03/**/*.tga

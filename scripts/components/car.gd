@@ -1,6 +1,7 @@
 extends Node2D
+class_name Car
 
-## Auto segnaposto che percorre una corsia in tondo.
+## Auto che percorre una corsia in tondo.
 ##
 ## L'origine del nodo è a terra, al centro dell'auto, come per gli edifici e i
 ## personaggi: così l'Y-sort della City la mette davanti o dietro alle cose in
@@ -8,21 +9,43 @@ extends Node2D
 ## dietro ma non il protagonista che le sta davanti.
 ##
 ## Non c'è nessuna fisica: la corsia è una retta, l'auto la scorre e quando
-## esce da un capo rientra dall'altro. Le corsie stanno in `CityMap.LANES`.
+## esce da un capo rientra dall'altro. Le corsie stanno in `CityMap.lanes()`.
+##
+## ## Il veicolo è uno sprite, non un disegno
+##
+## I mezzi sono i modelli low-poly di `assets/sprites/props/Low_Poly_Cars...`
+## renderizzati **dall'alto** a sprite (lo script sta in `scripts_tools/`).
+## Dall'alto un render solo basta per tutte e quattro le direzioni: girare lo
+## sprite di novanta gradi è esatto, e non serve una versione per verso.
+##
+## Per questo lo sprite è renderizzato **col muso verso destra**, che è la
+## direzione "est" di `_forward()`. Un veicolo nuovo si aggiunge mettendo il PNG
+## in `assets/sprites/props/cars/` e una riga in `VEHICLES`.
 
 ## Chi tenere d'occhio per frenare. Lo passa `city.gd`: un'auto che investe il
 ## protagonista senza rallentare si legge come un bug, e questo costa due righe.
 var watch: Node2D = null
 
-const BODY_LENGTH := 44.0
-const BODY_WIDTH := 20.0
-const WHEEL := Color(0.10, 0.10, 0.12)
-const GLASS := Color(0.52, 0.66, 0.72, 0.85)
+## I mezzi che girano per la città. Sono in scala fra loro come nei modelli —
+## il bus è davvero lungo il doppio di una berlina — perché sono stati
+## renderizzati tutti con lo stesso rapporto fra unità e pixel.
+const VEHICLES := [
+	"res://assets/sprites/props/cars/car01.png",
+	"res://assets/sprites/props/cars/car02.png",
+	"res://assets/sprites/props/cars/car03.png",
+	"res://assets/sprites/props/cars/pickupTruck01.png",
+	"res://assets/sprites/props/cars/pickupTruck02.png",
+	"res://assets/sprites/props/cars/carPolice.png",
+	"res://assets/sprites/props/cars/bus01.png",
+]
+
 const HEADLIGHT := Color(1.0, 0.95, 0.72, 0.30)
 
 ## Quanto davanti guarda per frenare, e quanto stretto è il "davanti".
 const BRAKE_DISTANCE := 58.0
 const BRAKE_WIDTH := 26.0
+
+@onready var _body: Sprite2D = $Body
 
 var _horizontal := true
 var _from := 0.0
@@ -32,12 +55,17 @@ var _dir := 1
 var _speed := 60.0
 var _current_speed := 0.0
 var _along := 0.0
-var _color := Color(0.6, 0.3, 0.3)
+var _size := Vector2(44, 20)
 var _was_night := false
+
+## Il mezzo che tocca a questa: `city.gd` ne pesca uno a caso, e per strada
+## capita di tutto. Vedi `VEHICLES`.
+static func random_vehicle() -> String:
+	return str(VEHICLES[randi() % VEHICLES.size()])
 
 ## `offset` è la posizione di partenza lungo la corsia, 0-1: serve a distribuire
 ## le auto della stessa corsia invece di farle partire tutte appiccicate.
-func setup(lane: Dictionary, offset: float, color: Color) -> void:
+func setup(lane: Dictionary, offset: float, vehicle: String) -> void:
 	_horizontal = str(lane["axis"]) == "h"
 	_from = float(lane["from"])
 	_to = float(lane["to"])
@@ -45,8 +73,13 @@ func setup(lane: Dictionary, offset: float, color: Color) -> void:
 	_dir = int(lane["dir"])
 	_speed = float(lane["speed"])
 	_current_speed = _speed
-	_color = color
 	_along = lerpf(_from, _to, offset)
+
+	var texture: Texture2D = load(vehicle)
+	_body.texture = texture
+	_size = texture.get_size()
+	# Lo sprite è renderizzato col muso a destra: basta girarlo verso dove va.
+	_body.rotation = _forward().angle()
 	_place()
 
 func _process(delta: float) -> void:
@@ -90,42 +123,25 @@ func _forward() -> Vector2:
 		return Vector2(float(_dir), 0.0)
 	return Vector2(0.0, float(_dir))
 
+## Sotto allo sprite ci restano solo l'ombra e i fari: l'ombra è quello che fa
+## sembrare il mezzo appoggiato all'asfalto invece di incollato sopra.
 func _draw() -> void:
-	var length := BODY_LENGTH
-	var width := BODY_WIDTH
-	var size := Vector2(length, width) if _horizontal else Vector2(width, length)
-	var body := Rect2(-size * 0.5, size)
-	# L'ombra sotto: è quello che fa sembrare l'auto appoggiata all'asfalto
-	# invece di un rettangolo incollato sopra.
-	draw_colored_polygon(_ellipse(Vector2(0, 3), size * Vector2(0.52, 0.30)), Color(0, 0, 0, 0.25))
-	draw_rect(body, _color, true)
-	draw_rect(body, _color.darkened(0.45), false, 1.0)
-	# Tetto e vetri, schiacciati verso il centro.
-	draw_rect(Rect2(body.position + size * 0.22, size * 0.56), _color.lightened(0.12), true)
-	draw_rect(Rect2(body.position + size * 0.28, size * 0.44), GLASS, true)
-	_draw_wheels(size)
+	var footprint := Vector2(_size.x, _size.y) if _horizontal else Vector2(_size.y, _size.x)
+	# Ben dentro alla sagoma. Il PNG ha un margine trasparente intorno e il
+	# corpo dipinto è più stretto del suo formato: un'ombra presa sulle misure
+	# del file sbuca ai lati e sembrano due macchie scure attaccate alle
+	# fiancate, non un'ombra.
+	draw_colored_polygon(
+		_ellipse(Vector2(0, 3), footprint * Vector2(0.34, 0.20)), Color(0, 0, 0, 0.22))
 	if _is_night():
-		_draw_headlights(size)
-
-func _draw_wheels(size: Vector2) -> void:
-	var offsets: Array[Vector2] = []
-	if _horizontal:
-		var dx := size.x * 0.30
-		var dy := size.y * 0.5
-		offsets = [Vector2(-dx, -dy), Vector2(dx, -dy), Vector2(-dx, dy), Vector2(dx, dy)]
-	else:
-		var dx := size.x * 0.5
-		var dy := size.y * 0.30
-		offsets = [Vector2(-dx, -dy), Vector2(-dx, dy), Vector2(dx, -dy), Vector2(dx, dy)]
-	for offset in offsets:
-		draw_rect(Rect2(offset - Vector2(3, 2), Vector2(6, 4)), WHEEL, true)
+		_draw_headlights(footprint)
 
 ## Fari accesi di notte: è un dettaglio, ma è il modo più economico di far
 ## vedere che l'orologio di gioco esiste anche fuori dall'HUD.
-func _draw_headlights(size: Vector2) -> void:
+func _draw_headlights(footprint: Vector2) -> void:
 	var forward := _forward()
-	var nose := forward * (size.length() * 0.5 * 0.62)
-	var side := Vector2(-forward.y, forward.x) * (size.x if _horizontal else size.y) * 0.22
+	var nose := forward * (footprint.length() * 0.5 * 0.62)
+	var side := Vector2(-forward.y, forward.x) * (footprint.x if _horizontal else footprint.y) * 0.22
 	for lamp in [nose + side, nose - side]:
 		draw_colored_polygon(_ellipse(lamp + forward * 12.0, Vector2(16, 10)), HEADLIGHT)
 

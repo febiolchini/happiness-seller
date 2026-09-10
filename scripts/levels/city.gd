@@ -33,14 +33,6 @@ const FOUNTAIN := preload("res://scenes/components/Fountain.tscn")
 ## Quanto lontano dalla facciata si ferma il protagonista.
 const APPROACH := 26.0
 
-## Carrozzerie delle auto segnaposto: colori smorti da utilitaria vissuta.
-const CAR_COLORS := [
-	Color(0.541, 0.271, 0.243), Color(0.278, 0.353, 0.451),
-	Color(0.588, 0.561, 0.478), Color(0.294, 0.400, 0.310),
-	Color(0.647, 0.596, 0.267), Color(0.400, 0.365, 0.400),
-	Color(0.741, 0.729, 0.706), Color(0.310, 0.322, 0.341),
-]
-
 ## Disattivata quando la mappa è usata solo come sfondo decorativo (menu).
 @export var interactive := true
 
@@ -179,15 +171,16 @@ func _entry_offset(entry: Dictionary) -> Vector2:
 			return Vector2(0, APPROACH)
 
 func _build_traffic() -> void:
-	var index := 0
 	for lane in CityMap.lanes():
 		var count := int(lane["cars"])
 		for i in count:
 			var car := CAR.instantiate()
 			_traffic.add_child(car)
-			car.setup(lane, float(i) / float(count), CAR_COLORS[index % CAR_COLORS.size()])
+			# Il mezzo è pescato a caso, non a giro fisso su un elenco: per
+			# strada capita di tutto, e un ciclo regolare si legge come una
+			# fila ordinata di modelli che si ripete.
+			car.setup(lane, float(i) / float(count), Car.random_vehicle())
 			car.watch = _player
-			index += 1
 
 # --- Stato della partita ---------------------------------------------------
 

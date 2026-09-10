@@ -36,7 +36,7 @@ scripts/
   autoload/       singleton globali (GameState, SaveData)
   data/           tabelle di bilanciamento e pianta della citta'
   characters/     logica personaggi e NPC
-  components/     pezzi riutilizzabili (edifici, vasi, auto, fontana)
+  components/     pezzi riutilizzabili (edifici, vasi, veicoli, fontana)
   levels/         mappa e disegno del terreno
   rooms/          logica delle stanze
   systems/        sistemi di gioco (coltivazione, camera, effetti)
@@ -327,6 +327,56 @@ sta nella corsia più in basso, su una verticale chi va verso sud sta in quella
 più a ovest — e le auto **frenano** se il protagonista è
 davanti al muso: due righe, ma un'auto che ci passa attraverso senza rallentare
 si legge subito come un bug. Di notte accendono i fari.
+
+### I veicoli sono sprite renderizzati
+
+I mezzi non sono più rettangoli disegnati via codice: sono i modelli low-poly di
+`assets/sprites/props/Low_Poly_Cars_DevilsWorkShop_V03` **renderizzati a sprite
+visti dall'alto**, sette in tutto (tre berline, due pickup, una volante, un
+autobus). `city.gd` ne pesca uno a caso per ogni auto — per strada capita di
+tutto, e un ciclo regolare su un elenco si legge come una fila di modelli che si
+ripete.
+
+A renderizzarli è `scripts_tools/render_cars.py`, che gira in Blender senza
+aprirlo:
+
+```
+blender --background --python scripts_tools/render_cars.py --   assets/sprites/props/Low_Poly_Cars_DevilsWorkShop_V03/Low_Poly_Cars_DevilsWorkShop_V03   assets/sprites/props/cars
+```
+
+Il punto che rende tutto semplice è che la vista sia **dritta dall'alto**: così
+un render solo basta per tutte e quattro le direzioni, perché girare uno sprite
+di novanta gradi è esatto. Con la camera inclinata servirebbero quattro
+immagini per veicolo. Per questo i mezzi sono renderizzati **col muso verso
+destra**, che è la direzione "est" di `car.gd::_forward()`, e `setup()` gira lo
+sprite di conseguenza.
+
+Sono tutti renderizzati con lo stesso rapporto fra unità di modello e pixel,
+preso da `car01` a 44 px di lunghezza (la vecchia `BODY_LENGTH`): restano quindi
+in scala fra loro, e il bus è davvero lungo il doppio di una berlina. Aggiungere
+un mezzo vuol dire una riga in `MODELS` nello script e una in `Car.VEHICLES`.
+
+Tre cose imparate rendendoli, che è utile sapere prima di rifarlo:
+
+- il **view transform** di Blender va messo su `Standard`. Quello di default
+  (AgX) è pensato per le foto e smorza i colori saturi: il rosso dell'auto
+  usciva rosa;
+- il **clipping** della camera va allargato. Di default si ferma a 100 unità,
+  i modelli sono alti 225 e la camera sta mille sopra: il fotogramma usciva
+  vuoto;
+- serve **luce ambiente generosa**, non solo il sole. Il cassone di un pickup
+  non vede il sole, e con poca luce diffusa usciva nero — mezzo veicolo era un
+  buco invece di un pianale.
+
+Nel pacchetto ci sono anche `modEngine`, `modLights`, `modPipes` e `modSpoiler`:
+non sono veicoli ma **pezzi da montare**, e infatti renderizzati vengono grandi
+quanto un francobollo. Sono esclusi.
+
+Il pacchetto porta gli stessi undici texture atlas due volte, in PNG e in TGA
+non compresso — 34 MB di doppioni identici pixel per pixel su 37 totali. I TGA
+sono esclusi da git (`.gitignore`), e un `.gdignore` nella cartella tiene Godot
+lontano dai modelli 3D: in un progetto 2D importarli è solo tempo di
+caricamento.
 
 ## Salvataggi
 
