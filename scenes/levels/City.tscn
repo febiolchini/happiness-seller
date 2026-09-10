@@ -1,0 +1,52 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/city.gd" id="1_city"]
+[ext_resource type="Script" path="res://scripts/systems/camera_zoom.gd" id="3_zoom"]
+[ext_resource type="Script" path="res://scripts/levels/city_ground.gd" id="4_ground"]
+[ext_resource type="PackedScene" path="res://scenes/characters/Player.tscn" id="6_player"]
+[ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="7_hud"]
+[ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="8_dialogue"]
+
+[node name="City" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_city")
+
+[node name="GroundLayer" type="CanvasLayer" parent="."]
+layer = -1
+
+[node name="Sky" type="ColorRect" parent="GroundLayer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.113725, 0.121569, 0.129412, 1)
+
+[node name="Ground" type="Node2D" parent="."]
+script = ExtResource("4_ground")
+
+[node name="Effects" type="Node2D" parent="."]
+
+[node name="Props" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Buildings" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Npcs" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Traffic" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Player" parent="." instance=ExtResource("6_player")]
+position = Vector2(320, 264)
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(320, 240)
+script = ExtResource("3_zoom")
+
+[node name="HUD" parent="." instance=ExtResource("7_hud")]
+
+[node name="DialogueBox" parent="." instance=ExtResource("8_dialogue")]

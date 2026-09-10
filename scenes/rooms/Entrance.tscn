@@ -1,0 +1,21 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/Room.tscn" id="1_room"]
+[ext_resource type="Texture2D" path="res://assets/sprites/buildings/ingressoback.png" id="2_bg"]
+
+[node name="Entrance" instance=ExtResource("1_room")]
+room_name = "ENTRANCE"
+exits = {
+"KITCHEN": "res://scenes/rooms/Kitchen.tscn",
+"BASEMENT": "res://scenes/rooms/Basement.tscn",
+"EXIT": "res://scenes/levels/City.tscn"
+}
+background_color = Color(0.129412, 0.109804, 0.101961, 1)
+
+[node name="Backdrop" parent="." index="1"]
+texture = ExtResource("2_bg")
+
+[node name="Character" parent="." index="2"]
+position = Vector2(275, 210)
+scale = Vector2(4.4, 4.4)
+modulate = Color(0.86, 0.8, 0.76, 1)

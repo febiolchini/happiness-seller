@@ -19,16 +19,24 @@ run/main_scene="res://scenes/main/Main.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+GameState="*res://scripts/autoload/game_state.gd"
+
 [display]
 
 window/size/viewport_width=640
 window/size/viewport_height=360
 window/size/window_width_override=1280
 window/size/window_height_override=720
-window/stretch/mode="viewport"
-window/stretch/aspect="keep"
+window/stretch/mode="canvas_items"
+
+[importer_defaults]
+
+texture={
+"mipmaps/generate": false
+}
 
 [rendering]
 
-renderer/rendering_method="forward_plus"
 textures/canvas_textures/default_texture_filter=0

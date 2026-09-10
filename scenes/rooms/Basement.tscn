@@ -1,0 +1,81 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/Room.tscn" id="1_room"]
+[ext_resource type="Texture2D" path="res://assets/sprites/buildings/basementBack.png" id="2_bg"]
+[ext_resource type="PackedScene" path="res://scenes/components/RoomHotspot.tscn" id="3_hotspot"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ManagementWindow.tscn" id="4_management"]
+[ext_resource type="PackedScene" path="res://scenes/components/GrowPlot.tscn" id="5_plot"]
+
+[node name="Basement" instance=ExtResource("1_room")]
+room_name = "BASEMENT"
+exits = {
+"ENTRANCE": "res://scenes/rooms/Entrance.tscn",
+"KITCHEN": "res://scenes/rooms/Kitchen.tscn",
+"EXIT": "res://scenes/levels/City.tscn"
+}
+background_color = Color(0.0941176, 0.101961, 0.117647, 1)
+
+[node name="Backdrop" parent="." index="1"]
+texture = ExtResource("2_bg")
+
+[node name="Character" parent="." index="2"]
+position = Vector2(478, 210)
+scale = Vector2(4.6, 4.6)
+modulate = Color(0.84, 0.78, 0.74, 1)
+
+[node name="PC" parent="." index="5" instance=ExtResource("3_hotspot")]
+layout_mode = 1
+offset_left = 244.0
+offset_top = 92.0
+offset_right = 300.0
+offset_bottom = 118.0
+text = "PC"
+window_scene = ExtResource("4_management")
+
+[node name="Plot0" parent="." index="6" instance=ExtResource("5_plot")]
+layout_mode = 1
+offset_left = 162.0
+offset_top = 194.0
+offset_right = 214.0
+offset_bottom = 236.0
+index = 0
+
+[node name="Plot1" parent="." index="7" instance=ExtResource("5_plot")]
+layout_mode = 1
+offset_left = 225.0
+offset_top = 177.0
+offset_right = 277.0
+offset_bottom = 219.0
+index = 1
+
+[node name="Plot2" parent="." index="8" instance=ExtResource("5_plot")]
+layout_mode = 1
+offset_left = 288.0
+offset_top = 159.0
+offset_right = 340.0
+offset_bottom = 201.0
+index = 2
+
+[node name="Plot3" parent="." index="9" instance=ExtResource("5_plot")]
+layout_mode = 1
+offset_left = 230.0
+offset_top = 218.0
+offset_right = 282.0
+offset_bottom = 260.0
+index = 3
+
+[node name="Plot4" parent="." index="10" instance=ExtResource("5_plot")]
+layout_mode = 1
+offset_left = 293.0
+offset_top = 200.0
+offset_right = 345.0
+offset_bottom = 242.0
+index = 4
+
+[node name="Plot5" parent="." index="11" instance=ExtResource("5_plot")]
+layout_mode = 1
+offset_left = 356.0
+offset_top = 182.0
+offset_right = 408.0
+offset_bottom = 224.0
+index = 5

@@ -1,3 +1,130 @@
-[gd_scene format=3]
+[gd_scene load_steps=8 format=3]
 
-[node name="Main" type="Node2D"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/Play.png" id="1_play"]
+[ext_resource type="Script" path="res://scripts/ui/interactive_button.gd" id="2_script"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/Settings.png" id="3_settings"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/Exit.png" id="4_exit"]
+[ext_resource type="PackedScene" path="res://scenes/levels/City.tscn" id="5_city"]
+[ext_resource type="Script" path="res://scripts/ui/menu_cursor.gd" id="6_cursor"]
+[ext_resource type="FontFile" path="res://assets/sprites/ui/alphabet.fnt" id="7_font"]
+
+[node name="Main" type="Control"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("6_cursor")
+
+[node name="CityBackground" parent="." instance=ExtResource("5_city")]
+interactive = false
+
+[node name="Camera2D" parent="CityBackground"]
+interactive = false
+
+[node name="UI" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="PlayButton" type="TextureButton" parent="UI"]
+layout_mode = 1
+anchors_preset = 4
+anchor_left = 0.0
+anchor_top = 0.5
+anchor_right = 0.0
+anchor_bottom = 0.5
+offset_left = 32.0
+offset_top = -64.0
+offset_right = 84.0
+offset_bottom = -48.0
+grow_horizontal = 1
+grow_vertical = 2
+texture_normal = ExtResource("1_play")
+ignore_texture_size = true
+stretch_mode = 4
+script = ExtResource("2_script")
+action = 1
+target_scene = "res://scenes/levels/City.tscn"
+
+[node name="NewGameButton" type="Button" parent="UI"]
+layout_mode = 1
+anchors_preset = 4
+anchor_left = 0.0
+anchor_top = 0.5
+anchor_right = 0.0
+anchor_bottom = 0.5
+offset_left = 26.0
+offset_top = -42.0
+offset_right = 200.0
+offset_bottom = -24.0
+grow_horizontal = 1
+grow_vertical = 2
+theme_override_fonts/font = ExtResource("7_font")
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+flat = true
+text = "nuova partita"
+alignment = 0
+script = ExtResource("2_script")
+action = 2
+target_scene = "res://scenes/levels/City.tscn"
+
+[node name="SavesButton" type="Button" parent="UI"]
+layout_mode = 1
+anchors_preset = 4
+anchor_left = 0.0
+anchor_top = 0.5
+anchor_right = 0.0
+anchor_bottom = 0.5
+offset_left = 26.0
+offset_top = -20.0
+offset_right = 200.0
+offset_bottom = -2.0
+grow_horizontal = 1
+grow_vertical = 2
+theme_override_fonts/font = ExtResource("7_font")
+theme_override_font_sizes/font_size = 16
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+flat = true
+text = "salvataggi"
+alignment = 0
+script = ExtResource("2_script")
+target_scene = "res://scenes/ui/SaveSlots.tscn"
+
+[node name="SettingsButton" type="TextureButton" parent="UI"]
+layout_mode = 1
+anchors_preset = 4
+anchor_left = 0.0
+anchor_top = 0.5
+anchor_right = 0.0
+anchor_bottom = 0.5
+offset_left = 32.0
+offset_top = 4.0
+offset_right = 128.2
+offset_bottom = 17.0
+grow_horizontal = 1
+grow_vertical = 2
+texture_normal = ExtResource("3_settings")
+ignore_texture_size = true
+stretch_mode = 4
+script = ExtResource("2_script")
+target_scene = "res://scenes/ui/Settings.tscn"
+
+[node name="ExitButton" type="TextureButton" parent="UI"]
+layout_mode = 1
+anchors_preset = 4
+anchor_left = 0.0
+anchor_top = 0.5
+anchor_right = 0.0
+anchor_bottom = 0.5
+offset_left = 32.0
+offset_top = 23.0
+offset_right = 77.8
+offset_bottom = 36.0
+grow_horizontal = 1
+grow_vertical = 2
+texture_normal = ExtResource("4_exit")
+ignore_texture_size = true
+stretch_mode = 4
+script = ExtResource("2_script")
+quit_on_press = true

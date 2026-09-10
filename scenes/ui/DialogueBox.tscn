@@ -1,0 +1,73 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/dialogue_box.gd" id="1_dialogue"]
+[ext_resource type="FontFile" path="res://assets/sprites/ui/alphabet.fnt" id="2_font"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.0705882, 0.0745098, 0.0980392, 0.964706)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.611765, 0.478431, 0.278431, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="DialogueBox" type="CanvasLayer"]
+layer = 8
+script = ExtResource("1_dialogue")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -190.0
+offset_right = -16.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="Rows" type="VBoxContainer" parent="Root/Panel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Speaker" type="Label" parent="Root/Panel/Margin/Rows"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.858824, 0.352941, 1)
+theme_override_fonts/font = ExtResource("2_font")
+theme_override_font_sizes/font_size = 16
+text = "SPEAKER"
+
+[node name="Body" type="Label" parent="Root/Panel/Margin/Rows"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.858824, 0.878431, 0.85098, 1)
+theme_override_font_sizes/font_size = 12
+text = "..."
+autowrap_mode = 3
+
+[node name="Choices" type="VBoxContainer" parent="Root/Panel/Margin/Rows"]
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 2
