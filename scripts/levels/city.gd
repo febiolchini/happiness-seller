@@ -91,6 +91,11 @@ func _ready() -> void:
 	# ogni scrittura su disco lo riversiamo noi. Vale anche per i salvataggi
 	# automatici, che partono da `GameState` e non passano di qui.
 	GameState.saving.connect(_collect_state)
+	# Brian non è nel roster: compare solo quando c'è un appuntamento. Il
+	# segnale copre il caso in cui la posizione arriva mentre si è già in
+	# strada; `_apply_state()` quello in cui c'era già entrando qui.
+	GameState.seed_spot_ready.connect(_on_seed_spot_ready)
+	GameState.seed_deal_closed.connect(_on_seed_deal_closed)
 	# Arrivare in strada è un punto di controllo: da qui in poi la partita
 	# ricomincerebbe fuori, non nella stanza da cui si è appena usciti.
 	GameState.save_game()
@@ -191,6 +196,43 @@ func _build_traffic() -> void:
 ## la scena si costruisce dai dati, mai il contrario.
 func _apply_state(data: SaveData) -> void:
 	_player.global_position = data.player_position
+	# Un appuntamento fissato mentre si era in cantina, o lasciato aperto
+	# chiudendo il gioco: tornando in strada Brian deve essere lì ad aspettare.
+	if SeedDeal.is_ready(data):
+		_spawn_brian()
+
+# --- L'appuntamento con Brian ---------------------------------------------
+
+## Tira su Brian dove aspetta. Passa da `SeedDeal.npc_entry()`, che ha la stessa
+## forma di una riga del roster: l'NPC non deve sapere se viene da lì o da un
+## appuntamento.
+func _spawn_brian() -> void:
+	if _npcs.has_node(SeedDeal.NPC_ID):
+		return
+	var npc := NPC.instantiate()
+	_npcs.add_child(npc)
+	npc.setup(SeedDeal.npc_entry(GameState.current))
+
+func _on_seed_spot_ready(spot: Vector2, _place: String) -> void:
+	_spawn_brian()
+	# Un'onda sul posto, più larga e più lenta di quella del click: se il punto
+	# è già in vista lega il messaggio appena arrivato a un punto della mappa.
+	# Se è fuori schermo non si perde niente — a dire dove andare è il testo
+	# della notifica, e sul posto c'è il rombo verde sopra la testa di Brian.
+	var ripple := RIPPLE.instantiate()
+	ripple.position = spot
+	ripple.duration = 1.2
+	ripple.max_radius = 44.0
+	ripple.rings = 3
+	ripple.color = Npc.MARKER_SELLER
+	_effects.add_child(ripple)
+
+func _on_seed_deal_closed() -> void:
+	if _npcs.has_node(SeedDeal.NPC_ID):
+		_npcs.get_node(SeedDeal.NPC_ID).queue_free()
+	# Un appuntamento chiuso è un punto di controllo: i semi comprati e i soldi
+	# spesi non devono dipendere dal prossimo salvataggio automatico.
+	GameState.save_game()
 
 ## Riversa nella partita quello che la mappa sa (per ora solo dove sta il
 ## giocatore). Agganciata al segnale `GameState.saving`, quindi vale per ogni

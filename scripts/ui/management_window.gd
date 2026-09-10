@@ -43,6 +43,9 @@ var _fields: Array = []
 ## Bottoni: { "button": Button, "text": Callable, "enabled": Callable }
 var _actions: Array = []
 var _elapsed := 0.0
+## Stato dell'appuntamento con Brian all'ultima costruzione della scheda.
+## Serve ad accorgersi che è cambiato mentre la finestra era aperta.
+var _seed_state := ""
 
 func _ready() -> void:
 	_close_button.pressed.connect(close)
@@ -95,11 +98,21 @@ func _build_tab() -> void:
 			_build_grow()
 		2:
 			_build_market()
+	if GameState.current != null:
+		_seed_state = SeedDeal.state(GameState.current)
 	_refresh()
 
 func _refresh() -> void:
 	var data := GameState.current
 	if data == null:
+		return
+
+	# L'orologio gira anche col gestionale aperto, quindi l'appuntamento con
+	# Brian può passare da "aspetto" a "è lì" mentre si guarda la scheda. Le
+	# righe di spiegazione sono scritte una volta sola alla costruzione, non a
+	# ogni aggiornamento: quando lo stato cambia la scheda va rifatta.
+	if _tab == 1 and SeedDeal.state(data) != _seed_state:
+		_build_tab()
 		return
 	for field in _fields:
 		var label: Label = field["label"]
@@ -191,11 +204,55 @@ func _build_grow() -> void:
 		return cost >= 0 and d.cash >= cost
 	_add_action(plot_text, plot_ready, _buy_plot)
 
+	_add_separator()
+	_build_seeds()
+
 	_add_note("A plant yields about %d g. Water it or the yield drops." % int(
 		Economy.strain(Economy.DEFAULT_STRAIN)["grams"]))
+
+## I semi: da qui si chiede a Brian, e da qui si vede a che punto è la cosa.
+##
+## Sta nella scheda GROW e non in una sua perché è lì che ci si accorge di
+## essere a secco — davanti ai vasi vuoti — ed è lì che deve esserci il modo di
+## rimediare, senza cambiare scheda per cercarlo.
+func _build_seeds() -> void:
+	var seeds := func(d: SaveData) -> String: return str(Economy.seeds_owned(d))
+	_add_field("SEEDS", seeds)
+
+	# Un bottone solo che cambia faccia con lo stato dell'appuntamento, invece
+	# di tre che si accendono a turno: la riga dice sempre qual è la prossima
+	# cosa che succede, e quando non c'è niente da fare lo dice spenta.
+	var text := func(d: SaveData) -> String:
+		var now := GameState.total_hours()
+		if SeedDeal.is_waiting(d):
+			return "WAITING ON BRIAN  -  %s" % UiFormat.duration(SeedDeal.hours_left(d, now))
+		if SeedDeal.is_ready(d):
+			return "BRIAN IS WAITING  -  %s" % SeedDeal.place(d)
+		return "ASK BRIAN FOR SEEDS"
+	var enabled := func(d: SaveData) -> bool: return SeedDeal.can_ask(d)
+	_add_action(text, enabled, _ask_brian)
+
 	var data := GameState.current
-	if data != null and Economy.seeds_owned(data) <= 0:
-		_add_note("Out of seeds. Milo works at the clinic downtown.")
+	if data == null:
+		return
+	if SeedDeal.is_ready(data):
+		_add_note("Brian brought %d seed(s) and is waiting at %s. He will not hang around forever: about %s left." % [
+			SeedDeal.seeds_left(data), SeedDeal.place(data),
+			UiFormat.duration(SeedDeal.hours_left(data, GameState.total_hours()))])
+	elif SeedDeal.is_waiting(data):
+		_add_note("Brian works at the clinic, where they hand the stuff out to patients. He will text a spot to meet when he can get away.")
+	elif Economy.seeds_owned(data) <= 0:
+		_add_note("Out of seeds. Ask your cousin Brian for more.")
+
+func _ask_brian() -> void:
+	if SeedDeal.ask(GameState.current, GameState.total_hours()):
+		GameState.notify("ASKED BRIAN FOR SEEDS")
+		# La riga di spiegazione sotto al bottone dipende dallo stato, e le note
+		# non sono fra le cose che `_refresh()` riscrive: qui la scheda va
+		# proprio ricostruita.
+		_build_tab()
+		return
+	_refresh()
 
 func _plot_summary(data: SaveData, slot: int) -> String:
 	if slot >= data.plot_slots:

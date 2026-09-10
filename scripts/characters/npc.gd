@@ -155,6 +155,12 @@ func talk(dialogue: Node) -> void:
 
 func _on_dialogue_closed() -> void:
 	_busy = false
+	# Comprato l'ultimo seme, `SeedDeal.buy()` ha già chiuso l'appuntamento:
+	# Brian se ne va, ma solo adesso che il dialogo è finito. Toglierlo da sotto
+	# la finestra ancora aperta si leggerebbe come un personaggio sparito nel
+	# nulla mentre gli si parlava.
+	if role == NpcRoster.ROLE_SEEDS and not SeedDeal.is_ready(GameState.current):
+		GameState.seed_deal_closed.emit()
 
 func _face_toward_player() -> void:
 	var player := get_tree().get_first_node_in_group("player")
@@ -165,28 +171,57 @@ func _face_toward_player() -> void:
 		_facing = facing
 		queue_redraw()
 
-## L'amico della clinica: è da lui che arrivano i semi.
+## Brian all'appuntamento: è da lui che arrivano i semi.
+##
+## Quanti ne ha addosso lo dice `SeedDeal`, non l'inventario: ne ha portati un
+## tot e quando finiscono se ne va. Comprarli è quindi limitato da tre cose
+## insieme — quanti ne ha, quanti se ne possono pagare, e quanto resta prima
+## che si stanchi di aspettare.
 func _talk_seeds(dialogue: Node) -> void:
 	var data := GameState.current
 	var price := Economy.seed_price(Economy.DEFAULT_STRAIN)
-	var owned := Economy.seeds_owned(data)
-	var body := "Straight out of the clinic stock. %d $ a seed, and you never got them from me.\n\nYou have %d seed(s). Cash: %d $." % [price, owned, data.cash]
+	var left := SeedDeal.seeds_left(data)
+
+	if left <= 0:
+		dialogue.open(npc_name, "That was the last of it. Give me a couple of hours and ask again.", [])
+		return
+
+	var body := "Straight out of the clinic stock, cousin. %d $ a seed, and you never got them from me.\n\nI brought %d. You have %d seed(s), %d $." % [
+		price, left, Economy.seeds_owned(data), data.cash]
 	var choices: Array = []
-	for count in [1, 3, 5]:
+	for step in _seed_steps(left):
+		var count: int = step
 		choices.append({
 			"label": "BUY %d  -  %d $" % [count, price * count],
 			"enabled": data.cash >= price * count,
 			"keep_open": true,
 			"action": func() -> void: _buy_seeds(dialogue, count),
 		})
-	choices.append({"label": "MAYBE LATER", "action": func() -> void: pass})
+	choices.append({"label": "THAT IS ALL", "action": func() -> void: pass})
 	dialogue.open(npc_name, body, choices)
 
+## Tagli sensati per quanti semi ha addosso, con sempre uno che li prende tutti.
+## Stessa idea di `_sale_steps()`: pochi bottoni e nessuna aritmetica da fare.
+func _seed_steps(most: int) -> Array:
+	var steps: Array = []
+	for count in [1, 3]:
+		if count < most:
+			steps.append(count)
+	steps.append(most)
+	return steps
+
 func _buy_seeds(dialogue: Node, count: int) -> void:
-	if Economy.buy_seeds(GameState.current, count):
-		GameState.notify("+%d SEEDS" % count)
-	# Si riapre invece di chiudere: comprare tre volte di fila non deve
-	# costare tre giri di camminata fino alla clinica.
+	var bought := SeedDeal.buy(GameState.current, count)
+	if bought > 0:
+		GameState.notify("+%d SEEDS" % bought)
+	# Comprato l'ultimo seme l'appuntamento si chiude e Brian se ne va: la
+	# battuta di commiato la dice prima di sparire, altrimenti il dialogo
+	# resterebbe aperto sopra a un pezzo di marciapiede vuoto.
+	if not SeedDeal.is_ready(GameState.current):
+		dialogue.open(npc_name, "That is me cleaned out. See you around, cousin.", [])
+		return
+	# Si riapre invece di chiudere: comprare tre volte di fila non deve costare
+	# tre giri di camminata fino all'appuntamento.
 	_talk_seeds(dialogue)
 
 ## Cliente di strada: paga più del prezzo all'ingrosso, ma ogni grammo che

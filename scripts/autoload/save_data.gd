@@ -61,6 +61,16 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 ## che non avevano il campo.
 @export var plot_slots := 3
 
+# --- Semi ------------------------------------------------------------------
+## L'appuntamento con Brian per comprare i semi, vuoto quando non ce n'è uno in
+## ballo. I campi sono documentati in `SeedDeal`, che è anche l'unico posto da
+## cui questo dizionario va toccato.
+##
+## Come i vasi, dentro ci sono ore di gioco e coordinate: è salvato con i cast
+## espliciti (`_deal_from_dict()`) e non passa da `_restore_ints()`, che
+## arrotonderebbe un `ready_at` di 26.5 perdendo la mezz'ora.
+@export var seed_deal: Dictionary = {}
+
 # --- Attenzione della polizia ---------------------------------------------
 ## 0-100. Sale vendendo in strada, scende ogni notte. Vedi `Economy`.
 @export var heat := 0.0
@@ -183,6 +193,7 @@ func to_dict() -> Dictionary:
 		"market_price": market_price,
 		"plots": plots,
 		"plot_slots": plot_slots,
+		"seed_deal": seed_deal,
 		"heat": heat,
 		"properties": properties,
 		"reputation": reputation,
@@ -219,6 +230,7 @@ static func from_dict(raw: Dictionary) -> SaveData:
 	# conversione con i cast espliciti.
 	data.plots = _plots_from_array(source.get("plots", []))
 	data.plot_slots = int(source.get("plot_slots", 3))
+	data.seed_deal = _deal_from_dict(source.get("seed_deal", {}))
 	data.heat = float(source.get("heat", 0.0))
 	data.properties = _restore_ints(source.get("properties", {}))
 	data.reputation = _restore_ints(source.get("reputation", {}))
@@ -260,6 +272,25 @@ static func _plots_from_array(raw: Variant) -> Array:
 			"dry_hours": float(plot.get("dry_hours", 0.0)),
 		})
 	return result
+
+## Ricostruisce l'appuntamento con Brian coi cast espliciti, per lo stesso
+## motivo dei vasi: le ore di gioco e le coordinate devono restare float, i semi
+## rimasti interi. Un salvataggio senza appuntamento, o con un dizionario vuoto,
+## torna vuoto.
+static func _deal_from_dict(raw: Variant) -> Dictionary:
+	if typeof(raw) != TYPE_DICTIONARY or (raw as Dictionary).is_empty():
+		return {}
+	var deal: Dictionary = raw
+	return {
+		"state": str(deal.get("state", "waiting")),
+		"asked_at": float(deal.get("asked_at", 0.0)),
+		"ready_at": float(deal.get("ready_at", 0.0)),
+		"expires_at": float(deal.get("expires_at", 0.0)),
+		"spot_x": float(deal.get("spot_x", 0.0)),
+		"spot_y": float(deal.get("spot_y", 0.0)),
+		"place": str(deal.get("place", "")),
+		"seeds": int(deal.get("seeds", 0)),
+	}
 
 ## Il parser JSON restituisce ogni numero come float, anche dentro ai dizionari
 ## liberi: senza questo passaggio 30 grammi di merce tornerebbero come "30.0" e

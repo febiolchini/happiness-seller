@@ -47,6 +47,12 @@ signal day_started(day: int)
 ## Messaggio breve da mostrare al giocatore ("+20 G HARVESTED"). L'HUD li
 ## impila in un angolo; chi lo emette non deve sapere come vengono mostrati.
 signal notice(text: String)
+## Brian ha mandato la posizione: da qui in poi c'è un appuntamento sulla mappa.
+## Ci si aggancia `city.gd` per tirarlo su dove aspetta.
+signal seed_spot_ready(spot: Vector2, place: String)
+## L'appuntamento è chiuso — comprato tutto, oppure Brian si è stancato di
+## aspettare e se n'è andato. La mappa toglie il personaggio.
+signal seed_deal_closed()
 ## Emesso subito prima di scrivere su disco.
 ##
 ## Chi tiene in scena uno stato che non è ancora dentro a `current` lo riversa
@@ -78,6 +84,7 @@ func _process(delta: float) -> void:
 		return
 	current.play_time += delta
 	_advance_clock(delta)
+	_tick_seed_deal()
 
 	# L'orologio gira solo mentre si gioca davvero (non nei menu), quindi
 	# agganciare qui il salvataggio automatico vuol dire salvare solo quando
@@ -109,6 +116,26 @@ func total_hours() -> float:
 ## verrà mostrato: se un giorno i toast diventassero un log, cambia solo l'HUD.
 func notify(text: String) -> void:
 	notice.emit(text)
+
+## Porta avanti l'appuntamento con Brian e avvisa quando cambia qualcosa.
+##
+## Sta agganciato all'orologio e non a un timer suo: l'attesa è misurata in ore
+## di gioco, quindi deve scorrere quando scorre quello — dentro alle stanze e
+## col gestionale aperto sì, nei menu no. Come per la coltivazione, il conto non
+## è simulato: `SeedDeal.tick()` guarda che ore sono adesso.
+func _tick_seed_deal() -> void:
+	match SeedDeal.tick(current, total_hours()):
+		SeedDeal.STATE_READY:
+			var place := SeedDeal.place(current)
+			notify("BRIAN: %s" % place)
+			seed_spot_ready.emit(SeedDeal.spot(current), place)
+			# Un appuntamento fissato è roba che il giocatore ricorda: se il
+			# gioco si chiude male, riaprirlo deve ritrovarlo, non farglielo
+			# richiedere da capo.
+			save_game()
+		"gone":
+			notify("BRIAN LEFT")
+			seed_deal_closed.emit()
 
 ## La mezzanotte: prezzo del giorno nuovo e attenzione che si raffredda.
 ## La logica sta in `Economy`, qui c'è solo il collegamento — così il singleton

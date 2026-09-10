@@ -35,18 +35,31 @@ func _ready() -> void:
 	GameState.save_dir = TEST_SAVE_DIR
 	_wipe_saves()
 
-	_test_everything_loads()
-	_test_city_layout()
-	_test_navigation()
-	_test_new_game()
-	_test_grow_cycle()
-	_test_dryness_hurts_yield()
-	_test_selling()
-	_test_street_customer()
-	_test_plot_expansion()
-	_test_save_roundtrip()
-	_test_continue_last()
-	_test_day_rollover()
+	# I controlli si annunciano prima di partire, con quanto ci hanno messo.
+	# Non è decorazione: alcuni durano secondi — la griglia dei percorsi si
+	# costruisce due volte e si provano centinaia di tragitti — e senza questa
+	# riga un controllo che si pianta è indistinguibile da uno lento, con
+	# l'esecuzione ferma e lo schermo vuoto.
+	for test in [
+		["carica tutto", _test_everything_loads],
+		["pianta della citta'", _test_city_layout],
+		["percorsi", _test_navigation],
+		["partita nuova", _test_new_game],
+		["ciclo di coltivazione", _test_grow_cycle],
+		["la sete rovina la resa", _test_dryness_hurts_yield],
+		["vendite", _test_selling],
+		["clienti di strada", _test_street_customer],
+		["ampliamento del seminterrato", _test_plot_expansion],
+		["posti dove vedersi", _test_meet_spots],
+		["appuntamento con brian", _test_seed_deal],
+		["salvataggio e ricaricamento", _test_save_roundtrip],
+		["riprendi l'ultima partita", _test_continue_last],
+		["mezzanotte", _test_day_rollover],
+	]:
+		print("- %s" % test[0])
+		var started := Time.get_ticks_msec()
+		(test[1] as Callable).call()
+		print("  %d ms" % (Time.get_ticks_msec() - started))
 
 	# Non si lasciano in giro partite finte, nemmeno nella cartella dei test.
 	_wipe_saves()
@@ -217,24 +230,14 @@ func _test_city_layout() -> void:
 	var roles := {}
 	for entry in NpcRoster.NPCS:
 		roles[entry["role"]] = int(roles.get(entry["role"], 0)) + 1
-	_check(int(roles.get(NpcRoster.ROLE_SEEDS, 0)) >= 1, "c'e' chi vende i semi")
 	_check(int(roles.get(NpcRoster.ROLE_BUYER, 0)) >= 4, "ci sono abbastanza clienti")
 	_check(int(roles.get(NpcRoster.ROLE_COP, 0)) >= 1, "c'e' almeno una pattuglia")
-
-	# Milo deve stare davanti alla clinica, non da qualche altra parte: se la
-	# clinica si sposta e lui no, i semi diventano introvabili.
-	var clinic := Rect2()
-	for entry in CityMap.BUILDINGS:
-		if str(entry["id"]) == "Clinic":
-			clinic = CityMap.footprint(entry)
-	_check(clinic.size.x > 0.0, "la clinica esiste")
-	var milo := NpcRoster.by_id("milo")
-	_check(not milo.is_empty(), "milo esiste")
-	var milo_at: Vector2 = milo["route"][0]
-	_check(
-		absf(milo_at.x - clinic.get_center().x) < clinic.size.x
-			and absf(milo_at.y - clinic.end.y) < 120.0,
-		"milo sta davanti alla clinica")
+	# Chi vende i semi NON sta nel roster: Brian esiste solo su appuntamento e
+	# lo tira su `city.gd` leggendo `SeedDeal`. Uno fisso in strada vorrebbe
+	# dire due fonti di semi, e la seconda renderebbe inutile la prima.
+	_check_eq(
+		int(roles.get(NpcRoster.ROLE_SEEDS, 0)), 0,
+		"nessun venditore di semi fisso nel roster")
 
 	# La casa iniziale e il punto di partenza devono restare d'accordo.
 	var doorstep := CityMap.home_doorstep()
@@ -427,6 +430,110 @@ func _test_plot_expansion() -> void:
 	_check_eq(data.plot_slots, Economy.MAX_PLOTS, "si arriva al massimo")
 	_check(not Economy.buy_plot(data), "oltre il massimo non si compra")
 
+## I posti in cui Brian può dare appuntamento.
+##
+## Sono ricavati dal reticolo, quindi non c'è nessuno che li guardi a occhio: un
+## appuntamento finito dentro a un muro o in mezzo alla carreggiata si
+## scoprirebbe solo andandoci, e capita a uno su cinquanta. Qui si provano tutti.
+func _test_meet_spots() -> void:
+	var spots := CityMap.meet_spots()
+	_check(spots.size() >= 12, "ci sono abbastanza posti dove vedersi (%d)" % spots.size())
+
+	var home := CityMap.home_doorstep()
+	var too_close: Array = []
+	var too_far: Array = []
+	var nameless: Array = []
+	for point: Vector2 in spots:
+		var distance := point.distance_to(home)
+		if distance < CityMap.MEET_MIN_DISTANCE:
+			too_close.append(str(point))
+		if distance > CityMap.MEET_MAX_DISTANCE:
+			too_far.append(str(point))
+		# Il nome del posto è l'unica indicazione che il giocatore riceve: uno
+		# vuoto lo lascerebbe con un appuntamento e nessun modo di sapere dove.
+		if CityMap.place_name(point).strip_edges().is_empty():
+			nameless.append(str(point))
+	_check_empty(too_close, "nessun appuntamento sotto casa")
+	_check_empty(too_far, "nessun appuntamento a mezza città di distanza")
+	_check_empty(nameless, "ogni posto ha un nome da dire al giocatore")
+
+	# E soprattutto: ci si deve poter arrivare a piedi, e stare in piedi lì.
+	var nav := CityNavigation.new()
+	nav.build(CityMap.all_buildings())
+	var unwalkable: Array = []
+	var unreachable: Array = []
+	for point: Vector2 in spots:
+		if not nav.is_walkable(point):
+			unwalkable.append(str(point))
+			continue
+		if nav.find_path(home, point).is_empty():
+			unreachable.append(str(point))
+	_check_empty(unwalkable, "ogni posto è calpestabile")
+	_check_empty(unreachable, "da casa si arriva a ogni posto")
+
+## Il giro completo dell'appuntamento con Brian: chiedo, aspetto, arriva la
+## posizione, compro, e lui se ne va.
+func _test_seed_deal() -> void:
+	var data := _fresh()
+	_check(SeedDeal.can_ask(data), "all'inizio si può chiedere")
+	_check(not SeedDeal.is_active(data), "e non c'è nessun appuntamento in ballo")
+
+	_check(SeedDeal.ask(data, GameState.total_hours()), "si chiedono i semi dal PC")
+	_check(SeedDeal.is_waiting(data), "si sta aspettando")
+	_check(not SeedDeal.can_ask(data), "non si chiede due volte insieme")
+	_check(not SeedDeal.ask(data, GameState.total_hours()), "e la seconda richiesta non attacca")
+
+	# Subito non è ancora arrivato niente.
+	_check_eq(SeedDeal.tick(data, GameState.total_hours()), "", "appena chiesto non succede niente")
+	_check(SeedDeal.is_waiting(data), "si sta ancora aspettando")
+
+	# Passata l'attesa massima, la posizione c'è per forza.
+	_advance(SeedDeal.WAIT_HOURS.y)
+	_check_eq(
+		SeedDeal.tick(data, GameState.total_hours()), SeedDeal.STATE_READY,
+		"passata l'attesa arriva la posizione")
+	_check(SeedDeal.is_ready(data), "l'appuntamento è fissato")
+	_check(not SeedDeal.place(data).is_empty(), "e ha un posto con un nome")
+	_check(
+		SeedDeal.spot(data).distance_to(CityMap.home_doorstep()) <= CityMap.MEET_MAX_DISTANCE,
+		"il posto è vicino a casa")
+	_check_eq(SeedDeal.seeds_left(data), SeedDeal.SEEDS_PER_RUN, "ha portato i semi")
+
+	# Ritick: fissato resta fissato finché non scade. Serve perché `tick()` gira
+	# a ogni frame, non una volta sola.
+	_check_eq(SeedDeal.tick(data, GameState.total_hours()), "", "l'appuntamento non si rifissa ogni frame")
+
+	# Si compra. Senza soldi non si porta via niente.
+	var price := Economy.seed_price(Economy.DEFAULT_STRAIN)
+	var had := Economy.seeds_owned(data)
+	data.cash = 0
+	_check_eq(SeedDeal.buy(data, 1), 0, "senza soldi non si compra")
+	_check_eq(Economy.seeds_owned(data), had, "e i semi restano quelli di prima")
+
+	data.cash = price * 2
+	_check_eq(SeedDeal.buy(data, 2), 2, "con i soldi si comprano")
+	_check_eq(Economy.seeds_owned(data), had + 2, "i semi arrivano in inventario")
+	_check_eq(data.cash, 0, "e i soldi se ne vanno")
+	_check_eq(SeedDeal.seeds_left(data), SeedDeal.SEEDS_PER_RUN - 2, "Brian ne ha due di meno")
+
+	# Chiedendone più di quanti ne ha, ne dà quanti gliene restano e se ne va.
+	data.cash = price * 99
+	var rest := SeedDeal.seeds_left(data)
+	_check_eq(SeedDeal.buy(data, 99), rest, "dà quello che gli è rimasto, non di più")
+	_check(not SeedDeal.is_active(data), "finiti i semi l'appuntamento si chiude")
+	_check(SeedDeal.can_ask(data), "e se ne può chiedere un altro")
+
+	# Chi non si presenta lo trova andato via, non lì per sempre.
+	var later := _fresh()
+	SeedDeal.ask(later, GameState.total_hours())
+	_advance(SeedDeal.WAIT_HOURS.y)
+	SeedDeal.tick(later, GameState.total_hours())
+	_check(SeedDeal.is_ready(later), "appuntamento fissato")
+	_advance(SeedDeal.MEET_HOURS + 1.0)
+	_check_eq(SeedDeal.tick(later, GameState.total_hours()), "gone", "Brian non aspetta per sempre")
+	_check(not SeedDeal.is_active(later), "e l'appuntamento sparisce")
+	_check(SeedDeal.can_ask(later), "così non si resta bloccati senza semi")
+
 func _test_save_roundtrip() -> void:
 	var data := _fresh()
 	var plot := data.plot(1)
@@ -440,6 +547,11 @@ func _test_save_roundtrip() -> void:
 	# Dopo la vendita, non prima: vendere in strada alza l'attenzione, quindi il
 	# valore da confrontare è quello che c'è davvero al momento del salvataggio.
 	var heat_before := data.heat
+	# Un appuntamento aperto va ritrovato al ricaricamento, altrimenti chiudere
+	# il gioco mentre Brian aspetta lo farebbe sparire coi soldi già impegnati.
+	SeedDeal.ask(data, GameState.total_hours())
+	_advance(SeedDeal.WAIT_HOURS.y)
+	SeedDeal.tick(data, GameState.total_hours())
 
 	var restored := SaveData.from_dict(JSON.parse_string(JSON.stringify(data.to_dict())))
 	_check_eq(restored.plots.size(), data.plots.size(), "numero di vasi conservato")
@@ -453,6 +565,15 @@ func _test_save_roundtrip() -> void:
 	_check_eq(
 		int(restored.npc_state["dee"]["bought"]), int(data.npc_state["dee"]["bought"]),
 		"quello che ha comprato un cliente e' conservato")
+	_check(SeedDeal.is_ready(restored), "l'appuntamento con Brian e' conservato")
+	_check(SeedDeal.spot(restored).is_equal_approx(SeedDeal.spot(data)), "e il posto e' lo stesso")
+	_check_eq(SeedDeal.place(restored), SeedDeal.place(data), "col suo nome")
+	_check_eq(SeedDeal.seeds_left(restored), SeedDeal.seeds_left(data), "e i semi che aveva addosso")
+	_check(
+		is_equal_approx(
+			float(restored.seed_deal["expires_at"]), float(data.seed_deal["expires_at"])),
+		"l'ora in cui se ne va resta un float e non viene arrotondata")
+
 	# Il punto vero: la pianta salvata deve trovarsi allo stesso stadio.
 	_check_eq(
 		Grow.stage(restored.plots[1], GameState.total_hours()),

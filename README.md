@@ -7,9 +7,9 @@ iniziale e il fondale della cantina: l'idea è che le logiche di gioco siano gi�
 in piedi e complete, e che la pixel art le sostituisca un pezzo per volta senza
 toccarle. Ogni sezione qui sotto dice cosa va rimpiazzato e come.
 
-Il giro di gioco è: **compra un seme dall'amico in clinica → piantalo nel
-seminterrato → annaffialo → raccogli → vendi**, all'ingrosso dal PC o in strada
-ai clienti. Vedi "Coltivare e vendere".
+Il giro di gioco è: **chiedi semi a Brian dal PC → vai all'appuntamento →
+piantali nel seminterrato → annaffiali → raccogli → vendi**, all'ingrosso dal
+PC o in strada ai clienti. Vedi "Coltivare e vendere".
 
 ## Struttura cartelle
 
@@ -120,7 +120,7 @@ pedonali). Sono i numeri con cui si scrivono i percorsi degli NPC.
 |---|---|---|
 | THE FLATS | x -352→1856, y -352→2240 | il quartiere povero: casa iniziale (PNG vero), campo roulotte, condominio occupato, case popolari, banco dei pegni, minimarket, chop shop, campo da football, motel, chiesa, palestra, dormitorio |
 | INDUSTRIAL PARK | x 1952→3488, y -352→2240 | fabbrica, silo, centrale, magazzino, banchina di carico, deposito camion, sfasciacarrozze, deposito container |
-| DOWNTOWN | x 3584→4960, y -352→2240 | **clinica** (è lì che lavora l'amico dei semi), centro commerciale, banca, bar, ferramenta, tavola calda, piazza del mercato, parcheggi |
+| DOWNTOWN | x 3584→4960, y -352→2240 | **clinica** (è lì che lavora Brian, il cugino dei semi), centro commerciale, banca, bar, ferramenta, tavola calda, piazza del mercato, parcheggi |
 | CIVIC CENTER | x -352→1856, y 2336→4160 | municipio con piazza, parco centrale e giardino con **due fontane**, polizia, biblioteca, tribunale, posta, cortile della scuola |
 | HILLSIDE | x 1952→4960, y 2336→4160 | zona benestante: ville, country club, campo da tennis, piscine |
 
@@ -154,7 +154,7 @@ Sbagliarlo si vede subito: il personaggio va a fermarsi dietro al muro.
 
 `CityMap.BUILDINGS` contiene i **punti di riferimento**: i quaranta edifici che
 hanno un nome, un ruolo o una posizione che conta (la casa iniziale, la clinica
-dove sta Milo, il municipio, la fabbrica). Sono scritti a mano, uno per uno.
+dove lavora Brian, il municipio, la fabbrica). Sono scritti a mano, uno per uno.
 
 Tutti gli altri — le file di case e capannoni qualunque che riempiono i
 blocchi, un centoventina — li genera `CityMap.all_buildings()` percorrendo i
@@ -233,7 +233,7 @@ Cosa succede parlandogli lo decide il **ruolo**, e lo decide `npc.gd`:
 
 | Ruolo | Chi | Cosa fa |
 |---|---|---|
-| `seeds` | MILO, davanti alla clinica | vende i semi |
+| `seeds` | BRIAN, solo su appuntamento | vende i semi (vedi "Comprare i semi") |
 | `buyer` | otto, uno o due per quartiere | comprano erba al dettaglio |
 | `cop` | quattro pattuglie | commentano in base a quanta attenzione hai addosso |
 | `wander` | diciassette | comparse, due battute a caso |
@@ -641,8 +641,8 @@ strada invece di schiantarsi.
 
 ## Coltivare e vendere
 
-Il giro completo è: **compra un seme da Milo → piantalo in cantina → annaffialo
-→ raccogli → vendi**. Tutti i numeri stanno in un posto solo,
+Il giro completo è: **chiedi semi a Brian dal PC → vai all'appuntamento →
+pianta in cantina → annaffia → raccogli → vendi**. Tutti i numeri stanno in un posto solo,
 `scripts/data/economy.gd`, perché tarare un tycoon vuol dire cambiare venti
 volte gli stessi dieci numeri: se sono sparsi nelle scene non si ritrovano più.
 
@@ -659,6 +659,76 @@ volte gli stessi dieci numeri: se sono sparsi nelle scene non si ritrovano più.
 
 Una pianta rende quindi circa 200 $ per 40 $ di seme: il primo ciclo si paga da
 sé cinque volte, ed è la rampa che serve a far partire la cosa.
+
+### Comprare i semi
+
+**Una pianta non fa semi.** L'erba da fumare è sinsemilla, cioè piante femmina
+non impollinate: `Grow.harvest()` restituisce grammi e svuota il vaso, e basta.
+È anche la scelta di gioco giusta — se il raccolto ripagasse i semi il ciclo si
+chiuderebbe su sé stesso, e comprarli smetterebbe di essere una spesa da
+mettere in conto.
+
+I semi arrivano da **Brian**, il cugino del protagonista, che lavora alla
+clinica dove l'erba la danno ai malati. Non sta a un indirizzo: si chiede e si
+va all'appuntamento. Tutto in `scripts/systems/seed_deal.gd`.
+
+Il giro è:
+
+1. dal PC in cantina, scheda **GROW**, si clicca `ASK BRIAN FOR SEEDS`;
+2. dopo **2-4 ore di gioco** (`SeedDeal.WAIT_HOURS`, circa 30-60 secondi reali)
+   arriva la notifica con il posto: `BRIAN: MAIN STREET BY THE LAUNDROMAT`;
+3. Brian compare lì, col rombo verde sopra la testa come ogni venditore, e ci
+   si parla per comprare;
+4. finiti i suoi **sei semi** (`SEEDS_PER_RUN`) se ne va, e se ne può chiedere
+   un altro carico.
+
+Un venditore fermo a un indirizzo sarebbe stato un distributore automatico: sai
+dov'è, ci vai quando serve, e la cosa smette di esistere come scelta.
+L'appuntamento invece occupa un pezzo di giornata — chiedi adesso, ti muovi
+dopo — e obbliga a decidere *quando* chiamare, non solo quanto comprare. È il
+motivo per cui `NpcRoster` non ha nessun personaggio con ruolo `seeds`: Brian
+esiste solo finché c'è un appuntamento, e a tirarlo su è `city.gd` leggendo
+`SeedDeal`.
+
+Brian **non aspetta per sempre**: dopo dieci ore di gioco (`MEET_HOURS`) se ne
+va e l'appuntamento si chiude. Serve che sia generoso — dieci ore bastano ad
+attraversare la mappa più volte — perché un appuntamento perso per essersi
+trovati dall'altra parte della città punirebbe l'aver giocato, non una scelta
+sbagliata. E serve che scada: un appuntamento eterno che non si riesce a
+raggiungere bloccherebbe per sempre l'unica fonte di semi.
+
+Come per la coltivazione, **l'attesa non è simulata**: l'appuntamento salva
+l'ora in cui la posizione arriva e quella in cui Brian se ne va, e lo stato è
+una funzione di che ore sono adesso. Scorre col gioco chiuso, e ricaricare un
+salvataggio non azzera niente. L'unico pezzo spinto avanti è il passaggio da
+attesa ad appuntamento fissato, perché è lì che si sceglie il posto e si avvisa
+il giocatore: se ne occupa `SeedDeal.tick()`, chiamata da `GameState` mentre
+l'orologio gira.
+
+Dove Brian può dare appuntamento lo decide `CityMap.meet_spots()`, che i posti
+li **ricava dal reticolo** invece di elencarli: percorre i marciapiedi entro uno
+o due isolati da casa (`MEET_MIN_DISTANCE` 220 px, `MEET_MAX_DISTANCE` 900 px) e
+tiene quelli buoni. Al momento sono ventisei, con undici nomi diversi.
+
+Il nome del posto (`CityMap.place_name()`) è la strada più l'insegna del punto
+di riferimento più vicino, anche quello ricavato: una coppia di coordinate non
+direbbe niente a nessuno. Ed è senza punteggiatura di proposito — solo lettere e
+spazi si possono scrivere anche col font del gioco.
+
+C'è un numero che sembra arbitrario e non lo è, `MEET_CLEARANCE` (28 px): non
+basta che un punto sia fuori dai muri, perché la griglia dei percorsi si tiene
+otto pixel di margine dagli edifici e lavora a celle da sedici. Un punto a filo
+di una facciata finisce quindi su una cella che la griglia considera piena. Vale
+per **tutta la quota dei marciapiedi a sud di una strada**, dove gli edifici
+hanno il corpo che sale fino a toccarli: ci si passa, ma non ci si può stare.
+Senza quel margine trentatré dei cinquantanove posti generati erano appuntamenti
+in cui il giocatore non sarebbe mai potuto arrivare — e ad accorgersene è stato
+il controllo automatico, non l'occhio.
+
+Il posto dell'appuntamento resta scritto **nell'HUD** finché Brian aspetta. Il
+messaggino che lo annuncia se ne va dopo due secondi e mezzo, e senza quella
+riga l'unico modo di ripescare l'indirizzo sarebbe tornare in cantina a riaprire
+il PC, cioè attraversare la città al contrario.
 
 ### La crescita non è simulata
 
@@ -734,6 +804,24 @@ salvato c'è solo quanto ha già comprato oggi (`SaveData.npc_state`).
 Godot_v4.7.2-stable_win64_console.exe --headless --path . tests/Tests.tscn
 ```
 
+Dopo aver aggiunto un file con un `class_name` nuovo va fatto prima un giro di
+importazione, una volta sola:
+
+```
+Godot_v4.7.2-stable_win64_console.exe --headless --path . --import
+```
+
+I `class_name` stanno in `.godot/global_script_class_cache.cfg`, che si aggiorna
+quando il progetto viene importato — non quando si lancia una scena. Senza,
+l'autoload non compila, la scena dei test nemmeno, e il gioco **resta lì fermo
+senza stampare niente**: non è un blocco, è tutto morto in partenza. Va saputo
+perché sembra un altro problema.
+
+Il runner stampa il nome di ogni controllo prima di lanciarlo, con quanto ci ha
+messo. Alcuni durano secondi — la griglia dei percorsi si costruisce due volte e
+si provano centinaia di tragitti — e senza quelle righe uno che si pianta è
+indistinguibile da uno lento.
+
 `scripts/tests/game_tests.gd` controlla il ciclo di coltivazione, la sete che
 rovina la resa, le vendite, i clienti di strada, l'ampliamento del seminterrato,
 il giro completo di salvataggio e ricaricamento, e la mezzanotte.
@@ -748,7 +836,8 @@ diventato irraggiungibile bisognerebbe andarci apposta.
 Controlla anche la **pianta della città**: che nessuno dei centosessanta edifici
 finisca sull'asfalto o sopra a un altro, che nessun terreno particolare invada
 una strada, che ogni corsia cada dentro al suo asfalto, che nessun NPC si fermi
-in mezzo alla carreggiata e che Milo stia davanti alla clinica. Sono controlli
+in mezzo alla carreggiata e che ogni posto in cui Brian può dare appuntamento
+sia calpestabile e raggiungibile da casa. Sono controlli
 che a occhio non si fanno: un capannone in mezzo alla strada in fondo alla mappa
 si nota solo passando di lì per caso, e con quarantadue isolati quel caso non
 capita mai. Alla prima esecuzione ha trovato cinque edifici, cinque terreni e un

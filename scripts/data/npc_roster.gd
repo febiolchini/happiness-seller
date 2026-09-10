@@ -25,7 +25,7 @@ extends RefCounted
 
 ## Ruoli. Il ruolo decide cosa succede parlandogli, non come cammina.
 const ROLE_WANDER := "wander"   ## comparsa: due battute e nient'altro
-const ROLE_SEEDS := "seeds"     ## vende semi (l'amico della clinica)
+const ROLE_SEEDS := "seeds"     ## vende semi (Brian, su appuntamento: vedi `SeedDeal`)
 const ROLE_BUYER := "buyer"     ## compra erba al dettaglio
 const ROLE_COP := "cop"         ## avverte in base a quanta attenzione hai addosso
 
@@ -33,15 +33,13 @@ const ROLE_COP := "cop"         ## avverte in base a quanta attenzione hai addos
 const COP_COLOR := Color(0.235, 0.290, 0.400)
 const COP_ACCENT := Color(0.149, 0.180, 0.251)
 
+## Qui dentro c'è chi sta per strada a orari fissi. L'unico con ruolo
+## `ROLE_SEEDS` — Brian, il cugino che lavora alla clinica — NON è in questo
+## elenco: esiste solo quando c'è un appuntamento, e a tirarlo su dove aspetta è
+## `city.gd` leggendo `SeedDeal`. Un venditore di semi fermo a un indirizzo
+## sarebbe un distributore automatico, e la scelta di quando chiamarlo
+## sparirebbe.
 const NPCS := [
-	# ==== L'amico della clinica: l'unica fonte di semi ====
-	{
-		# Sta sul marciapiede davanti alla CLINIC, e solo in orario di lavoro.
-		"id": "milo", "name": "MILO", "role": ROLE_SEEDS,
-		"route": [Vector2(3760, 256), Vector2(3860, 256)],
-		"speed": 26.0, "pause": 3.2, "hours": Vector2(8, 20),
-		"color": Color(0.847, 0.878, 0.898), "accent": Color(0.298, 0.478, 0.545),
-	},
 	# ==== Clienti: uno o due per quartiere, su fasce orarie diverse ====
 	{
 		"id": "tony", "name": "TONY", "role": ROLE_BUYER,

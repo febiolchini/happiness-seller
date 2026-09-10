@@ -54,6 +54,16 @@ var _rows := [
 		"text": func(data: SaveData) -> String: return Economy.heat_label(data.heat),
 		"show": func(data: SaveData) -> bool: return data.heat >= 10.0,
 	},
+	# Dove aspetta Brian, finché aspetta. Il messaggino che annuncia
+	# l'appuntamento se ne va dopo due secondi e mezzo, e senza questa riga
+	# l'unico modo di ripescare il posto sarebbe tornare in cantina a
+	# riaprire il PC — cioè attraversare la città al contrario.
+	{
+		"size": 11,
+		"color": Color(0.55, 0.85, 0.45),
+		"text": func(data: SaveData) -> String: return SeedDeal.place(data),
+		"show": func(data: SaveData) -> bool: return SeedDeal.is_ready(data),
+	},
 ]
 
 ## Il pannello sta in un HBoxContainer allineato a destra, così si stringe sul

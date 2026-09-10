@@ -75,6 +75,20 @@ const ROADS_V := [
 	Rect2(4256, -352, 96, 4512),  # HILL DRIVE
 ]
 
+## Nomi delle strade, nello stesso ordine di `ROADS_H`/`ROADS_V`. Finora
+## stavano solo nei commenti qui sopra, che va benissimo finché servono a chi
+## legge il codice: da quando un nome va MOSTRATO al giocatore — Brian che dice
+## dove aspetta — deve essere un dato leggibile e non un commento.
+##
+## Sono di sole lettere e spazio, quindi si possono scrivere col font del gioco.
+const ROAD_NAMES_H := [
+	"MAIN STREET", "CROSS STREET", "FOUNDRY ROW",
+	"DIVISION AVENUE", "PARK LANE", "SOUTH BOULEVARD",
+]
+const ROAD_NAMES_V := [
+	"MILL ROAD", "DOCK STREET", "FURNACE STREET", "EAST STREET", "HILL DRIVE",
+]
+
 # --- Dove si cammina -------------------------------------------------------
 ## Quote dei marciapiedi, una per strada nell'ordine di `ROADS_H`/`ROADS_V`.
 ## Sono i numeri da usare per scrivere i percorsi degli NPC: presi da qui non si
@@ -669,3 +683,150 @@ static func district_at(point: Vector2) -> String:
 ## casa iniziale. È anche la posizione di partenza di una partita nuova.
 static func home_doorstep() -> Vector2:
 	return Vector2(320, 264)
+
+# --- Punti d'incontro ------------------------------------------------------
+
+## Quanto lontano da casa può dare appuntamento Brian: uno o due isolati.
+##
+## Il minimo conta quanto il massimo. Sotto i 220 px l'appuntamento cadrebbe
+## sul marciapiede di casa, e "esci ed è già lì" non è un incontro: è un
+## bottone con qualche secondo di attesa davanti.
+const MEET_MIN_DISTANCE := 220.0
+const MEET_MAX_DISTANCE := 900.0
+## Passo con cui si campionano i marciapiedi in cerca di posti buoni. A 64 px i
+## punti restano distinguibili fra loro: a 32 due appuntamenti diversi
+## finirebbero a un passo l'uno dall'altro e sembrerebbero lo stesso posto.
+const MEET_STEP := TILE * 2.0
+## Oltre questa distanza un'insegna non serve più a dire dove si è.
+const MEET_SIGN_RANGE := 320.0
+
+## Quanto deve restare libero intorno a un punto d'incontro.
+##
+## Non basta che il punto sia fuori dai muri: la griglia dei percorsi si tiene
+## un margine dagli edifici e lavora a celle da 16 px, quindi un punto a filo di
+## una facciata cade su una cella che la griglia considera piena. Succede su
+## tutta la quota dei marciapiedi a SUD di una strada, dove gli edifici hanno il
+## corpo che sale fino a toccarli: ci si passa, ma non ci si può stare.
+##
+## Il numero è più largo di quel margine più una cella. È scritto qui e non
+## preso da `CityNavigation` perché la pianta non deve dipendere da chi ci
+## cammina sopra; a tenere i due d'accordo c'è il controllo automatico
+## "ogni posto è calpestabile", che fallisce se si allontanano.
+const MEET_CLEARANCE := 28.0
+
+## I posti in cui Brian può dare appuntamento: punti di marciapiede a uno o due
+## isolati da casa.
+##
+## Sono RICAVATI dal reticolo e non elencati a mano, per lo stesso motivo degli
+## edifici di riempimento: un elenco scritto a mano smetterebbe di combaciare
+## alla prima strada spostata, e un appuntamento finito in mezzo alla
+## carreggiata si scoprirebbe solo andandoci.
+static func meet_spots() -> Array:
+	var home := home_doorstep()
+	# Gli ingombri servono a scartare i punti a filo di una facciata, e vanno
+	# presi da `all_buildings()` e non da `BUILDINGS`: intorno a casa la maggior
+	# parte di quello che c'è è riempimento generato, ed è proprio quello che
+	# occupa i fronti stradali.
+	var solid: Array[Rect2] = []
+	for entry in all_buildings():
+		solid.append(footprint(entry).grow(MEET_CLEARANCE))
+
+	var spots: Array = []
+	for i in ROADS_H.size():
+		for side: float in [SIDEWALK_N[i], SIDEWALK_S[i]]:
+			if absf(side - home.y) <= MEET_MAX_DISTANCE:
+				_scan_meet_line(spots, home, true, side, solid)
+	for i in ROADS_V.size():
+		for side: float in [SIDEWALK_W[i], SIDEWALK_E[i]]:
+			if absf(side - home.x) <= MEET_MAX_DISTANCE:
+				_scan_meet_line(spots, home, false, side, solid)
+	return spots
+
+## Percorre un marciapiede nel raggio utile e tiene i punti buoni. `horizontal`
+## dice se la quota fissa è la y (marciapiede di una strada orizzontale) o la x.
+static func _scan_meet_line(
+		spots: Array, home: Vector2, horizontal: bool, fixed: float,
+		solid: Array[Rect2]) -> void:
+	var center := home.x if horizontal else home.y
+	var to := center + MEET_MAX_DISTANCE
+	var at := floorf((center - MEET_MAX_DISTANCE) / MEET_STEP) * MEET_STEP
+	while at <= to:
+		var point := Vector2(at, fixed) if horizontal else Vector2(fixed, at)
+		at += MEET_STEP
+		var distance := point.distance_to(home)
+		if distance < MEET_MIN_DISTANCE or distance > MEET_MAX_DISTANCE:
+			continue
+		if not WORLD_BOUNDS.has_point(point):
+			continue
+		# Agli incroci il marciapiede di una strada finisce sull'asfalto di
+		# quella perpendicolare: lì l'appuntamento sarebbe in carreggiata.
+		if _on_asphalt(point):
+			continue
+		if _too_close_to_building(point, solid):
+			continue
+		spots.append(point)
+
+static func _too_close_to_building(point: Vector2, solid: Array[Rect2]) -> bool:
+	for rect in solid:
+		if rect.has_point(point):
+			return true
+	return false
+
+static func _on_asphalt(point: Vector2) -> bool:
+	for road: Rect2 in ROADS_H:
+		if road.has_point(point):
+			return true
+	for road: Rect2 in ROADS_V:
+		if road.has_point(point):
+			return true
+	return false
+
+## Come si chiama, a parole, il posto in cui si dà appuntamento.
+##
+## Una coppia di coordinate non dice niente a nessuno: il nome esce dalla
+## strada su cui cade il punto più l'insegna del punto di riferimento più
+## vicino ("MAIN STREET BY THE LAUNDROMAT"). Ricavato e non scritto a mano,
+## così resta giusto anche se l'edificio si sposta.
+##
+## Senza punteggiatura di proposito: solo lettere e spazi si possono scrivere
+## anche col font del gioco, che di cifre e virgole non ne ha.
+static func place_name(point: Vector2) -> String:
+	var street := street_at(point)
+	var sign_name := _nearest_sign(point)
+	if sign_name.is_empty():
+		return street if not street.is_empty() else "THE FLATS"
+	# Un'insegna che comincia già per "THE" l'articolo ce l'ha: senza questo si
+	# ottiene "BY THE THE PROJECTS".
+	var by := "BY %s" % sign_name if sign_name.begins_with("THE ") else "BY THE %s" % sign_name
+	if street.is_empty():
+		return by
+	return "%s %s" % [street, by]
+
+## Nome della strada su cui cade un punto, contando anche i marciapiedi.
+## "" se il punto è lontano da qualsiasi strada.
+static func street_at(point: Vector2) -> String:
+	for i in ROADS_H.size():
+		if (ROADS_H[i] as Rect2).grow(SIDEWALK_DEPTH).has_point(point):
+			return str(ROAD_NAMES_H[i])
+	for i in ROADS_V.size():
+		if (ROADS_V[i] as Rect2).grow(SIDEWALK_DEPTH).has_point(point):
+			return str(ROAD_NAMES_V[i])
+	return ""
+
+## Insegna del punto di riferimento più vicino, "" se non ce n'è uno abbastanza
+## vicino da servire come indicazione.
+##
+## Cerca solo fra i punti di riferimento di `BUILDINGS` e non fra tutti gli
+## edifici: quelli generati hanno insegne generiche pescate a caso dal
+## quartiere, e "BY THE HOUSE" non dice a nessuno dove andare.
+static func _nearest_sign(point: Vector2) -> String:
+	var best := ""
+	var best_distance := MEET_SIGN_RANGE
+	for entry: Dictionary in BUILDINGS:
+		if not entry.has("label"):
+			continue
+		var distance: float = (entry["base"] as Vector2).distance_to(point)
+		if distance < best_distance:
+			best_distance = distance
+			best = str(entry["label"])
+	return best
