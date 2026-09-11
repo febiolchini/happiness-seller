@@ -183,21 +183,21 @@ func _talk_seeds(dialogue: Node) -> void:
 	var left := SeedDeal.seeds_left(data)
 
 	if left <= 0:
-		dialogue.open(npc_name, "That was the last of it. Give me a couple of hours and ask again.", [])
+		dialogue.open(npc_name, tr("NPC_SEEDS_EMPTY"), [])
 		return
 
-	var body := "Straight out of the clinic stock, cousin. %d $ a seed, and you never got them from me.\n\nI brought %d. You have %d seed(s), %d $." % [
+	var body := tr("NPC_SEEDS_BODY") % [
 		price, left, Economy.seeds_owned(data), data.cash]
 	var choices: Array = []
 	for step in _seed_steps(left):
 		var count: int = step
 		choices.append({
-			"label": "BUY %d  -  %d $" % [count, price * count],
+			"label": tr("NPC_SEEDS_BUY") % [count, price * count],
 			"enabled": data.cash >= price * count,
 			"keep_open": true,
 			"action": func() -> void: _buy_seeds(dialogue, count),
 		})
-	choices.append({"label": "THAT IS ALL", "action": func() -> void: pass})
+	choices.append({"label": tr("NPC_SEEDS_DONE"), "action": func() -> void: pass})
 	dialogue.open(npc_name, body, choices)
 
 ## Tagli sensati per quanti semi ha addosso, con sempre uno che li prende tutti.
@@ -213,12 +213,12 @@ func _seed_steps(most: int) -> Array:
 func _buy_seeds(dialogue: Node, count: int) -> void:
 	var bought := SeedDeal.buy(GameState.current, count)
 	if bought > 0:
-		GameState.notify("+%d SEEDS" % bought)
+		GameState.notify(tr("NOTE_SEEDS_BOUGHT") % bought)
 	# Comprato l'ultimo seme l'appuntamento si chiude e Brian se ne va: la
 	# battuta di commiato la dice prima di sparire, altrimenti il dialogo
 	# resterebbe aperto sopra a un pezzo di marciapiede vuoto.
 	if not SeedDeal.is_ready(GameState.current):
-		dialogue.open(npc_name, "That is me cleaned out. See you around, cousin.", [])
+		dialogue.open(npc_name, tr("NPC_SEEDS_CLEANED_OUT"), [])
 		return
 	# Si riapre invece di chiudere: comprare tre volte di fila non deve costare
 	# tre giri di camminata fino all'appuntamento.
@@ -233,21 +233,21 @@ func _talk_buyer(dialogue: Node) -> void:
 	var stock := Economy.stock(data)
 
 	if wanted <= 0:
-		dialogue.open(npc_name, "I am good for today. Come find me tomorrow.", [])
+		dialogue.open(npc_name, tr("NPC_BUYER_DONE"), [])
 		return
 	if stock <= 0:
-		dialogue.open(npc_name, "You are empty handed. I need %d g, whenever you sort yourself out." % wanted, [])
+		dialogue.open(npc_name, tr("NPC_BUYER_EMPTY_HANDED") % wanted, [])
 		return
 
-	var body := "I can take %d g today, %d $ a gram.\n\nYou are carrying %d g." % [wanted, price, stock]
+	var body := tr("NPC_BUYER_BODY") % [wanted, price, stock]
 	var choices: Array = []
 	for amount in _sale_steps(mini(wanted, stock)):
 		choices.append({
-			"label": "SELL %d G  -  %d $" % [amount, amount * price],
+			"label": tr("NPC_BUYER_SELL") % [amount, amount * price],
 			"keep_open": true,
 			"action": func() -> void: _sell_to(dialogue, amount),
 		})
-	choices.append({"label": "NOT NOW", "action": func() -> void: pass})
+	choices.append({"label": tr("NPC_BUYER_NOT_NOW"), "action": func() -> void: pass})
 	dialogue.open(npc_name, body, choices)
 
 ## Tagli di vendita sensati per la quantità in gioco: pochi bottoni, e sempre
@@ -263,20 +263,20 @@ func _sale_steps(most: int) -> Array:
 func _sell_to(dialogue: Node, grams: int) -> void:
 	var revenue := Economy.sell_street(GameState.current, npc_id, grams)
 	if revenue > 0:
-		GameState.notify("+%d $  (%d G)" % [revenue, grams])
+		GameState.notify(tr("NOTE_SOLD") % [UiFormat.money(revenue), grams])
 	_talk_buyer(dialogue)
 
 ## La polizia: per ora non fa niente, ma dice a che punto sei. È il gancio
 ## pronto per le retate.
 func _talk_cop(dialogue: Node) -> void:
 	var heat := GameState.current.heat
-	var body := "Move along."
+	var body := tr("NPC_COP_CALM")
 	if heat >= 60.0:
-		body = "We know what you are doing down in the Flats. We are just waiting to prove it."
+		body = tr("NPC_COP_HUNT")
 	elif heat >= 30.0:
-		body = "Funny. People keep mentioning your name lately."
+		body = tr("NPC_COP_TALK")
 	elif heat >= 15.0:
-		body = "New face. I remember faces."
+		body = tr("NPC_COP_SEEN")
 	dialogue.open(npc_name, body, [])
 
 # --- Disegno segnaposto ----------------------------------------------------

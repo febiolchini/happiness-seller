@@ -30,7 +30,7 @@ const STRAINS := {
 	"regular": {
 		"name": "REGULAR",
 		"seed_price": 40,
-		"grow_hours": 30.0,
+		"grow_hours": 29.0,
 		"grams": 20,
 		"base_price": 10,
 	},
@@ -39,6 +39,10 @@ const STRAINS := {
 const DEFAULT_STRAIN := "regular"
 
 # --- Come si parte ---------------------------------------------------------
+
+## Soldi che chiudono il prologo. La prima volta che si arriva qui il cugino
+## si fa vivo e si sblocca il personale: vedi `GameState._check_prologue()`.
+const PROLOGUE_CASH := 1000
 
 const STARTING_CASH := 120
 const STARTING_SEEDS := 2
@@ -168,7 +172,7 @@ static func sell_street(data: SaveData, npc_id: String, grams: int) -> int:
 	var sold := mini(mini(grams, street_demand_left(data, npc_id)), stock(data))
 	if sold <= 0:
 		return 0
-	var revenue := sell(data, sold, retail_price(data), HEAT_PER_STREET_GRAM)
+	var revenue := sell(data, sold, retail_price(data), street_heat(data))
 	if revenue > 0:
 		_mark_street_sale(data, npc_id, sold)
 	return revenue
@@ -197,20 +201,30 @@ static func _mark_street_sale(data: SaveData, npc_id: String, grams: int) -> voi
 
 # --- Attenzione ------------------------------------------------------------
 
+## Attenzione per grammo venduto in strada, col filtro a carbone del negozio
+## già scontato. Passa da qui chiunque venda al dettaglio — il giocatore in
+## prima persona e i dealer assunti — così l'acquisto vale per tutti e due.
+static func street_heat(data: SaveData) -> float:
+	return HEAT_PER_STREET_GRAM * Shop.heat_factor(data)
+
 static func add_heat(data: SaveData, amount: float) -> void:
 	data.heat = clampf(data.heat + amount, 0.0, HEAT_MAX)
 
 ## Etichetta leggibile dell'attenzione addosso al giocatore, per HUD e PC.
+## Già tradotta: chi la mostra la scrive e basta.
+##
+## `TranslationServer.translate()` e non `tr()`: questa è una funzione statica di
+## una classe che non è un `Node`, e `tr()` è un metodo di `Node`.
 static func heat_label(heat: float) -> String:
 	if heat < 15.0:
-		return "QUIET"
+		return TranslationServer.translate("HEAT_QUIET")
 	if heat < 35.0:
-		return "NOTICED"
+		return TranslationServer.translate("HEAT_NOTICED")
 	if heat < 60.0:
-		return "WATCHED"
+		return TranslationServer.translate("HEAT_WATCHED")
 	if heat < 85.0:
-		return "HUNTED"
-	return "RAID SOON"
+		return TranslationServer.translate("HEAT_HUNTED")
+	return TranslationServer.translate("HEAT_RAID_SOON")
 
 # --- Vasi ------------------------------------------------------------------
 

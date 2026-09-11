@@ -42,6 +42,7 @@ func _ready() -> void:
 	# l'esecuzione ferma e lo schermo vuoto.
 	for test in [
 		["carica tutto", _test_everything_loads],
+		["le tre lingue", _test_translations],
 		["pianta della citta'", _test_city_layout],
 		["percorsi", _test_navigation],
 		["partita nuova", _test_new_game],
@@ -50,6 +51,12 @@ func _ready() -> void:
 		["vendite", _test_selling],
 		["clienti di strada", _test_street_customer],
 		["ampliamento del seminterrato", _test_plot_expansion],
+		["negozio online", _test_shop],
+		["vasi autoinnaffianti", _test_auto_water],
+		["fine del prologo", _test_prologue],
+		["il personale coltiva", _test_staff_growing],
+		["il personale vende", _test_staff_selling],
+		["le paghe", _test_staff_wages],
 		["posti dove vedersi", _test_meet_spots],
 		["appuntamento con brian", _test_seed_deal],
 		["salvataggio e ricaricamento", _test_save_roundtrip],
@@ -106,6 +113,11 @@ func _advance(hours: float) -> void:
 	while data.time_of_day >= 24.0:
 		data.time_of_day -= 24.0
 		data.day += 1
+
+## Chiude i messaggi del telefono lasciati aperti da un controllo.
+func _close_messages() -> void:
+	for child in GameState.get_children():
+		child.free()
 
 func _fresh() -> SaveData:
 	GameState.new_game()
@@ -534,10 +546,235 @@ func _test_seed_deal() -> void:
 	_check(not SeedDeal.is_active(later), "e l'appuntamento sparisce")
 	_check(SeedDeal.can_ask(later), "così non si resta bloccati senza semi")
 
+## Ogni riga della tabella deve avere tutte e tre le lingue, e quelle mostrate
+## col font del gioco solo lettere e spazio.
+##
+## Serve perché una traduzione dimenticata non rompe niente: `tr()` restituisce
+## la chiave, quindi il gioco continua a girare mostrando `PC_TAB_SHOP` in mezzo
+## alla schermata. È il tipo di errore che si trova per caso, mesi dopo, e solo
+## se qualcuno apre il gioco in quella lingua.
+func _test_translations() -> void:
+	_check_empty(Strings.problems(), "la tabella delle lingue e' completa")
+
+	# Un giro vero sul TranslationServer: le chiavi che finiscono nelle scene
+	# devono tradursi in tutte le lingue, altrimenti il menu mostra "MENU_BACK".
+	var was := GameSettings.locale
+	for locale in Strings.LOCALES:
+		GameSettings.locale = locale
+		var missing: Array = []
+		for key in ["MENU_NEW_GAME", "MENU_BACK", "PC_TITLE", "PC_CLOSE", "ROOM_BASEMENT"]:
+			if TranslationServer.translate(key) == key:
+				missing.append("%s in %s" % [key, locale])
+		_check_empty(missing, "le chiavi delle scene si traducono")
+	GameSettings.locale = was
+
+	# E le cose che passano dalle tabelle di gioco devono arrivare tradotte, non
+	# come chiave: e' il giro che fanno davvero in partita.
+	GameSettings.locale = "it"
+	_check_eq(Shop.item_name("lamps"), "LAMPADE ROSSE", "il negozio parla italiano")
+	_check_eq(Staff.role_name("grower"), "COLTIVATORE", "e anche il personale")
+	_check_eq(Economy.heat_label(0.0), "TRANQUILLO", "e l'attenzione")
+	GameSettings.locale = was
+
+# ---------------------------------------------------------------------------
+
+func _test_shop() -> void:
+	var data := _fresh()
+	data.cash = 0
+	_check(not Shop.can_buy(data, "toolkit"), "senza soldi non si compra niente")
+	_check(not Shop.buy(data, "toolkit"), "e il negozio dice di no")
+	_check_eq(Shop.owned(data, "toolkit"), 0, "niente arriva a casa")
+
+	data.cash = Shop.price("toolkit")
+	_check(Shop.buy(data, "toolkit"), "coi soldi si compra")
+	_check_eq(data.cash, 0, "e i soldi se ne vanno")
+	_check_eq(Shop.owned(data, "toolkit"), 1, "il pezzo e' in inventario")
+
+	data.cash = 100000
+	_check(not Shop.can_buy(data, "toolkit"), "il toolkit e' uno solo, non se ne comprano due")
+
+	# Le lampade accorciano il ciclo, il toolkit alza la resa.
+	var strain := Economy.strain(Economy.DEFAULT_STRAIN)
+	var base_hours := float(strain["grow_hours"])
+	var base_grams := int(strain["grams"])
+	var mods := Shop.grow_mods(data, base_hours, base_grams)
+	_check(int(mods["grams"]) > base_grams, "il toolkit alza la resa")
+	_check(is_equal_approx(float(mods["hours"]), base_hours), "ma non tocca il tempo")
+
+	_check(Shop.buy(data, "lamps"), "si comprano le lampade")
+	var lit := Shop.grow_mods(data, base_hours, base_grams)
+	_check(float(lit["hours"]) < base_hours, "le lampade accorciano il ciclo")
+
+	# Il filtro a carbone abbassa l'attenzione per grammo venduto in strada.
+	var plain := Economy.street_heat(data)
+	_check(Shop.buy(data, "filter"), "si compra il filtro")
+	_check(Economy.street_heat(data) < plain, "il filtro abbassa l'attenzione per grammo")
+
+	# La fotografia dell'attrezzatura resta attaccata alla pianta: comprare
+	# altre lampade a meta' ciclo non deve accorciare una pianta gia' in terra.
+	var plot := data.plot(0)
+	Grow.plant(plot, Economy.DEFAULT_STRAIN, GameState.total_hours(), lit)
+	var planted_hours := Grow.grow_hours(plot)
+	Shop.buy(data, "lamps")
+	_check(
+		is_equal_approx(Grow.grow_hours(plot), planted_hours),
+		"comprare lampade a meta' ciclo non cambia una pianta gia' in terra")
+
+func _test_auto_water() -> void:
+	var data := _fresh()
+	data.cash = 100000
+	_check(Shop.buy(data, "auto_water"), "si compra un vaso autoinnaffiante")
+	_check(Shop.is_auto_pot(data, 0), "equipaggia il primo vaso")
+	_check(not Shop.is_auto_pot(data, 1), "e solo quello")
+	_check_eq(Shop.max_owned(data, "auto_water"), data.plot_slots, "se ne possono avere quanti sono i vasi")
+
+	var auto_plot := data.plot(0)
+	var plain_plot := data.plot(1)
+	var now := GameState.total_hours()
+	Grow.plant(auto_plot, Economy.DEFAULT_STRAIN, now)
+	Grow.plant(plain_plot, Economy.DEFAULT_STRAIN, now)
+
+	# Un ciclo intero senza toccare niente.
+	_advance(float(Economy.strain(Economy.DEFAULT_STRAIN)["grow_hours"]) + 2.0)
+	now = GameState.total_hours()
+	Grow.sync(auto_plot, now, true)
+	Grow.sync(plain_plot, now)
+	_check(not Grow.is_thirsty(auto_plot, now, true), "il vaso col serbatoio non ha mai sete")
+	_check(Grow.is_thirsty(plain_plot, now), "quello normale si', lasciato li'")
+	_check(is_equal_approx(Grow.quality(auto_plot), 1.0), "e rende pieno senza che nessuno lo annaffi")
+	_check(Grow.yield_grams(auto_plot) > Grow.yield_grams(plain_plot), "piu' di quello trascurato")
+
+	_check_eq(
+		Grow.count_thirsty(data.plots, now, Shop.auto_pots(data)), 1,
+		"nel conto dei vasi con sete ci finisce solo quello normale")
+
+func _test_prologue() -> void:
+	var data := _fresh()
+	_check_eq(data.chapter, "prologo", "si parte dal prologo")
+	_check(not bool(data.get_flag("staff_unlocked", false)), "e senza personale")
+	_check(not Staff.can_hire(data, "grower"), "prima del prologo non si assume")
+
+	data.cash = Economy.PROLOGUE_CASH
+	GameState._check_prologue()
+	_check_eq(data.chapter, "capitolo_uno", "ai %d $ il prologo si chiude" % Economy.PROLOGUE_CASH)
+	_check(bool(data.get_flag("staff_unlocked", false)), "e si sblocca il personale")
+	_check(Staff.can_hire(data, "grower") or data.cash < Staff.hire_cost("grower"), "e da li' si assume")
+	# Il messaggio del cugino è un nodo vero appeso a `GameState`: senza questo
+	# giro resterebbe lì per tutto il resto dei controlli, e a fine esecuzione
+	# comparirebbe fra gli oggetti non liberati.
+	_close_messages()
+
+	# Scendere sotto la soglia non riapre il prologo, e il messaggio del cugino
+	# non si ripresenta: e' una cosa che succede una volta sola.
+	data.cash = 10
+	GameState._check_prologue()
+	_check_eq(data.chapter, "capitolo_uno", "il prologo resta chiuso")
+
+func _test_staff_growing() -> void:
+	var data := _fresh()
+	data.cash = Staff.hire_cost("grower")
+	var now := GameState.total_hours()
+	_check(Staff.hire(data, "grower", now), "si assume un coltivatore")
+	_check_eq(Staff.count(data, "grower"), 1, "ed e' in organico")
+	_check_eq(data.cash, 0, "l'assunzione si paga")
+
+	# Ha i semi: pianta da solo.
+	data.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 4)
+	var report := Staff.work(data, now)
+	_check_eq(int(report["planted"]), Staff.POTS_PER_GROWER, "pianta i vasi che segue")
+	_check(not Grow.is_empty(data.plot(0)), "il primo vaso e' pieno")
+	_check(Grow.is_empty(data.plot(2)), "il terzo no: un coltivatore segue due vasi")
+
+	# Il ciclo passa senza che il giocatore tocchi niente: annaffia e raccoglie.
+	_advance(Grow.WATER_HOURS + 1.0)
+	var watered := Staff.work(data, GameState.total_hours())
+	_check_eq(int(watered["watered"]), Staff.POTS_PER_GROWER, "annaffia quando hanno sete")
+
+	_advance(float(Economy.strain(Economy.DEFAULT_STRAIN)["grow_hours"]))
+	var cut := Staff.work(data, GameState.total_hours())
+	_check_eq(int(cut["harvested"]), Staff.POTS_PER_GROWER, "raccoglie quando sono pronte")
+	_check(int(cut["grams"]) > 0, "e la merce arriva in magazzino")
+	_check_eq(Economy.stock(data), int(cut["grams"]), "tutta quanta")
+	_check_eq(int(cut["planted"]), Staff.POTS_PER_GROWER, "e ripianta subito coi semi rimasti")
+
+func _test_staff_selling() -> void:
+	var data := _fresh()
+	data.cash = Staff.hire_cost("dealer")
+	var now := GameState.total_hours()
+	_check(Staff.hire(data, "dealer", now), "si assume un dealer")
+	data.cash = 0
+	data.add_item(Economy.PRODUCT, 500)
+
+	# Tutto all'ingrosso: non si alza l'attenzione.
+	Staff.set_wholesale_share(data, 100)
+	_advance(10.0)
+	var bulk := Staff.work(data, GameState.total_hours())
+	_check(int(bulk["sold"]) > 0, "in dieci ore qualcosa lo piazza")
+	_check_eq(int(bulk["sold"]), int(10.0 * Staff.GRAMS_PER_DEALER_HOUR), "quanto riesce a piazzare in dieci ore")
+	_check(int(bulk["revenue"]) > 0, "e porta a casa i soldi")
+	_check_eq(data.cash, int(bulk["revenue"]), "che finiscono in cassa")
+	_check_eq(data.heat, 0.0, "vendendo all'ingrosso non si alza l'attenzione")
+
+	# Tutto in strada: rende di piu' e scalda le acque.
+	Staff.set_wholesale_share(data, 0)
+	_advance(10.0)
+	var street := Staff.work(data, GameState.total_hours())
+	_check(data.heat > 0.0, "vendendo in strada l'attenzione sale")
+	_check(int(street["revenue"]) > int(bulk["revenue"]), "e la strada paga meglio dell'ingrosso")
+
+	# Senza merce non si inventa niente.
+	data.inventory.erase(Economy.PRODUCT)
+	_advance(10.0)
+	var empty := Staff.work(data, GameState.total_hours())
+	_check_eq(int(empty["revenue"]), 0, "a magazzino vuoto non si incassa niente")
+
+	# Le ore avanzate non si perdono: il resto sotto al grammo torna al giro dopo.
+	data.add_item(Economy.PRODUCT, 500)
+	var before := Economy.stock(data)
+	for i in 20:
+		_advance(0.5)
+		Staff.work(data, GameState.total_hours())
+	_check_eq(
+		before - Economy.stock(data), int(10.0 * Staff.GRAMS_PER_DEALER_HOUR),
+		"venti mezz'ore piazzano quanto dieci ore in un colpo solo")
+
+func _test_staff_wages() -> void:
+	var data := _fresh()
+	data.cash = Staff.hire_cost("grower")
+	_check(Staff.hire(data, "grower", GameState.total_hours()), "assunto")
+	_check_eq(Staff.daily_wages(data), Staff.wage("grower"), "la paga del giorno")
+
+	data.cash = 1000
+	var paid := Staff.pay_wages(data)
+	_check_eq(int(paid["paid"]), Staff.wage("grower"), "a mezzanotte si paga")
+	_check_eq(data.cash, 1000 - Staff.wage("grower"), "e la cassa cala")
+	_check_eq(str(paid["quit"]), "", "nessuno se ne va")
+
+	# Cassa vuota: se ne va uno, invece di lasciare un buco che si allarga.
+	data.cash = 0
+	var broke := Staff.pay_wages(data)
+	_check_eq(str(broke["quit"]), "grower", "senza soldi il coltivatore se ne va")
+	_check_eq(Staff.total(data), 0, "e l'organico si svuota")
+	_check(data.cash >= 0, "la cassa non va sotto zero")
+
+	_check(not Staff.fire(data, "grower"), "non si puo' licenziare chi non c'e'")
+
 func _test_save_roundtrip() -> void:
 	var data := _fresh()
+	# Attrezzatura e personale prima della semina: cosi' la pianta si porta
+	# dietro una durata diversa da quella di listino, ed e' quella che il giro
+	# del salvataggio deve restituire intatta.
+	data.cash = 100000
+	Shop.buy(data, "lamps")
+	Staff.hire(data, "dealer", GameState.total_hours())
+	Staff.set_wholesale_share(data, 40)
+	# Mezz'ora di lavoro non ancora consumata: se tornasse arrotondata, il
+	# personale la perderebbe a ogni caricamento.
+	data.staff_checked_at = 26.5
+	var strain := Economy.strain(Economy.DEFAULT_STRAIN)
 	var plot := data.plot(1)
-	Grow.plant(plot, Economy.DEFAULT_STRAIN, GameState.total_hours())
+	Grow.plant(plot, Economy.DEFAULT_STRAIN, GameState.total_hours(),
+		Shop.grow_mods(data, float(strain["grow_hours"]), int(strain["grams"])))
 	_advance(7.5)
 	Grow.sync(plot, GameState.total_hours())
 	data.add_item(Economy.PRODUCT, 42)
@@ -556,6 +793,15 @@ func _test_save_roundtrip() -> void:
 	var restored := SaveData.from_dict(JSON.parse_string(JSON.stringify(data.to_dict())))
 	_check_eq(restored.plots.size(), data.plots.size(), "numero di vasi conservato")
 	_check_eq(restored.plot_slots, data.plot_slots, "vasi sbloccati conservati")
+	_check_eq(Shop.owned(restored, "lamps"), Shop.owned(data, "lamps"), "attrezzatura conservata")
+	_check_eq(Staff.count(restored, "dealer"), Staff.count(data, "dealer"), "organico conservato")
+	_check_eq(restored.wholesale_share, data.wholesale_share, "ripartizione delle vendite conservata")
+	_check(
+		is_equal_approx(restored.staff_checked_at, data.staff_checked_at),
+		"l'orologio del personale conserva la mezz'ora")
+	_check(
+		is_equal_approx(Grow.grow_hours(restored.plot(0)), Grow.grow_hours(data.plot(0))),
+		"la durata fotografata sulla pianta e' conservata")
 	_check_eq(Economy.stock(restored), Economy.stock(data), "merce conservata")
 	_check_eq(restored.market_price, 13, "prezzo del giorno conservato")
 	_check(is_equal_approx(restored.heat, heat_before), "attenzione conservata")

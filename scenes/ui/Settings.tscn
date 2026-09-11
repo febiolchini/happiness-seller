@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/ui/interactive_button.gd" id="1_script"]
 [ext_resource type="FontFile" path="res://assets/sprites/ui/alphabet.fnt" id="2_font"]
 [ext_resource type="PackedScene" path="res://scenes/levels/City.tscn" id="3_city"]
-[ext_resource type="Script" path="res://scripts/ui/menu_cursor.gd" id="4_cursor"]
+[ext_resource type="Script" path="res://scripts/ui/settings.gd" id="4_cursor"]
 
 [node name="Settings" type="Control"]
 layout_mode = 1
@@ -40,7 +40,7 @@ theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 flat = true
-text = "video"
+text = "MENU_VIDEO"
 alignment = 0
 script = ExtResource("1_script")
 
@@ -61,7 +61,7 @@ theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 flat = true
-text = "audio"
+text = "MENU_AUDIO"
 alignment = 0
 script = ExtResource("1_script")
 
@@ -82,7 +82,7 @@ theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 flat = true
-text = "commands"
+text = "MENU_COMMANDS"
 alignment = 0
 script = ExtResource("1_script")
 
@@ -97,7 +97,7 @@ theme_override_fonts/font = ExtResource("2_font")
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 flat = true
-text = "back"
+text = "MENU_BACK"
 alignment = 0
 script = ExtResource("1_script")
 target_scene = "res://scenes/main/Main.tscn"

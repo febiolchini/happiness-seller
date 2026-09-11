@@ -39,7 +39,7 @@ offset_bottom = 44.0
 theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 20
 theme_override_colors/font_color = Color(1, 1, 1, 1)
-text = "salvataggi"
+text = "MENU_SAVES"
 
 [node name="Panel" type="PanelContainer" parent="UI"]
 anchors_preset = 15
@@ -74,7 +74,7 @@ theme_override_fonts/font = ExtResource("3_font")
 theme_override_font_sizes/font_size = 12
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 flat = true
-text = "back"
+text = "MENU_BACK"
 alignment = 0
 script = ExtResource("2_button")
 target_scene = "res://scenes/main/Main.tscn"

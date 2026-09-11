@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/rooms/room.gd" id="1_room"]
 [ext_resource type="Texture2D" path="res://assets/sprites/characters/placeholdercharater.png" id="2_char"]
 [ext_resource type="FontFile" path="res://assets/sprites/ui/alphabet.fnt" id="3_font"]
+[ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
 
 [node name="Room" type="Control"]
 layout_mode = 3
@@ -58,7 +59,7 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
 theme_override_constants/shadow_offset_x = 2
 theme_override_constants/shadow_offset_y = 2
-text = "ROOM"
+text = "ROOM_GENERIC"
 horizontal_alignment = 1
 
 [node name="Exits" type="HBoxContainer" parent="."]
@@ -73,3 +74,5 @@ grow_horizontal = 2
 grow_vertical = 0
 theme_override_constants/separation = 28
 alignment = 1
+
+[node name="HUD" parent="." instance=ExtResource("4_hud")]

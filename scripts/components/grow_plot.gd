@@ -59,7 +59,7 @@ func _process(delta: float) -> void:
 	_elapsed = 0.0
 	var plot := _plot()
 	if not plot.is_empty():
-		Grow.sync(plot, GameState.total_hours())
+		Grow.sync(plot, GameState.total_hours(), _is_auto())
 	queue_redraw()
 
 # --- Stato -----------------------------------------------------------------
@@ -72,6 +72,11 @@ func _plot() -> Dictionary:
 func _is_locked() -> bool:
 	return GameState.current == null or index >= GameState.current.plot_slots
 
+## Questo vaso ha il serbatoio comprato dal negozio online? Se sì non ha mai
+## sete, e il click non ha piu' l'annaffiatura fra le cose sensate da fare.
+func _is_auto() -> bool:
+	return Shop.is_auto_pot(GameState.current, index)
+
 # --- Il click --------------------------------------------------------------
 
 func _on_pressed() -> void:
@@ -80,24 +85,25 @@ func _on_pressed() -> void:
 	if _is_locked():
 		var cost := Economy.next_plot_cost(GameState.current)
 		if cost < 0:
-			GameState.notify("NO ROOM LEFT DOWN HERE")
+			GameState.notify(tr("NOTE_NO_ROOM"))
 		else:
-			GameState.notify("USE THE PC TO OPEN THIS POT")
+			GameState.notify(tr("NOTE_USE_PC"))
 		return
 
 	var now := GameState.total_hours()
 	var plot := _plot()
-	Grow.sync(plot, now)
+	var auto := _is_auto()
+	Grow.sync(plot, now, auto)
 
 	if Grow.is_empty(plot):
 		_plant(plot, now)
 	elif Grow.is_ready(plot, now):
 		_harvest(plot, now)
-	elif Grow.is_thirsty(plot, now):
+	elif Grow.is_thirsty(plot, now, auto):
 		Grow.water(plot, now)
-		GameState.notify("WATERED")
+		GameState.notify(tr("NOTE_WATERED"))
 	else:
-		GameState.notify("%s  -  %s LEFT" % [
+		GameState.notify(tr("NOTE_PLOT_STATUS") % [
 			Grow.stage_name(plot, now), _format_hours(Grow.hours_left(plot, now))])
 	queue_redraw()
 
@@ -105,11 +111,15 @@ func _plant(plot: Dictionary, now: float) -> void:
 	var data := GameState.current
 	var item := Economy.seed_item(Economy.DEFAULT_STRAIN)
 	if data.get_item(item) <= 0:
-		GameState.notify("NO SEEDS  -  ASK MILO AT THE CLINIC")
+		GameState.notify(tr("NOTE_NO_SEEDS"))
 		return
 	data.add_item(item, -1)
-	Grow.plant(plot, Economy.DEFAULT_STRAIN, now)
-	GameState.notify("PLANTED")
+	var strain := Economy.strain(Economy.DEFAULT_STRAIN)
+	# L'attrezzatura comprata dal negozio si fotografa adesso e resta attaccata a
+	# questa pianta: vedi `Shop.grow_mods()`.
+	Grow.plant(plot, Economy.DEFAULT_STRAIN, now,
+		Shop.grow_mods(data, float(strain["grow_hours"]), int(strain["grams"])))
+	GameState.notify(tr("NOTE_PLANTED"))
 
 func _harvest(plot: Dictionary, now: float) -> void:
 	var grams := Grow.harvest(plot, now)
@@ -119,7 +129,7 @@ func _harvest(plot: Dictionary, now: float) -> void:
 	data.add_item(Economy.PRODUCT, grams)
 	data.bump_stat(Economy.STAT_GRAMS_HARVESTED, grams)
 	data.bump_stat(Economy.STAT_PLANTS_GROWN)
-	GameState.notify("+%d G HARVESTED" % grams)
+	GameState.notify(tr("NOTE_HARVESTED") % grams)
 
 # --- Disegno segnaposto ----------------------------------------------------
 
@@ -130,14 +140,17 @@ func _draw() -> void:
 
 	var now := GameState.total_hours()
 	var plot := _plot()
+	var auto := _is_auto()
 	var body := Rect2(Vector2.ZERO, size)
 
 	if is_hovered():
 		draw_rect(body, Color(1, 0.85, 0.1, 0.14), true)
 	_draw_pot(body)
 
+	if auto:
+		_draw_reservoir(body)
 	if Grow.is_empty(plot):
-		_draw_caption(body, "EMPTY", LABEL)
+		_draw_caption(body, tr("GROW_EMPTY"), LABEL)
 		return
 
 	var progress := clampf(Grow.progress(plot, now), 0.0, 1.0)
@@ -146,11 +159,11 @@ func _draw() -> void:
 	_draw_progress_bar(body, progress, ready)
 
 	if ready:
-		_draw_caption(body, "READY  %d G" % Grow.yield_grams(plot), READY_GLOW)
+		_draw_caption(body, "%s  %d G" % [tr("GROW_READY"), Grow.yield_grams(plot)], READY_GLOW)
 		_draw_pulse(body, READY_GLOW)
 	else:
 		_draw_caption(body, Grow.stage_name(plot, now), LABEL)
-	if Grow.is_thirsty(plot, now):
+	if Grow.is_thirsty(plot, now, auto):
 		_draw_droplet(body)
 
 func _draw_pot(body: Rect2) -> void:
@@ -219,7 +232,7 @@ func _draw_locked() -> void:
 			Vector2(minf(x + body.size.y, body.end.x), body.position.y + minf(body.size.y, body.end.x - x)),
 			LOCKED_LINE * Color(1, 1, 1, 0.35), 1.0)
 		x += step
-	_draw_caption(body, "LOCKED", LOCKED_LINE)
+	_draw_caption(body, tr("PC_PLOT_LOCKED").to_upper(), LOCKED_LINE)
 
 ## Etichetta con l'ombra sotto: sul tavolo i vasi si sovrappongono, e senza
 ## un contorno scuro il nome dello stadio si perde dentro alle foglie della
@@ -235,6 +248,18 @@ func _draw_caption(body: Rect2, text: String, color: Color) -> void:
 			font, at + offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE,
 			Color(0, 0, 0, 0.75))
 	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, color)
+
+## Il serbatoio del vaso autoinnaffiante: una tanica di fianco al vaso con un
+## tubicino che arriva nella terra. Ferma e non lampeggiante, al contrario della
+## goccia della sete — è una cosa che c'è, non una che chiede attenzione.
+func _draw_reservoir(body: Rect2) -> void:
+	var bottom := body.end.y - 2.0
+	var at := Vector2(body.position.x + 5.0, bottom - 12.0)
+	draw_rect(Rect2(at, Vector2(7.0, 12.0)), Color(0.176, 0.243, 0.290), true)
+	draw_rect(Rect2(at + Vector2(1.0, 6.0), Vector2(5.0, 5.0)), WATER * Color(1, 1, 1, 0.75), true)
+	draw_line(
+		at + Vector2(7.0, 3.0), Vector2(body.get_center().x - 4.0, bottom - 14.0),
+		Color(0.400, 0.443, 0.459), 1.0)
 
 ## Goccia lampeggiante: la pianta ha sete e la resa sta scendendo adesso.
 func _draw_droplet(body: Rect2) -> void:

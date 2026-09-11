@@ -29,7 +29,7 @@ func _rebuild() -> void:
 
 	var saves := GameState.list_saves()
 	if saves.is_empty():
-		_list.add_child(_info_label("Nessun salvataggio su questo dispositivo."))
+		_list.add_child(_info_label(tr("SAVES_EMPTY")))
 		return
 	for save in saves:
 		_list.add_child(_build_row(save))
@@ -42,16 +42,16 @@ func _build_row(save: Dictionary) -> Control:
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info.add_theme_constant_override("separation", 0)
 	info.add_child(_info_label("%s  —  %s" % [save["display_name"], save["chapter"]]))
-	info.add_child(_info_label("giorno %d   %d$   %d proprietà   %s giocate" % [
+	info.add_child(_info_label(tr("SAVES_LINE") % [
 		save["day"], save["cash"], save["properties"], _format_play_time(save["play_time"]),
 	], Color(0.75, 0.78, 0.82)))
-	info.add_child(_info_label("salvato il %s" % _format_date(save["saved_at"]), Color(0.55, 0.58, 0.62)))
+	info.add_child(_info_label(tr("SAVES_SAVED_ON") % _format_date(save["saved_at"]), Color(0.55, 0.58, 0.62)))
 	row.add_child(info)
 
 	var slot_id: String = save["slot_id"]
-	row.add_child(_action_button("carica", func(): _load(slot_id)))
+	row.add_child(_action_button(tr("MENU_LOAD"), func(): _load(slot_id)))
 
-	var delete_button := _action_button("cancella", func(): return)
+	var delete_button := _action_button(tr("MENU_DELETE"), func(): return)
 	delete_button.pressed.connect(func(): _ask_delete(slot_id, delete_button))
 	row.add_child(delete_button)
 	return row
@@ -95,12 +95,12 @@ func _ask_delete(slot_id: String, button: Button) -> void:
 		_rebuild()
 		return
 	_pending_delete = slot_id
-	button.text = "sicuro"
+	button.text = tr("MENU_SURE")
 	await get_tree().create_timer(CONFIRM_TIMEOUT).timeout
 	if _pending_delete == slot_id:
 		_pending_delete = ""
 		if is_instance_valid(button):
-			button.text = "cancella"
+			button.text = tr("MENU_DELETE")
 
 func _format_play_time(seconds: float) -> String:
 	var total := int(seconds)

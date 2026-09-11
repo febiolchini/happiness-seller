@@ -4,11 +4,11 @@
 [ext_resource type="Texture2D" path="res://assets/sprites/buildings/ingressoback.png" id="2_bg"]
 
 [node name="Entrance" instance=ExtResource("1_room")]
-room_name = "ENTRANCE"
+room_name = "ROOM_ENTRANCE"
 exits = {
-"KITCHEN": "res://scenes/rooms/Kitchen.tscn",
-"BASEMENT": "res://scenes/rooms/Basement.tscn",
-"EXIT": "res://scenes/levels/City.tscn"
+"ROOM_KITCHEN": "res://scenes/rooms/Kitchen.tscn",
+"ROOM_BASEMENT": "res://scenes/rooms/Basement.tscn",
+"ROOM_EXIT": "res://scenes/levels/City.tscn"
 }
 background_color = Color(0.129412, 0.109804, 0.101961, 1)
 

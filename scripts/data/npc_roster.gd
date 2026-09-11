@@ -133,9 +133,9 @@ const NPCS := [
 		"speed": 30.0, "pause": 2.6, "hours": Vector2(7, 21),
 		"color": Color(0.588, 0.541, 0.400), "accent": Color(0.322, 0.290, 0.243),
 		"lines": [
-			"Landlord raised the rent again. On this place. Can you believe it?",
-			"They say the mall is hiring. They always say the mall is hiring.",
-			"Keep an eye on your bike. Nothing stays out here for long.",
+			"LINE_FLATS_1_A",
+			"LINE_FLATS_1_B",
+			"LINE_FLATS_1_C",
 		],
 	},
 	{
@@ -144,9 +144,9 @@ const NPCS := [
 		"speed": 28.0, "pause": 3.0, "hours": Vector2(8, 20),
 		"color": Color(0.451, 0.400, 0.337), "accent": Color(0.271, 0.259, 0.235),
 		"lines": [
-			"Two buses a day down here. Both of them full.",
-			"You walk everywhere too? Figures.",
-			"The projects had heat until March. March.",
+			"LINE_FLATS_2_A",
+			"LINE_FLATS_2_B",
+			"LINE_FLATS_2_C",
 		],
 	},
 	{
@@ -155,9 +155,9 @@ const NPCS := [
 		"speed": 31.0, "pause": 2.4, "hours": Vector2(7, 19),
 		"color": Color(0.502, 0.451, 0.353), "accent": Color(0.290, 0.271, 0.243),
 		"lines": [
-			"Been trying to open a shop on this row for six years.",
-			"Permits go through city hall. City hall goes through nobody.",
-			"Quiet street. Too quiet for business.",
+			"LINE_FLATS_3_A",
+			"LINE_FLATS_3_B",
+			"LINE_FLATS_3_C",
 		],
 	},
 	{
@@ -166,9 +166,9 @@ const NPCS := [
 		"speed": 24.0, "pause": 4.2, "hours": Vector2(9, 20),
 		"color": Color(0.663, 0.596, 0.478), "accent": Color(0.361, 0.333, 0.298),
 		"lines": [
-			"I have lived on this avenue longer than it has had a name.",
-			"Careful past the tow yard. They take anything that stands still.",
-			"You look like you are up to something. Good for you.",
+			"LINE_FLATS_4_A",
+			"LINE_FLATS_4_B",
+			"LINE_FLATS_4_C",
 		],
 	},
 	{
@@ -180,9 +180,9 @@ const NPCS := [
 		"speed": 52.0, "pause": 0.8, "hours": Vector2(10, 23),
 		"color": Color(0.400, 0.482, 0.545), "accent": Color(0.243, 0.243, 0.278),
 		"lines": [
-			"Cops never come down Mill Road. Just saying.",
-			"You got anything? No? Cool. Cool cool cool.",
-			"I have cleared that whole stair set. Twice.",
+			"LINE_FLATS_5_A",
+			"LINE_FLATS_5_B",
+			"LINE_FLATS_5_C",
 		],
 	},
 	{
@@ -191,9 +191,9 @@ const NPCS := [
 		"speed": 26.0, "pause": 4.0, "hours": Vector2(6, 18),
 		"color": Color(0.502, 0.451, 0.294), "accent": Color(0.290, 0.259, 0.208),
 		"lines": [
-			"Third shift at the plant. Cough came free with the job.",
-			"Whole yard is scrap now. Used to be four hundred of us in there.",
-			"You want work, talk to the depot. You want money, do not.",
+			"LINE_IND_1_A",
+			"LINE_IND_1_B",
+			"LINE_IND_1_C",
 		],
 	},
 	{
@@ -202,9 +202,9 @@ const NPCS := [
 		"speed": 34.0, "pause": 2.0, "hours": Vector2(6, 20),
 		"color": Color(0.400, 0.427, 0.400), "accent": Color(0.251, 0.259, 0.251),
 		"lines": [
-			"I walk this street twice a day. Nothing ever changes on it.",
-			"Dock Street is the line. Flats that side, works this side.",
-			"Watch the trucks. They do not watch you.",
+			"LINE_IND_2_A",
+			"LINE_IND_2_B",
+			"LINE_IND_2_C",
 		],
 	},
 	{
@@ -213,9 +213,9 @@ const NPCS := [
 		"speed": 33.0, "pause": 2.2, "hours": Vector2(8, 19),
 		"color": Color(0.545, 0.451, 0.322), "accent": Color(0.278, 0.259, 0.231),
 		"lines": [
-			"Foreman says one more month. He said that last winter.",
-			"Smell that? That is the tank farm. You get used to it.",
-			"Everything here runs on somebody owing somebody.",
+			"LINE_IND_3_A",
+			"LINE_IND_3_B",
+			"LINE_IND_3_C",
 		],
 	},
 	{
@@ -224,9 +224,9 @@ const NPCS := [
 		"speed": 25.0, "pause": 4.4, "hours": Vector2(7, 17),
 		"color": Color(0.475, 0.416, 0.290), "accent": Color(0.282, 0.251, 0.212),
 		"lines": [
-			"Forty years on the line and they gave me a clock.",
-			"Division Avenue. Good name. Right idea.",
-			"Nothing gets built here any more. Only moved.",
+			"LINE_IND_4_A",
+			"LINE_IND_4_B",
+			"LINE_IND_4_C",
 		],
 	},
 	{
@@ -235,9 +235,9 @@ const NPCS := [
 		"speed": 36.0, "pause": 1.8, "hours": Vector2(9, 22),
 		"color": Color(0.435, 0.475, 0.596), "accent": Color(0.243, 0.259, 0.310),
 		"lines": [
-			"Rent downtown is a joke. The punchline is me.",
-			"Everyone here is late for something.",
-			"The clinic is the only place in this city that answers the phone.",
+			"LINE_DOWN_1_A",
+			"LINE_DOWN_1_B",
+			"LINE_DOWN_1_C",
 		],
 	},
 	{
@@ -246,9 +246,9 @@ const NPCS := [
 		"speed": 32.0, "pause": 2.6, "hours": Vector2(10, 23),
 		"color": Color(0.502, 0.416, 0.545), "accent": Color(0.259, 0.239, 0.290),
 		"lines": [
-			"I know a guy who knows a guy. That is the whole economy.",
-			"Market square on a weekday. Dead as anything.",
-			"You are not from downtown. It shows.",
+			"LINE_DOWN_2_A",
+			"LINE_DOWN_2_B",
+			"LINE_DOWN_2_C",
 		],
 	},
 	{
@@ -260,9 +260,9 @@ const NPCS := [
 		"speed": 24.0, "pause": 4.4, "hours": Vector2(8, 19),
 		"color": Color(0.435, 0.529, 0.408), "accent": Color(0.290, 0.322, 0.263),
 		"lines": [
-			"The fountain has been dry twice this month. Nobody at city hall answers.",
-			"Quiet down here. That is what I pay the taxes for.",
-			"You are a long way from the Flats, friend.",
+			"LINE_CIVIC_1_A",
+			"LINE_CIVIC_1_B",
+			"LINE_CIVIC_1_C",
 		],
 	},
 	{
@@ -271,9 +271,9 @@ const NPCS := [
 		"speed": 30.0, "pause": 2.8, "hours": Vector2(8, 20),
 		"color": Color(0.529, 0.510, 0.451), "accent": Color(0.290, 0.282, 0.259),
 		"lines": [
-			"Third window on the left, and bring two forms of everything.",
-			"I have been to every office on this avenue. Twice.",
-			"They moved the registry again. Nobody knows where.",
+			"LINE_CIVIC_2_A",
+			"LINE_CIVIC_2_B",
+			"LINE_CIVIC_2_C",
 		],
 	},
 	{
@@ -282,9 +282,9 @@ const NPCS := [
 		"speed": 29.0, "pause": 3.0, "hours": Vector2(8, 19),
 		"color": Color(0.596, 0.529, 0.400), "accent": Color(0.310, 0.290, 0.251),
 		"lines": [
-			"School board meets Tuesdays. Nobody comes.",
-			"That plaza cost more than the school it faces.",
-			"Careful who sees you down here in the daytime.",
+			"LINE_CIVIC_3_A",
+			"LINE_CIVIC_3_B",
+			"LINE_CIVIC_3_C",
 		],
 	},
 	{
@@ -293,9 +293,9 @@ const NPCS := [
 		"speed": 22.0, "pause": 5.0, "hours": Vector2(9, 18),
 		"color": Color(0.796, 0.769, 0.706), "accent": Color(0.400, 0.376, 0.361),
 		"lines": [
-			"We have a committee about people like you walking up here.",
-			"Lovely day. Do move along.",
-			"The gardener comes Tuesdays. You are not the gardener.",
+			"LINE_HILL_1_A",
+			"LINE_HILL_1_B",
+			"LINE_HILL_1_C",
 		],
 	},
 	{
@@ -304,9 +304,9 @@ const NPCS := [
 		"speed": 23.0, "pause": 4.8, "hours": Vector2(9, 18),
 		"color": Color(0.741, 0.706, 0.639), "accent": Color(0.376, 0.365, 0.337),
 		"lines": [
-			"Bought this place before the boulevard went in. Best decision I made.",
-			"The club has a waiting list. It has had one since 1974.",
-			"You want the Flats. Straight down, then keep going.",
+			"LINE_HILL_2_A",
+			"LINE_HILL_2_B",
+			"LINE_HILL_2_C",
 		],
 	},
 	{
@@ -315,9 +315,9 @@ const NPCS := [
 		"speed": 27.0, "pause": 3.4, "hours": Vector2(10, 19),
 		"color": Color(0.769, 0.706, 0.671), "accent": Color(0.396, 0.365, 0.353),
 		"lines": [
-			"Hill Drive is private above the boulevard. Officially.",
-			"I walk this every morning. I have never met a neighbour.",
-			"If you are selling something, the answer is no. Probably.",
+			"LINE_HILL_3_A",
+			"LINE_HILL_3_B",
+			"LINE_HILL_3_C",
 		],
 	},
 ]
@@ -330,11 +330,16 @@ static func by_id(npc_id: String) -> Dictionary:
 	return {}
 
 ## Una battuta a caso fra le sue, "" se non ne ha.
+## Una battuta a caso fra le sue, già tradotta.
+##
+## Nella tabella ci sono le CHIAVI e non le frasi: le tre lingue stanno in
+## `Strings`, e questa resta una tabella di chi c'è per strada invece di
+## diventare anche un file di testo in triplice copia.
 static func random_line(entry: Dictionary) -> String:
 	var lines: Array = entry.get("lines", [])
 	if lines.is_empty():
 		return ""
-	return str(lines[randi() % lines.size()])
+	return TranslationServer.translate(str(lines[randi() % lines.size()]))
 
 ## Se a quest'ora è per strada. `hours` può scavallare la mezzanotte
 ## (es. 22-4), quindi i due casi vanno distinti.

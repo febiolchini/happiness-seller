@@ -10,6 +10,7 @@ extends Node
 ## I salvataggi vanno in `user://`, la cartella dati dell'utente: `res://` in un
 ## gioco esportato è di sola lettura, quindi lì non si può scrivere.
 const CITY_SCENE := "res://scenes/levels/City.tscn"
+const PHONE_NOTICE_SCENE := "res://scenes/ui/PhoneNotice.tscn"
 const DEFAULT_SAVE_DIR := "user://saves"
 const EXTENSION := ".json"
 
@@ -36,7 +37,7 @@ var save_dir := DEFAULT_SAVE_DIR:
 ## 6 minuti veri. È il numero da girare per tarare il ritmo del gestionale, e va
 ## letto insieme a `Economy.STRAINS.grow_hours`: sono i due che insieme decidono
 ## quanto dura un ciclo di coltivazione in minuti di orologio da parete.
-## A 4.0 le 30 ore di gioco di una pianta sono circa 7 minuti e mezzo reali.
+## A 4.0 le 29 ore di gioco di una pianta sono circa 7 minuti reali.
 const GAME_MINUTES_PER_SECOND := 4.0
 
 signal game_started(data: SaveData)
@@ -53,6 +54,9 @@ signal seed_spot_ready(spot: Vector2, place: String)
 ## L'appuntamento è chiuso — comprato tutto, oppure Brian si è stancato di
 ## aspettare e se n'è andato. La mappa toglie il personaggio.
 signal seed_deal_closed()
+## Il prologo è finito: da qui in poi il PC ha la scheda del personale.
+## Ci si può agganciare la storia, quando ci sarà.
+signal chapter_changed(chapter: String)
 ## Emesso subito prima di scrivere su disco.
 ##
 ## Chi tiene in scena uno stato che non è ancora dentro a `current` lo riversa
@@ -85,6 +89,8 @@ func _process(delta: float) -> void:
 	current.play_time += delta
 	_advance_clock(delta)
 	_tick_seed_deal()
+	_tick_staff()
+	_check_prologue()
 
 	# L'orologio gira solo mentre si gioca davvero (non nei menu), quindi
 	# agganciare qui il salvataggio automatico vuol dire salvare solo quando
@@ -127,15 +133,69 @@ func _tick_seed_deal() -> void:
 	match SeedDeal.tick(current, total_hours()):
 		SeedDeal.STATE_READY:
 			var place := SeedDeal.place(current)
-			notify("BRIAN: %s" % place)
+			notify(tr("NOTE_BRIAN_SPOT") % place)
 			seed_spot_ready.emit(SeedDeal.spot(current), place)
 			# Un appuntamento fissato è roba che il giocatore ricorda: se il
 			# gioco si chiude male, riaprirlo deve ritrovarlo, non farglielo
 			# richiedere da capo.
 			save_game()
 		"gone":
-			notify("BRIAN LEFT")
+			notify(tr("NOTE_BRIAN_LEFT"))
 			seed_deal_closed.emit()
+
+## Fa lavorare il personale assunto.
+##
+## Come l'appuntamento con Brian, sta agganciato all'orologio e non a un timer
+## suo: il lavoro è misurato in ore di gioco, quindi deve scorrere quando scorre
+## quello. Il conto non è simulato — `Staff.work()` guarda che ore sono adesso.
+func _tick_staff() -> void:
+	if Staff.total(current) <= 0:
+		# Anche senza nessuno assunto il segnaposto del tempo va portato avanti,
+		# altrimenti il primo assunto si troverebbe addosso tutte le ore passate
+		# dall'inizio della partita.
+		current.staff_checked_at = total_hours()
+		return
+	var strain := Economy.strain(Economy.DEFAULT_STRAIN)
+	var mods := Shop.grow_mods(current, float(strain["grow_hours"]), int(strain["grams"]))
+	var report := Staff.work(current, total_hours(), mods)
+	if int(report["grams"]) > 0:
+		notify(tr("NOTE_STAFF_HARVESTED") % int(report["grams"]))
+	if int(report["revenue"]) > 0:
+		notify(tr("NOTE_STAFF_SOLD") % [UiFormat.money(int(report["revenue"])), int(report["sold"])])
+
+## La prima volta che si arriva a `Economy.PROLOGUE_CASH` il prologo si chiude:
+## il cugino si fa vivo e nel PC compare la scheda del personale.
+##
+## Il controllo sta qui e non dentro alla vendita perché i soldi entrano da
+## troppe parti — il PC, i clienti in strada, un domani gli affitti — e
+## ricordarsi di chiamarlo da ognuna vorrebbe dire dimenticarselo da qualcuna.
+## Attaccato all'orologio scatta comunque, qualunque sia la strada che ha fatto
+## arrivare i soldi.
+func _check_prologue() -> void:
+	if current.chapter != "prologo" or current.cash < Economy.PROLOGUE_CASH:
+		return
+	current.chapter = "capitolo_uno"
+	current.set_flag("staff_unlocked", true)
+	chapter_changed.emit(current.chapter)
+	message(tr("MSG_COUSIN_SPEAKER"), tr("MSG_COUSIN_BODY"))
+	save_game()
+
+## Mostra un messaggio sul telefono e restituisce il riquadro aperto.
+##
+## Il riquadro viene appeso a questo singleton, non alla scena corrente: è un
+## autoload, quindi sta sopra alla scena, e il messaggio compare uguale in
+## strada e dentro a una stanza senza che nessuna delle due debba saperne
+## niente. Vedi `scripts/ui/phone_notice.gd`.
+func message(speaker: String, body: String) -> Node:
+	var notice_scene: PackedScene = load(PHONE_NOTICE_SCENE)
+	if notice_scene == null:
+		push_warning("Manca la scena del messaggio: %s" % PHONE_NOTICE_SCENE)
+		notify("%s: %s" % [speaker, body])
+		return null
+	var popup := notice_scene.instantiate()
+	popup.setup(speaker, body)
+	add_child(popup)
+	return popup
 
 ## La mezzanotte: prezzo del giorno nuovo e attenzione che si raffredda.
 ## La logica sta in `Economy`, qui c'è solo il collegamento — così il singleton
@@ -144,9 +204,22 @@ func _on_day_started(_day: int) -> void:
 	if current == null:
 		return
 	Economy.roll_new_day(current)
+	_pay_staff()
 	# Il cambio di giorno è un punto di controllo naturale: è il momento in cui
 	# cambiano prezzi e attenzione, ed è quello che il giocatore ricorda.
 	save_game()
+
+## Le paghe del personale, scalate a mezzanotte. Se i soldi non bastano se ne
+## va uno: vedi `Staff.pay_wages()`.
+func _pay_staff() -> void:
+	if Staff.total(current) <= 0:
+		return
+	var result := Staff.pay_wages(current)
+	if int(result["paid"]) > 0:
+		notify(tr("NOTE_WAGES") % UiFormat.money(int(result["paid"])))
+	var quit_role: String = result["quit"]
+	if not quit_role.is_empty():
+		message(tr("MSG_STAFF_SPEAKER"), tr("MSG_STAFF_QUIT") % Staff.role_name(quit_role))
 
 # --- Ciclo di vita della partita -------------------------------------------
 

@@ -11,6 +11,11 @@ Il giro di gioco è: **chiedi semi a Brian dal PC → vai all'appuntamento →
 piantali nel seminterrato → annaffiali → raccogli → vendi**, all'ingrosso dal
 PC o in strada ai clienti. Vedi "Coltivare e vendere".
 
+Poi il giro si allarga: col **negozio online** si compra l'attrezzatura che lo
+rende meno faticoso (lampade, vasi che si annaffiano da soli), e a **1000 $** il
+prologo si chiude e si può **assumere personale** che coltiva e vende da solo.
+Vedi "Il negozio online", "La fine del prologo" e "Il personale".
+
 ## Struttura cartelle
 
 ```
@@ -33,8 +38,8 @@ scenes/
   components/     scene riutilizzabili (es. hitbox, interactable)
 
 scripts/
-  autoload/       singleton globali (GameState, SaveData)
-  data/           tabelle di bilanciamento e pianta della citta'
+  autoload/       singleton globali (GameState, GameSettings, SaveData)
+  data/           tabelle di bilanciamento, pianta della citta', testi
   characters/     logica personaggi e NPC
   components/     pezzi riutilizzabili (edifici, vasi, veicoli, fontana)
   levels/         mappa e disegno del terreno
@@ -477,7 +482,7 @@ fermandosi nei menu. Il ritmo è la costante `GAME_MINUTES_PER_SECOND`: a 4.0
 una giornata dura 6 minuti reali. È il numero da girare per tarare il gioco, e
 va letto insieme a `grow_hours` della varietà — sono i due che insieme decidono
 quanto dura un ciclo di coltivazione in minuti di orologio da parete (a 4.0, le
-30 ore di gioco di una pianta sono circa 7 minuti e mezzo reali).
+29 ore di gioco di una pianta sono circa 7 minuti reali).
 
 A mezzanotte scatta il segnale `day_started(day)`. Ci è già agganciato
 `Economy.roll_new_day()` (prezzo del giorno e raffreddamento dell'attenzione), ed
@@ -489,36 +494,46 @@ da zero ogni mezzanotte e non servirebbe a niente.
 
 ## HUD
 
-`scenes/ui/HUD.tscn` è agganciato dentro `City.tscn` e mostra in alto a destra
-soldi, giorno e orario, scorta in grammi e attenzione della polizia. È un
-segnaposto come il resto della grafica, ma legge già i dati veri della partita:
-quando arriverà la cornice pixel art cambierà solo l'aspetto, non la logica.
+`scenes/ui/HUD.tscn`: una riga sola in alto a destra, e i messaggini che
+scorrono sotto. Sta sia in strada sia **dentro agli edifici** — è figlio di
+`Room.tscn`, quindi tutte le stanze se lo ritrovano senza che vadano toccate
+una per una.
 
-Per aggiungere una riga (proprietà, reputazione, debiti...) basta una voce
-nell'array `_rows` di `scripts/ui/hud.gd`, con la funzione che formatta il testo
-a partire da `SaveData`. Label e aggiornamento vengono creati da soli. Una voce
-può avere anche `show`, una funzione che dice se la riga va mostrata: così l'HUD
-resta pulito all'inizio e si popola man mano che la partita acquista pezzi —
-grammi e attenzione compaiono solo quando ci sono.
+```
+4.200 $  ·  GIORNO 3  12:41  ·  75 g  ·  SORVEGLIATO
+```
 
-Sotto al pannello ci sono i **messaggini** (`+20 G HARVESTED`, `+340 $`), che
-arrivano dal segnale `GameState.notice` e se ne vanno da soli. Valgono la pena
-perché in un gestionale la maggior parte delle azioni cambia solo un numero da
-qualche parte: senza un riscontro immediato il giocatore non sa se il click ha
-fatto qualcosa. Chi emette un avviso chiama `GameState.notify()` e non deve
-sapere come verrà mostrato.
+### Perché una riga e non un pannello
 
-Due scelte da conoscere:
+Prima era un riquadro con bordo e sfondo, coi valori impilati dentro. Un
+pannello in un angolo è una finestra piccola: ruba spazio anche quando non ha
+niente da dire, e in un gioco in cui si guarda la strada e si clicca sulle cose,
+quel bordo continua a segnare un rettangolo che non fa parte del mondo.
 
-- L'HUD **legge lo stato ogni frame** invece di aspettare dei segnali. Così
-  qualsiasi codice futuro che faccia `GameState.current.cash += 100`
-  direttamente resta comunque mostrato giusto, senza doversi ricordare di
-  emettere niente. Le Label vengono riscritte solo quando il testo cambia.
-- Il pannello sta in un `HBoxContainer` allineato a destra, quindi si stringe
-  sul contenuto: passando da "80 $" a "1.234.567 $" la cornice si allarga da sé.
+Adesso è una riga sola senza sfondo: i soldi in evidenza, il resto più piccolo e
+più spento, separato da punti. A tenerla leggibile sopra a qualunque fondale è
+l'**ombra dura** sotto a ogni scritta, non una cassa dietro.
 
-`city.gd` spegne l'HUD (`enabled = false`) quando la mappa fa da sfondo a un
-menu, altrimenti comparirebbe dietro ai bottoni.
+### I segmenti compaiono quando servono
+
+La scorta quando ce n'è, l'attenzione quando è salita sopra 10, il posto dove
+aspetta Brian finché aspetta. A inizio partita la riga è due voci e si allunga
+man mano che la partita cresce. Il punto di separazione va messo solo *fra* due
+segmenti accesi: quello davanti al primo resterebbe appeso nel vuoto, ed è
+l'unico pezzo di logica che c'è nel disegno della riga.
+
+Aggiungerne uno (proprietà, debiti, reputazione) vuol dire infilare una voce in
+`_segments`: Label, punto e aggiornamento a schermo vengono da soli.
+
+### Si toglie di mezzo davanti alle finestre
+
+Il gestionale del PC è un `Control` dentro alla scena, quindi sta su una tela
+più bassa di quella dell'HUD (`layer = 5`): senza far niente, l'HUD gli
+comparirebbe **sopra**, a metà della schermata. Per questo si nasconde finché
+c'è qualcuno nel gruppo `modal`, e sono le finestre a mettercisi da sole
+(`management_window.gd`, `phone_notice.gd`). Elencarle nell'HUD vorrebbe dire
+che una finestra nuova funziona solo se qualcuno si ricorda di un file diverso
+da quello che sta scrivendo.
 
 ### Font e cifre
 
@@ -703,7 +718,7 @@ volte gli stessi dieci numeri: se sono sparsi nelle scene non si ritrovano più.
 | Costo di un seme | `STRAINS.regular.seed_price` | 40 $ |
 | Resa di una pianta curata | `STRAINS.regular.grams` | 20 g |
 | Prezzo base al grammo | `STRAINS.regular.base_price` | 10 $ |
-| Durata di un ciclo | `STRAINS.regular.grow_hours` | 30 ore di gioco |
+| Durata di un ciclo | `STRAINS.regular.grow_hours` | 29 ore di gioco |
 | Vasi all'inizio / al massimo | `START_PLOTS` / `MAX_PLOTS` | 3 / 6 |
 | Costo dei vasi in più | `PLOT_COSTS` | 300, 800, 1800 $ |
 
@@ -847,6 +862,215 @@ La domanda di un cliente invece **non** è salvata: si ricava da id e giorno con
 un hash (`Economy.street_demand()`), così il salvataggio non si gonfia di una
 riga per ogni NPC e la domanda resta identica se si ricarica la partita. Di
 salvato c'è solo quanto ha già comprato oggi (`SaveData.npc_state`).
+
+## Il negozio online
+
+Una scheda del PC in cantina (`SHOP`): l'attrezzatura che si compra una volta e
+resta. Il catalogo e gli effetti stanno tutti in `scripts/data/shop.gd`, per lo
+stesso motivo per cui i prezzi stanno in `economy.gd` — sono manopole di
+bilanciamento, e vanno girate in un posto solo.
+
+| Voce | Costo | Quanti | Cosa fa |
+|---|---|---|---|
+| GROW TOOLKIT | 220 $ | 1 | +15% di resa per pianta |
+| RED GROW LAMPS | 450 $ | 3 | -8% sul tempo di crescita, per set |
+| SELF-WATERING POT | 700 $ | uno per vaso | quel vaso non ha più sete |
+| CARBON FILTER | 600 $ | 1 | -40% di attenzione per grammo venduto in strada |
+
+Il vaso in più (`Economy.buy_plot()`) compare sia qui sia nella scheda `GROW`:
+è lo stesso bottone e la stessa logica, messa nei due posti in cui al giocatore
+viene in mente di cercarla.
+
+Quello che si possiede sta in `SaveData.upgrades` — "id" -> quanti pezzi. Un id
+che non c'è vale zero, quindi una partita salvata prima del negozio si carica
+senza niente addosso invece di rompersi.
+
+### La fotografia al momento della semina
+
+Lampade e toolkit cambiano la durata del ciclo e la resa, cioè esattamente i due
+numeri da cui `Grow` ricava tutto. Ma la crescita **deve restare una funzione
+pura dei timestamp del vaso** (vedi "La crescita non è simulata"), e se
+l'effetto si rileggesse dall'attrezzatura posseduta *adesso*, comprare le
+lampade a metà ciclo accorcerebbe una pianta già a due terzi del percorso: il
+conto alla rovescia mostrato salterebbe all'indietro sotto gli occhi del
+giocatore.
+
+Quindi `Shop.grow_mods()` fa una **fotografia** — `hours` e `grams` — e
+`Grow.plant()` la attacca al vaso. Le lampade valgono per le piante messe da lì
+in avanti, e una pianta già in terra finisce il suo ciclo com'era partita.
+I due campi mancano nei vasi piantati prima del negozio, e lì `Grow` ricade da
+solo sui valori della varietà.
+
+### Vasi che si annaffiano da soli
+
+Gli acquisti di `SELF-WATERING POT` equipaggiano i vasi **dal primo in avanti**:
+con due comprati, i vasi 1 e 2 hanno il serbatoio. Da qui il flag `auto` che
+girano `Grow.sync()`, `is_thirsty()`, `water_all()` e `count_thirsty()`: un vaso
+autoinnaffiante non accumula sete invece di essere annaffiato a posteriori, e
+non finisce nei conteggi — il bottone `WATER ALL` non deve dire "3 thirsty" a
+chi ha appena pagato per non pensarci più.
+
+### Le lampade nel seminterrato
+
+`scenes/components/GrowLamp.tscn` è il segnaposto disegnato a mano: tre lampade
+appese sopra ai vasi in `Basement.tscn`, una per set acquistabile. La prima si
+accende col primo acquisto, la seconda col secondo e così via, così la cantina si
+riempie man mano invece di passare da buia a illuminata in un colpo solo.
+
+Spenta resta comunque disegnata, in grigio: è il modo in cui un gestionale fa
+vedere al giocatore la roba che non ha ancora comprato. Le lampade stanno dopo i
+vasi nell'albero, quindi il cono di luce cade **sopra** alle piante — che è
+quello che deve fare. Non sono cliccabili, e infatti sono `Control` e non
+`Button`: si comprano dal PC, qui si vede solo se ci sono.
+
+**Da sostituire con la pixel art**: il `_draw()` diventa una texture (corpo
+della lampada + cono di luce). Chi decide se è accesa e dove sta appesa non
+cambia.
+
+## La fine del prologo
+
+La prima volta che la cassa tocca `Economy.PROLOGUE_CASH` (1000 $) il prologo si
+chiude: `chapter` passa da `prologo` a `capitolo_uno`, il flag `staff_unlocked`
+va a true, arriva un messaggio del cugino sul telefono e nel PC compare la
+scheda `STAFF`.
+
+Il controllo sta in `GameState._check_prologue()`, agganciato all'orologio e non
+alla vendita. I soldi entrano da troppe parti — il PC, i clienti in strada, un
+domani gli affitti — e ricordarsi di chiamarlo da ognuna vuol dire dimenticarselo
+da qualcuna. Attaccato all'orologio scatta comunque, qualunque strada abbiano
+fatto i soldi per arrivare. Succede **una volta sola**: riscendere sotto i 1000 $
+non riapre il prologo, perché a decidere è il capitolo e non la cassa di adesso.
+
+### Il messaggio sul telefono
+
+`scenes/ui/PhoneNotice.tscn` è il riquadro per le cose che il giocatore non deve
+perdersi. I messaggini dell'HUD non bastano: durano due secondi e mezzo, e
+soprattutto **l'HUD non c'è dentro alle stanze** — mentre il seminterrato davanti
+al PC è proprio il posto in cui si è quando questa roba succede.
+
+Per questo è un `CanvasLayer` appeso a `GameState`, che è un autoload e quindi
+sta nell'albero sopra alla scena corrente: il messaggio compare uguale in strada
+e in cantina, e non sparisce se nel frattempo si cambia stanza. Si apre con
+`GameState.message(speaker, body)`.
+
+## Il personale
+
+Sbloccato dalla fine del prologo. Due ruoli, che sono i due lati del gioco:
+
+| Ruolo | Assunzione | Paga | Cosa fa |
+|---|---|---|---|
+| GROWER | 600 $ | 90 $/giorno | pianta, annaffia e raccoglie; segue due vasi a testa |
+| DEALER | 800 $ | 120 $/giorno | piazza la merce, 2 g per ora di gioco |
+
+Tre per ruolo al massimo: il personale è un moltiplicatore, non un sostituto del
+giocatore. Le paghe si scalano a mezzanotte (`Staff.pay_wages()`, agganciata a
+`day_started`); se la cassa non basta se ne va uno, e per primo quello che costa
+di più — lasciare il giocatore in rosso con l'organico intatto vorrebbe dire un
+buco che si allarga da solo ogni notte, senza niente che lo fermi.
+
+### Ingrosso o strada
+
+`SaveData.wholesale_share` (0-100) decide come i dealer dividono la merce: il
+resto va in strada, che paga il 40% in più e alza l'attenzione. Nel PC sono due
+bottoni a passi di dieci e non uno slider: a passi di dieci le scelte sono
+undici, e undici scelte non hanno bisogno di un controllo continuo — uno slider
+a 640x360 sarebbe largo sessanta pixel e impossibile da mirare.
+
+È **la scelta vera** di questa parte del gestionale: la vendita automatica in
+strada rende di più ma fa salire `heat` mentre il giocatore non sta guardando.
+
+### Nemmeno il lavoro è simulato
+
+Come la coltivazione. `Staff.work()` guarda che ore sono adesso, le confronta con
+`SaveData.staff_checked_at` e fa quello che nel frattempo andava fatto. Quindi il
+personale lavora anche mentre il giocatore è dall'altra parte della città, ed è
+idempotente: chiamarla a ogni frame o una volta ogni tanto dà lo stesso risultato
+— ed è quello che il test verifica, avanzando venti mezz'ore invece di dieci ore
+in un colpo solo.
+
+Due dettagli che vengono da lì:
+
+- **Le ore avanzate non si perdono.** I grammi sono interi, quindi
+  `staff_checked_at` avanza solo per le ore davvero consumate: un dealer che in
+  mezz'ora non arriva a un grammo intero se la ritrova al giro dopo.
+- **Senza nessuno assunto il segnaposto avanza lo stesso.** Altrimenti il primo
+  assunto si troverebbe addosso tutte le ore passate dall'inizio della partita e
+  svuoterebbe il magazzino al primo giro.
+
+C'è anche una soglia, `MIN_BATCH_GRAMS`: sotto ai cinque grammi il dealer non
+esce. Non è bilanciamento, è rumore — senza, il primo grammo intero verrebbe
+piazzato appena maturato, cioè un messaggino ogni sette secondi reali da lì alla
+fine della partita.
+
+## Le tre lingue
+
+Il gioco parla inglese, italiano e spagnolo. Si sceglie dalle impostazioni, e il
+cambio è immediato: si clicca e la schermata è già nell'altra lingua, senza un
+tasto "applica" da premere dopo.
+
+Tutto il testo sta in `scripts/data/strings.gd`, una tabella
+`chiave -> [inglese, italiano, spagnolo]`. È una tabella di dati come `CityMap` e
+`NpcRoster`, per lo stesso motivo: le traduzioni sono contenuto, non logica, e
+sparse fra le scene non si ritrovano più. Così invece una riga sola tiene le tre
+versioni della stessa frase una sotto l'altra, ed è l'unico posto da guardare per
+sapere se ne manca una.
+
+### Come arrivano a schermo
+
+`GameSettings._install_translations()` riversa la tabella nel
+`TranslationServer` all'avvio, una `Translation` per lingua. Da lì in poi:
+
+- nel codice si scrive `tr("CHIAVE")` (o `TranslationServer.translate()` dentro
+  a una funzione statica, perché `tr()` è un metodo di `Node`);
+- nelle **scene** si scrive direttamente la chiave nel campo del testo: Godot
+  traduce da solo il testo dei `Control`. È il motivo per cui in `Main.tscn` c'è
+  `text = "MENU_NEW_GAME"` e non "nuova partita".
+
+Costruite in codice e non importate da un CSV: in questo progetto i dati stanno
+in tabelle GDScript, e un CSV sarebbe l'unico file di contenuto che non si legge
+insieme al codice che lo usa. In cambio non c'è nessun passaggio di importazione
+da ricordarsi — si aggiunge una riga e al riavvio c'è.
+
+### Due regole, e il controllo che le verifica
+
+1. **Una chiave che non c'è viene mostrata così com'è.** `tr()` non avvisa e non
+   torna vuota: restituisce la chiave. Una voce dimenticata si vede a schermo
+   come `PC_TAB_SHOP`, ed è un errore che si scopre tardi e per caso — solo se
+   qualcuno apre il gioco proprio in quella lingua.
+
+2. **Le stringhe scritte col font del gioco possono contenere solo lettere e
+   spazio.** `alphabet.fnt` ha cinquantatré caratteri: A-Z, a-z e lo spazio.
+   Niente cifre, niente accenti, niente apostrofi — una "à" o una "ñ" lì dentro
+   non si disegna e lascia un buco nella parola. È per questo che le impostazioni
+   dicono "ESPANOL" e non "ESPAÑOL", e che le etichette del PC sono
+   "GESTIONE ATTIVITA" senza accento.
+
+Le chiavi soggette alla regola 2 sono elencate in `Strings.PIXEL_KEYS` —
+l'elenco è scritto a mano perché è una proprietà di **dove finisce** la stringa,
+non della stringa: la stessa frase in un'altra Label andrebbe benissimo. Il
+controllo automatico "le tre lingue" verifica tutte e due le regole.
+
+### Cosa non si traduce
+
+I **nomi propri** (Brian, Tony, gli agenti) e le **insegne degli edifici** in
+`CityMap`. Sono nomi di posti e di persone di una cittadina americana inventata:
+tradurli la sposterebbe altrove. Per lo stesso motivo il nome di ogni lingua
+nelle impostazioni è scritto nella lingua stessa e non si traduce — chi apre le
+impostazioni per uscire da una lingua che non capisce deve poter riconoscere la
+sua.
+
+### Dove sta la scelta
+
+In `user://settings.cfg`, **fuori** dai salvataggi. La lingua è una proprietà di
+chi gioca, non della partita: dentro a `SaveData` vorrebbe dire che caricare un
+salvataggio vecchio rimette il gioco nella lingua in cui era stato iniziato, e
+che una partita nuova non sa in che lingua leggevi un minuto prima. Al primo
+avvio si parte dalla lingua del sistema, se è una delle tre.
+
+Chi ha del testo già composto a schermo si aggancia a
+`GameSettings.locale_changed`: le Label dei `Control` le ritraduce Godot, ma una
+stringa messa insieme con `%` — "GIORNO 3  08:40" — l'abbiamo scritta noi e va
+rifatta. È quello che fa l'HUD.
 
 ## Controlli automatici
 

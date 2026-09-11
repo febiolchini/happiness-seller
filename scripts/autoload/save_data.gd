@@ -61,6 +61,23 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 ## che non avevano il campo.
 @export var plot_slots := 3
 
+# --- Negozio online --------------------------------------------------------
+## Attrezzatura comprata dal PC: "id" -> quanti pezzi. Il catalogo e gli effetti
+## stanno in `Shop`, qui c'è solo il conto. Una partita di prima del negozio si
+## carica con il dizionario vuoto, cioè senza niente addosso.
+@export var upgrades: Dictionary = {}
+
+# --- Personale -------------------------------------------------------------
+## Organico assunto: "ruolo" -> quanti. I ruoli sono in `Staff.ROLES`.
+@export var staff: Dictionary = {}
+## Quota di merce che i dealer piazzano all'ingrosso, 0-100. Il resto va in
+## strada, che paga di più e alza l'attenzione.
+@export var wholesale_share := 100
+## Fin dove è già stato contato il lavoro del personale, in ore di gioco
+## assolute. Come i vasi, il lavoro non è simulato: si guarda che ore sono
+## adesso e si fa quello che nel frattempo andava fatto (vedi `Staff.work()`).
+@export var staff_checked_at := 0.0
+
 # --- Semi ------------------------------------------------------------------
 ## L'appuntamento con Brian per comprare i semi, vuoto quando non ce n'è uno in
 ## ballo. I campi sono documentati in `SeedDeal`, che è anche l'unico posto da
@@ -193,6 +210,10 @@ func to_dict() -> Dictionary:
 		"market_price": market_price,
 		"plots": plots,
 		"plot_slots": plot_slots,
+		"upgrades": upgrades,
+		"staff": staff,
+		"wholesale_share": wholesale_share,
+		"staff_checked_at": staff_checked_at,
 		"seed_deal": seed_deal,
 		"heat": heat,
 		"properties": properties,
@@ -230,6 +251,12 @@ static func from_dict(raw: Dictionary) -> SaveData:
 	# conversione con i cast espliciti.
 	data.plots = _plots_from_array(source.get("plots", []))
 	data.plot_slots = int(source.get("plot_slots", 3))
+	data.upgrades = _restore_ints(source.get("upgrades", {}))
+	data.staff = _restore_ints(source.get("staff", {}))
+	data.wholesale_share = clampi(int(source.get("wholesale_share", 100)), 0, 100)
+	# Ore di gioco, quindi float esplicito e non `_restore_ints()`: un
+	# `staff_checked_at` di 26.5 tornerebbe intero perdendo la mezz'ora.
+	data.staff_checked_at = float(source.get("staff_checked_at", 0.0))
 	data.seed_deal = _deal_from_dict(source.get("seed_deal", {}))
 	data.heat = float(source.get("heat", 0.0))
 	data.properties = _restore_ints(source.get("properties", {}))
@@ -264,13 +291,23 @@ static func _plots_from_array(raw: Variant) -> Array:
 			result.append({})
 			continue
 		var plot: Dictionary = item
-		result.append({
+		var restored := {
 			"strain": str(plot.get("strain", "regular")),
 			"planted_at": float(plot.get("planted_at", 0.0)),
 			"watered_at": float(plot.get("watered_at", 0.0)),
 			"checked_at": float(plot.get("checked_at", 0.0)),
 			"dry_hours": float(plot.get("dry_hours", 0.0)),
-		})
+		}
+		# Fotografia dell'attrezzatura al momento della semina (vedi `Grow`).
+		# Le chiavi si copiano solo se c'erano: una pianta messa prima del
+		# negozio non ne ha, e `Grow` ricade da solo sui valori della varietà.
+		# Il default NON si mette qui, perché vorrebbe dire far conoscere a
+		# `SaveData` la tabella delle varietà.
+		if plot.has("hours"):
+			restored["hours"] = float(plot["hours"])
+		if plot.has("grams"):
+			restored["grams"] = int(plot["grams"])
+		result.append(restored)
 	return result
 
 ## Ricostruisce l'appuntamento con Brian coi cast espliciti, per lo stesso
