@@ -32,25 +32,19 @@ extends RefCounted
 const ITEMS := {
 	"toolkit": {
 		"name": "SHOP_TOOLKIT",
-		"price": 220,
+		"price": 154,
 		"max": 1,
 		"note": "SHOP_TOOLKIT_NOTE",
 	},
 	"lamps": {
 		"name": "SHOP_LAMPS",
-		"price": 450,
+		"price": 315,
 		"max": 3,
 		"note": "SHOP_LAMPS_NOTE",
 	},
-	"auto_water": {
-		"name": "SHOP_AUTO_WATER",
-		"price": 700,
-		"max": 0,
-		"note": "SHOP_AUTO_WATER_NOTE",
-	},
 	"filter": {
 		"name": "SHOP_FILTER",
-		"price": 600,
+		"price": 420,
 		"max": 1,
 		"note": "SHOP_FILTER_NOTE",
 	},
@@ -59,7 +53,7 @@ const ITEMS := {
 ## Ordine a scaffale. Un dizionario in GDScript conserva l'ordine di scrittura,
 ## ma appoggiarcisi vuol dire che riordinare il catalogo diventa una modifica
 ## rischiosa: meglio dirlo qui, esplicito.
-const ORDER := ["toolkit", "lamps", "auto_water", "filter"]
+const ORDER := ["toolkit", "lamps", "filter"]
 
 # --- Effetti (le manopole vere) --------------------------------------------
 
@@ -92,23 +86,14 @@ static func owned(data: SaveData, id: String) -> int:
 		return 0
 	return int(data.upgrades.get(id, 0))
 
-## Quanti pezzi di `id` si possono avere in questa partita.
-##
-## I vasi autoinnaffianti non hanno un tetto fisso: si equipaggiano i vasi che
-## ci sono, quindi il tetto cresce comprando vasi nuovi. Gli altri oggetti hanno
-## il loro `max` scritto nel catalogo.
-static func max_owned(data: SaveData, id: String) -> int:
-	var cap := int(item(id).get("max", 1))
-	if cap > 0:
-		return cap
-	if id == "auto_water" and data != null:
-		return data.plot_slots
-	return 1
+## Quanti pezzi di `id` si possono avere.
+static func max_owned(id: String) -> int:
+	return maxi(1, int(item(id).get("max", 1)))
 
 static func can_buy(data: SaveData, id: String) -> bool:
 	if data == null or not ITEMS.has(id):
 		return false
-	return owned(data, id) < max_owned(data, id) and data.cash >= price(id)
+	return owned(data, id) < max_owned(id) and data.cash >= price(id)
 
 ## Compra un pezzo. False (e niente scalato) se il negozio è esaurito per quella
 ## voce o i soldi non bastano, così chi chiama può dirlo invece di far comparire
@@ -121,14 +106,6 @@ static func buy(data: SaveData, id: String) -> bool:
 	return true
 
 # --- Cosa cambia in partita ------------------------------------------------
-
-## Quanti vasi, partendo dal primo, si annaffiano da soli.
-static func auto_pots(data: SaveData) -> int:
-	return mini(owned(data, "auto_water"), data.plot_slots if data != null else 0)
-
-## Il vaso `index` si annaffia da solo?
-static func is_auto_pot(data: SaveData, index: int) -> bool:
-	return index >= 0 and index < auto_pots(data)
 
 ## Quanto pesa sull'attenzione un grammo venduto in strada, in frazione del
 ## valore base. Lo chiede `Economy.street_heat()`.

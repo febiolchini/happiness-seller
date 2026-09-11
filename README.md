@@ -12,7 +12,7 @@ piantali nel seminterrato → annaffiali → raccogli → vendi**, all'ingrosso 
 PC o in strada ai clienti. Vedi "Coltivare e vendere".
 
 Poi il giro si allarga: col **negozio online** si compra l'attrezzatura che lo
-rende meno faticoso (lampade, vasi che si annaffiano da soli), e a **1000 $** il
+rende meno faticoso (attrezzatura, lampade, filtri), e a **1000 $** il
 prologo si chiude e si può **assumere personale** che coltiva e vende da solo.
 Vedi "Il negozio online", "La fine del prologo" e "Il personale".
 
@@ -720,7 +720,7 @@ volte gli stessi dieci numeri: se sono sparsi nelle scene non si ritrovano più.
 | Prezzo base al grammo | `STRAINS.regular.base_price` | 10 $ |
 | Durata di un ciclo | `STRAINS.regular.grow_hours` | 29 ore di gioco |
 | Vasi all'inizio / al massimo | `START_PLOTS` / `MAX_PLOTS` | 3 / 6 |
-| Costo dei vasi in più | `PLOT_COSTS` | 300, 800, 1800 $ |
+| Costo dei vasi in più | `PLOT_COSTS` | 210, 560, 1260 $ |
 
 Una pianta rende quindi circa 200 $ per 40 $ di seme: il primo ciclo si paga da
 sé cinque volte, ed è la rampa che serve a far partire la cosa.
@@ -872,10 +872,14 @@ bilanciamento, e vanno girate in un posto solo.
 
 | Voce | Costo | Quanti | Cosa fa |
 |---|---|---|---|
-| GROW TOOLKIT | 220 $ | 1 | +15% di resa per pianta |
-| RED GROW LAMPS | 450 $ | 3 | -8% sul tempo di crescita, per set |
-| SELF-WATERING POT | 700 $ | uno per vaso | quel vaso non ha più sete |
-| CARBON FILTER | 600 $ | 1 | -40% di attenzione per grammo venduto in strada |
+| GROW TOOLKIT | 154 $ | 1 | +15% di resa per pianta |
+| RED GROW LAMPS | 315 $ | 3 | -8% sul tempo di crescita, per set |
+| CARBON FILTER | 420 $ | 1 | -40% di attenzione per grammo venduto in strada |
+
+C'era anche un `SELF-WATERING POT`, un vaso che non aveva più sete. È stato
+tolto: un coltivatore assunto pianta, annaffia e raccoglie i suoi vasi da solo,
+quindi il serbatoio comprava una cosa che il personale regala già — due modi di
+pagare per non annaffiare, con quello più caro che fa anche il resto.
 
 Il vaso in più (`Economy.buy_plot()`) compare sia qui sia nella scheda `GROW`:
 è lo stesso bottone e la stessa logica, messa nei due posti in cui al giocatore
@@ -900,15 +904,6 @@ Quindi `Shop.grow_mods()` fa una **fotografia** — `hours` e `grams` — e
 in avanti, e una pianta già in terra finisce il suo ciclo com'era partita.
 I due campi mancano nei vasi piantati prima del negozio, e lì `Grow` ricade da
 solo sui valori della varietà.
-
-### Vasi che si annaffiano da soli
-
-Gli acquisti di `SELF-WATERING POT` equipaggiano i vasi **dal primo in avanti**:
-con due comprati, i vasi 1 e 2 hanno il serbatoio. Da qui il flag `auto` che
-girano `Grow.sync()`, `is_thirsty()`, `water_all()` e `count_thirsty()`: un vaso
-autoinnaffiante non accumula sete invece di essere annaffiato a posteriori, e
-non finisce nei conteggi — il bottone `WATER ALL` non deve dire "3 thirsty" a
-chi ha appena pagato per non pensarci più.
 
 ### Le lampade nel seminterrato
 
@@ -959,8 +954,8 @@ Sbloccato dalla fine del prologo. Due ruoli, che sono i due lati del gioco:
 
 | Ruolo | Assunzione | Paga | Cosa fa |
 |---|---|---|---|
-| GROWER | 600 $ | 90 $/giorno | pianta, annaffia e raccoglie; segue due vasi a testa |
-| DEALER | 800 $ | 120 $/giorno | piazza la merce, 2 g per ora di gioco |
+| GROWER | 420 $ | 81 $/giorno | pianta, annaffia e raccoglie; segue due vasi a testa |
+| DEALER | 560 $ | 108 $/giorno | piazza la merce, 2 g per ora di gioco |
 
 Tre per ruolo al massimo: il personale è un moltiplicatore, non un sostituto del
 giocatore. Le paghe si scalano a mezzanotte (`Staff.pay_wages()`, agganciata a

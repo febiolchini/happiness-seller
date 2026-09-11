@@ -59,7 +59,7 @@ func _process(delta: float) -> void:
 	_elapsed = 0.0
 	var plot := _plot()
 	if not plot.is_empty():
-		Grow.sync(plot, GameState.total_hours(), _is_auto())
+		Grow.sync(plot, GameState.total_hours())
 	queue_redraw()
 
 # --- Stato -----------------------------------------------------------------
@@ -71,11 +71,6 @@ func _plot() -> Dictionary:
 
 func _is_locked() -> bool:
 	return GameState.current == null or index >= GameState.current.plot_slots
-
-## Questo vaso ha il serbatoio comprato dal negozio online? Se sì non ha mai
-## sete, e il click non ha piu' l'annaffiatura fra le cose sensate da fare.
-func _is_auto() -> bool:
-	return Shop.is_auto_pot(GameState.current, index)
 
 # --- Il click --------------------------------------------------------------
 
@@ -92,14 +87,13 @@ func _on_pressed() -> void:
 
 	var now := GameState.total_hours()
 	var plot := _plot()
-	var auto := _is_auto()
-	Grow.sync(plot, now, auto)
+	Grow.sync(plot, now)
 
 	if Grow.is_empty(plot):
 		_plant(plot, now)
 	elif Grow.is_ready(plot, now):
 		_harvest(plot, now)
-	elif Grow.is_thirsty(plot, now, auto):
+	elif Grow.is_thirsty(plot, now):
 		Grow.water(plot, now)
 		GameState.notify(tr("NOTE_WATERED"))
 	else:
@@ -140,15 +134,12 @@ func _draw() -> void:
 
 	var now := GameState.total_hours()
 	var plot := _plot()
-	var auto := _is_auto()
 	var body := Rect2(Vector2.ZERO, size)
 
 	if is_hovered():
 		draw_rect(body, Color(1, 0.85, 0.1, 0.14), true)
 	_draw_pot(body)
 
-	if auto:
-		_draw_reservoir(body)
 	if Grow.is_empty(plot):
 		_draw_caption(body, tr("GROW_EMPTY"), LABEL)
 		return
@@ -163,7 +154,7 @@ func _draw() -> void:
 		_draw_pulse(body, READY_GLOW)
 	else:
 		_draw_caption(body, Grow.stage_name(plot, now), LABEL)
-	if Grow.is_thirsty(plot, now, auto):
+	if Grow.is_thirsty(plot, now):
 		_draw_droplet(body)
 
 func _draw_pot(body: Rect2) -> void:
@@ -248,18 +239,6 @@ func _draw_caption(body: Rect2, text: String, color: Color) -> void:
 			font, at + offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE,
 			Color(0, 0, 0, 0.75))
 	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, color)
-
-## Il serbatoio del vaso autoinnaffiante: una tanica di fianco al vaso con un
-## tubicino che arriva nella terra. Ferma e non lampeggiante, al contrario della
-## goccia della sete — è una cosa che c'è, non una che chiede attenzione.
-func _draw_reservoir(body: Rect2) -> void:
-	var bottom := body.end.y - 2.0
-	var at := Vector2(body.position.x + 5.0, bottom - 12.0)
-	draw_rect(Rect2(at, Vector2(7.0, 12.0)), Color(0.176, 0.243, 0.290), true)
-	draw_rect(Rect2(at + Vector2(1.0, 6.0), Vector2(5.0, 5.0)), WATER * Color(1, 1, 1, 0.75), true)
-	draw_line(
-		at + Vector2(7.0, 3.0), Vector2(body.get_center().x - 4.0, bottom - 14.0),
-		Color(0.400, 0.443, 0.459), 1.0)
 
 ## Goccia lampeggiante: la pianta ha sete e la resa sta scendendo adesso.
 func _draw_droplet(body: Rect2) -> void:

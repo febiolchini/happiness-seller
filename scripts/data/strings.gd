@@ -121,9 +121,6 @@ const TEXT := {
 
 	# --- Il PC: scheda GROW ------------------------------------------------
 	"PC_PLOT_EMPTY": ["empty", "vuoto", "vacio"],
-	"PC_PLOT_EMPTY_AUTO": [
-		"empty  (self-watering)", "vuoto  (si annaffia da solo)", "vacio  (se riega solo)",
-	],
 	"PC_PLOT_LOCKED": ["locked", "bloccato", "bloqueada"],
 	## %s costo
 	"PC_PLOT_LOCKED_COST": ["locked  -  %s", "bloccato  -  %s", "bloqueada  -  %s"],
@@ -269,12 +266,6 @@ const TEXT := {
 		"Red lamps over the pots: each set cuts 8% off the growing time. Applies to plants put in from now on.",
 		"Lampade rosse sopra ai vasi: ogni set taglia l'8% del tempo di crescita. Vale per le piante messe da qui in avanti.",
 		"Lamparas rojas sobre las macetas: cada juego recorta un 8% del tiempo de cultivo. Vale para las plantas que siembres de ahora en adelante.",
-	],
-	"SHOP_AUTO_WATER": ["SELF-WATERING POT", "VASO AUTOINNAFFIANTE", "MACETA DE AUTORRIEGO"],
-	"SHOP_AUTO_WATER_NOTE": [
-		"A tank and a slow drip: a pot that never gets thirsty. One pot per purchase, starting from the first.",
-		"Serbatoio e goccia lenta: un vaso che non ha più sete. Se ne equipaggia uno per acquisto, partendo dal primo.",
-		"Deposito y goteo lento: una maceta que nunca pasa sed. Se equipa una por compra, empezando por la primera.",
 	],
 	"SHOP_FILTER": ["CARBON FILTER", "FILTRO A CARBONE", "FILTRO DE CARBON"],
 	"SHOP_FILTER_NOTE": [

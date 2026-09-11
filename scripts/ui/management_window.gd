@@ -336,11 +336,10 @@ func _plot_summary(data: SaveData, slot: int) -> String:
 			return tr("PC_PLOT_LOCKED_COST") % UiFormat.money(cost)
 		return tr("PC_PLOT_LOCKED")
 	var plot := data.plot(slot)
-	var auto := Shop.is_auto_pot(data, slot)
 	if Grow.is_empty(plot):
-		return tr("PC_PLOT_EMPTY_AUTO") if auto else tr("PC_PLOT_EMPTY")
+		return tr("PC_PLOT_EMPTY")
 	var now := GameState.total_hours()
-	Grow.sync(plot, now, auto)
+	Grow.sync(plot, now)
 	if Grow.is_ready(plot, now):
 		return tr("PC_PLOT_READY") % Grow.yield_grams(plot)
 	var text := tr("PC_PLOT_GROWING") % [
@@ -348,7 +347,7 @@ func _plot_summary(data: SaveData, slot: int) -> String:
 		int(roundf(Grow.progress(plot, now) * 100.0)),
 		UiFormat.duration(Grow.hours_left(plot, now)),
 	]
-	if Grow.is_thirsty(plot, now, auto):
+	if Grow.is_thirsty(plot, now):
 		text += tr("PC_PLOT_DRY")
 	return text
 
@@ -359,19 +358,15 @@ func _plot_color(data: SaveData, slot: int) -> Color:
 	var now := GameState.total_hours()
 	if Grow.is_ready(plot, now):
 		return GOOD_COLOR
-	if Grow.is_thirsty(plot, now, Shop.is_auto_pot(data, slot)):
+	if Grow.is_thirsty(plot, now):
 		return WARN_COLOR
 	return VALUE_COLOR
 
-## Quanti vasi hanno sete davvero: quelli col serbatoio comprato dal negozio
-## non ci finiscono, perche' non c'e' niente da fare e contarli farebbe dire al
-## bottone "3 thirsty" a chi ha appena pagato per non pensarci piu'.
 func _thirsty(data: SaveData) -> int:
-	return Grow.count_thirsty(data.plots, GameState.total_hours(), Shop.auto_pots(data))
+	return Grow.count_thirsty(data.plots, GameState.total_hours())
 
 func _water_all() -> void:
-	var data := GameState.current
-	var count := Grow.water_all(data.plots, GameState.total_hours(), Shop.auto_pots(data))
+	var count := Grow.water_all(GameState.current.plots, GameState.total_hours())
 	if count > 0:
 		GameState.notify(tr("NOTE_WATERED_N") % count)
 	_refresh()
@@ -449,7 +444,7 @@ func _build_shop() -> void:
 		var item_id: String = id
 		var text := func(d: SaveData) -> String:
 			var have := Shop.owned(d, item_id)
-			var cap := Shop.max_owned(d, item_id)
+			var cap := Shop.max_owned(item_id)
 			if have >= cap:
 				return tr("PC_SHOP_OWNED") % [Shop.item_name(item_id), have]
 			var label := tr("PC_SHOP_BUY") % [Shop.item_name(item_id), UiFormat.money(Shop.price(item_id))]
@@ -478,9 +473,9 @@ func _buy_item(id: String) -> void:
 	if Shop.buy(GameState.current, id):
 		GameState.notify(tr("NOTE_BOUGHT") % Shop.item_name(id))
 		GameState.save_game()
-		# I testi dei bottoni si aggiornano da soli, le note no — e comprando un
-		# vaso autoinnaffiante cambia anche il tetto della voce stessa, quindi la
-		# scheda va proprio rifatta.
+		# I testi dei bottoni si aggiornano da soli, le note no: e una voce che
+		# passa a "gia' tuo" cambia anche quello che c'e' scritto sotto, quindi
+		# la scheda va proprio rifatta.
 		_build_tab()
 		return
 	_refresh()

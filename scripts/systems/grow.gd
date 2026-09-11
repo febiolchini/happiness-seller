@@ -89,15 +89,8 @@ static func full_grams(plot: Dictionary) -> int:
 ## deve cancellare la sete di ieri. Si chiama pigramente, ogni volta che un
 ## vaso viene letto — è idempotente e monotona, quindi chiamarla spesso o di
 ## rado dà lo stesso risultato.
-## `auto` a true per un vaso autoinnaffiante (vedi `Shop.is_auto_pot()`): il
-## serbatoio tiene la terra bagnata, quindi la sete non parte proprio invece di
-## essere annaffiata via a posteriori.
-static func sync(plot: Dictionary, now: float, auto := false) -> void:
+static func sync(plot: Dictionary, now: float) -> void:
 	if plot.is_empty():
-		return
-	if auto:
-		plot["watered_at"] = now
-		plot["checked_at"] = now
 		return
 	var checked := float(plot.get("checked_at", now))
 	if now <= checked:
@@ -151,8 +144,8 @@ static func hours_left(plot: Dictionary, now: float) -> float:
 
 # --- Sete ------------------------------------------------------------------
 
-static func is_thirsty(plot: Dictionary, now: float, auto := false) -> bool:
-	if plot.is_empty() or auto:
+static func is_thirsty(plot: Dictionary, now: float) -> bool:
+	if plot.is_empty():
 		return false
 	return now - float(plot.get("watered_at", now)) >= WATER_HOURS
 
@@ -184,15 +177,10 @@ static func harvest(plot: Dictionary, now: float) -> int:
 # --- Comodità su tutto il seminterrato -------------------------------------
 
 ## Annaffia tutti i vasi che avevano sete. Restituisce quanti ne ha bagnati.
-##
-## `auto_count` è quanti vasi, partendo dal primo, si annaffiano da soli: quelli
-## non compaiono nel conto, perché non c'è niente da fare e contarli farebbe
-## dire al messaggio "annaffiati 6 vasi" a chi non ha toccato niente.
-static func water_all(plots: Array, now: float, auto_count := 0) -> int:
+static func water_all(plots: Array, now: float) -> int:
 	var count := 0
-	for i in plots.size():
-		var plot: Dictionary = plots[i]
-		if is_empty(plot) or not is_thirsty(plot, now, i < auto_count):
+	for plot in plots:
+		if is_empty(plot) or not is_thirsty(plot, now):
 			continue
 		water(plot, now)
 		count += 1
@@ -212,9 +200,9 @@ static func count_ready(plots: Array, now: float) -> int:
 			count += 1
 	return count
 
-static func count_thirsty(plots: Array, now: float, auto_count := 0) -> int:
+static func count_thirsty(plots: Array, now: float) -> int:
 	var count := 0
-	for i in plots.size():
-		if is_thirsty(plots[i], now, i < auto_count):
+	for plot in plots:
+		if is_thirsty(plot, now):
 			count += 1
 	return count

@@ -52,7 +52,6 @@ func _ready() -> void:
 		["clienti di strada", _test_street_customer],
 		["ampliamento del seminterrato", _test_plot_expansion],
 		["negozio online", _test_shop],
-		["vasi autoinnaffianti", _test_auto_water],
 		["fine del prologo", _test_prologue],
 		["il personale coltiva", _test_staff_growing],
 		["il personale vende", _test_staff_selling],
@@ -592,6 +591,7 @@ func _test_shop() -> void:
 
 	data.cash = 100000
 	_check(not Shop.can_buy(data, "toolkit"), "il toolkit e' uno solo, non se ne comprano due")
+	_check_eq(Shop.max_owned("lamps"), 3, "le lampade si fermano a tre set")
 
 	# Le lampade accorciano il ciclo, il toolkit alza la resa.
 	var strain := Economy.strain(Economy.DEFAULT_STRAIN)
@@ -619,34 +619,6 @@ func _test_shop() -> void:
 	_check(
 		is_equal_approx(Grow.grow_hours(plot), planted_hours),
 		"comprare lampade a meta' ciclo non cambia una pianta gia' in terra")
-
-func _test_auto_water() -> void:
-	var data := _fresh()
-	data.cash = 100000
-	_check(Shop.buy(data, "auto_water"), "si compra un vaso autoinnaffiante")
-	_check(Shop.is_auto_pot(data, 0), "equipaggia il primo vaso")
-	_check(not Shop.is_auto_pot(data, 1), "e solo quello")
-	_check_eq(Shop.max_owned(data, "auto_water"), data.plot_slots, "se ne possono avere quanti sono i vasi")
-
-	var auto_plot := data.plot(0)
-	var plain_plot := data.plot(1)
-	var now := GameState.total_hours()
-	Grow.plant(auto_plot, Economy.DEFAULT_STRAIN, now)
-	Grow.plant(plain_plot, Economy.DEFAULT_STRAIN, now)
-
-	# Un ciclo intero senza toccare niente.
-	_advance(float(Economy.strain(Economy.DEFAULT_STRAIN)["grow_hours"]) + 2.0)
-	now = GameState.total_hours()
-	Grow.sync(auto_plot, now, true)
-	Grow.sync(plain_plot, now)
-	_check(not Grow.is_thirsty(auto_plot, now, true), "il vaso col serbatoio non ha mai sete")
-	_check(Grow.is_thirsty(plain_plot, now), "quello normale si', lasciato li'")
-	_check(is_equal_approx(Grow.quality(auto_plot), 1.0), "e rende pieno senza che nessuno lo annaffi")
-	_check(Grow.yield_grams(auto_plot) > Grow.yield_grams(plain_plot), "piu' di quello trascurato")
-
-	_check_eq(
-		Grow.count_thirsty(data.plots, now, Shop.auto_pots(data)), 1,
-		"nel conto dei vasi con sete ci finisce solo quello normale")
 
 func _test_prologue() -> void:
 	var data := _fresh()

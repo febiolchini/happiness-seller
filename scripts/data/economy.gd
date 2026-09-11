@@ -52,7 +52,7 @@ const START_PLOTS := 3
 ## proprietà, ed è il primo gancio per la progressione del gestionale.
 const MAX_PLOTS := 6
 ## Costo per sbloccare il vaso di indice N (0-based). I primi tre sono già lì.
-const PLOT_COSTS := [0, 0, 0, 300, 800, 1800]
+const PLOT_COSTS := [0, 0, 0, 210, 560, 1260]
 
 # --- Mercato ---------------------------------------------------------------
 

@@ -28,14 +28,14 @@ extends RefCounted
 const ROLES := {
 	"grower": {
 		"name": "STAFF_GROWER",
-		"hire": 600,
-		"wage": 90,
+		"hire": 420,
+		"wage": 81,
 		"note": "STAFF_GROWER_NOTE",
 	},
 	"dealer": {
 		"name": "STAFF_DEALER",
-		"hire": 800,
-		"wage": 120,
+		"hire": 560,
+		"wage": 108,
 		"note": "STAFF_DEALER_NOTE",
 	},
 }
@@ -193,8 +193,7 @@ static func _growers_work(data: SaveData, now: float, mods: Dictionary, report: 
 	var seed_item := Economy.seed_item(Economy.DEFAULT_STRAIN)
 	for index in mini(pots, data.plots.size()):
 		var plot: Dictionary = data.plots[index]
-		var auto := Shop.is_auto_pot(data, index)
-		Grow.sync(plot, now, auto)
+		Grow.sync(plot, now)
 		if Grow.is_ready(plot, now):
 			var grams := Grow.harvest(plot, now)
 			if grams > 0:
@@ -208,7 +207,7 @@ static func _growers_work(data: SaveData, now: float, mods: Dictionary, report: 
 				data.add_item(seed_item, -1)
 				Grow.plant(plot, Economy.DEFAULT_STRAIN, now, mods)
 				report["planted"] = int(report["planted"]) + 1
-		elif Grow.is_thirsty(plot, now, auto):
+		elif Grow.is_thirsty(plot, now):
 			Grow.water(plot, now)
 			report["watered"] = int(report["watered"]) + 1
 
