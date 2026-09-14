@@ -39,7 +39,9 @@ const ITEMS := {
 	"lamps": {
 		"name": "SHOP_LAMPS",
 		"price": 315,
-		"max": 3,
+		# Una per vaso, e i vasi in cantina sono sei. Il tetto è quello del
+		# seminterrato: quando ci sarà più posto salirà insieme a quello.
+		"max": 6,
 		"note": "SHOP_LAMPS_NOTE",
 	},
 	"filter": {
@@ -59,7 +61,17 @@ const ORDER := ["toolkit", "lamps", "filter"]
 
 ## Resa in piu' per ogni GROW TOOLKIT.
 const TOOLKIT_YIELD := 0.15
-## Tempo di crescita in meno per ogni set di lampade.
+## Tempo di crescita in meno per il vaso che ha la sua lampada accesa.
+##
+## **Non si somma.** Una lampada sta sopra a UN vaso (vedi
+## `scenes/components/GrowLamp.tscn`, `lamp_set` == indice del vaso): il vaso 0
+## e' piu' veloce se e' accesa la lampada 0, il vaso 3 se e' accesa la lampada
+## 3, e comprarne sei non rende nessuno dei due l'8% x 6. E' rimasto un bug per
+## un giro: quando il tetto delle lampade e' salito da tre a sei,
+## `grow_mods()` continuava a moltiplicare per il TOTALE posseduto invece che
+## per "questo vaso ha la sua lampada, si o no" — con sei lampade ogni pianta,
+## in qualunque vaso, si vedeva tagliare il 48% invece dell'8% del solo vaso
+## coperto.
 const LAMP_SPEEDUP := 0.08
 ## Quanta attenzione toglie il filtro a carbone.
 const FILTER_HEAT_CUT := 0.40
@@ -120,7 +132,16 @@ static func heat_factor(data: SaveData) -> float:
 ## vaso: se l'effetto si leggesse dall'attrezzatura posseduta adesso, comprare
 ## le lampade a metà ciclo cambierebbe la durata di una pianta già a due terzi
 ## del percorso, e il conto alla rovescia mostrato salterebbe all'indietro.
-static func grow_mods(data: SaveData, base_hours: float, base_grams: int) -> Dictionary:
-	var hours := base_hours * maxf(0.2, 1.0 - LAMP_SPEEDUP * float(owned(data, "lamps")))
+##
+## `plot_index` e' IL VASO che sta ricevendo il seme: la lampada e' un effetto
+## per vaso (vedi `LAMP_SPEEDUP`), quindi senza sapere quale vaso e' non si puo'
+## dire se questo seme ha una lampada sopra. Il ripiego (-1, il default) e' "non
+## lo so": niente sconto, mai un bonus regalato a un vaso che magari non ha
+## nessuna lampada. Chi conosce il vaso — `GrowPlot`, `Staff._growers_work()` —
+## lo passa; chi non lo conosce ancora — un'anteprima nel PC prima di scegliere
+## dove piantare — lo lascia com'e'.
+static func grow_mods(data: SaveData, base_hours: float, base_grams: int, plot_index := -1) -> Dictionary:
+	var has_lamp := plot_index >= 0 and owned(data, "lamps") > plot_index
+	var hours := base_hours * (1.0 - LAMP_SPEEDUP) if has_lamp else base_hours
 	var grams := int(roundf(float(base_grams) * (1.0 + TOOLKIT_YIELD * float(owned(data, "toolkit")))))
 	return {"hours": maxf(1.0, hours), "grams": maxi(1, grams)}

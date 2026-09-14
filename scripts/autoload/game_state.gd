@@ -22,6 +22,11 @@ const EXTENSION := ".json"
 ## fatto dall'avvio, e il giocatore non ha modo di saperlo prima.
 const AUTOSAVE_SECONDS := 45.0
 
+## La freccia fra l'ora di chiusura e quella di riapertura nel resoconto.
+## Non passa dalle traduzioni: è un segno, non una parola, e tradotto
+## diventerebbe una frase diversa in ogni lingua per dire la stessa cosa.
+const AWAY_ARROW := "->"
+
 ## Cartella dei salvataggi.
 ##
 ## È una variabile e non una costante perché i controlli automatici devono
@@ -48,6 +53,13 @@ signal day_started(day: int)
 ## Messaggio breve da mostrare al giocatore ("+20 G HARVESTED"). L'HUD li
 ## impila in un angolo; chi lo emette non deve sapere come vengono mostrati.
 signal notice(text: String)
+## Un messaggio **da qualcuno**, che arriva sul telefono in basso a sinistra.
+##
+## Diverso da `notice`: quello è il gioco che segna un fatto con la coda
+## dell'occhio, questo è una persona che scrive e ha un mittente. E diverso da
+## `message()`, che ferma tutto con un riquadro a tutto schermo per le cose che
+## non si possono perdere. Vedi `scripts/ui/phone.gd`.
+signal phone_message(sender: String, body: String)
 ## Brian ha mandato la posizione: da qui in poi c'è un appuntamento sulla mappa.
 ## Ci si aggancia `city.gd` per tirarlo su dove aspetta.
 signal seed_spot_ready(spot: Vector2, place: String)
@@ -75,6 +87,14 @@ var current_slot := ""
 ## giocate. La City lo accende entrando e lo spegne uscendo, così nei menu il
 ## tempo resta fermo.
 var clock_running := false
+
+## L'ultimo messaggio arrivato sul telefono: `{"sender": ..., "body": ...}`.
+##
+## Vive qui e non dentro al telefono perché il telefono è per scena — ce n'è uno
+## in strada e uno in ogni stanza — e un messaggio arrivato in cantina deve
+## potersi rileggere uscendo di casa. Non finisce nel salvataggio: è quello che
+## è appena successo, non un pezzo di partita.
+var last_text: Dictionary = {}
 
 ## Secondi reali dall'ultimo salvataggio, per il salvataggio automatico.
 var _since_autosave := 0.0
@@ -123,6 +143,15 @@ func total_hours() -> float:
 func notify(text: String) -> void:
 	notice.emit(text)
 
+## Manda un messaggio sul telefono, da parte di qualcuno.
+##
+## Se in scena non c'è nessun telefono — il menu principale — non succede
+## niente, e va bene così: il messaggio resta in `last_text` e si legge appena
+## si rientra in partita.
+func text_message(sender: String, body: String) -> void:
+	last_text = {"sender": sender, "body": body}
+	phone_message.emit(sender, body)
+
 ## Porta avanti l'appuntamento con Brian e avvisa quando cambia qualcosa.
 ##
 ## Sta agganciato all'orologio e non a un timer suo: l'attesa è misurata in ore
@@ -134,6 +163,7 @@ func _tick_seed_deal() -> void:
 		SeedDeal.STATE_READY:
 			var place := SeedDeal.place(current)
 			notify(tr("NOTE_BRIAN_SPOT") % place)
+			text_message(tr("MSG_COUSIN_SPEAKER"), tr("PHONE_BRIAN_READY") % place)
 			seed_spot_ready.emit(SeedDeal.spot(current), place)
 			# Un appuntamento fissato è roba che il giocatore ricorda: se il
 			# gioco si chiude male, riaprirlo deve ritrovarlo, non farglielo
@@ -156,8 +186,13 @@ func _tick_staff() -> void:
 		current.staff_checked_at = total_hours()
 		return
 	var strain := Economy.strain(Economy.DEFAULT_STRAIN)
-	var mods := Shop.grow_mods(current, float(strain["grow_hours"]), int(strain["grams"]))
-	var report := Staff.work(current, total_hours(), mods)
+	# Di listino, non gia' scontati: la lampada e' un effetto per vaso, e
+	# `Staff._growers_work()` la calcola vaso per vaso perche' ogni coltivatore
+	# ne segue piu' d'uno. Vedi `Staff.work()`.
+	var base := {"hours": strain["grow_hours"], "grams": strain["grams"]}
+	var report := Staff.work(current, total_hours(), base)
+	if Staff.seedless_alert(current, int(report["idle"])):
+		text_message(tr("MSG_STAFF_SPEAKER"), tr("PHONE_SEEDS_OUT"))
 	if int(report["grams"]) > 0:
 		notify(tr("NOTE_STAFF_HARVESTED") % int(report["grams"]))
 	if int(report["revenue"]) > 0:
@@ -205,6 +240,7 @@ func _on_day_started(_day: int) -> void:
 		return
 	Economy.roll_new_day(current)
 	_pay_staff()
+	_pay_power()
 	# Il cambio di giorno è un punto di controllo naturale: è il momento in cui
 	# cambiano prezzi e attenzione, ed è quello che il giocatore ricorda.
 	save_game()
@@ -220,6 +256,19 @@ func _pay_staff() -> void:
 	var quit_role: String = result["quit"]
 	if not quit_role.is_empty():
 		message(tr("MSG_STAFF_SPEAKER"), tr("MSG_STAFF_QUIT") % Staff.role_name(quit_role))
+
+## La bolletta della luce, quando scade. A differenza delle paghe non arriva
+## ogni notte: vedi `Economy.BILL_DAYS`.
+func _pay_power() -> void:
+	var bill := Economy.charge_power(current)
+	if int(bill["due"]) <= 0:
+		return
+	notify(tr("NOTE_POWER_BILL") % UiFormat.money(int(bill["paid"])))
+	# Pagata a metà è una cosa che il giocatore deve sapere: è il primo segno
+	# che la cantina costa più di quanto renda.
+	if int(bill["paid"]) < int(bill["due"]):
+		message(tr("MSG_POWER_SPEAKER"), tr("MSG_POWER_SHORT") % [
+			UiFormat.money(int(bill["due"])), UiFormat.money(int(bill["paid"]))])
 
 # --- Ciclo di vita della partita -------------------------------------------
 
@@ -250,8 +299,75 @@ func load_slot(slot_id: String) -> bool:
 		return false
 	current = SaveData.from_dict(raw)
 	current_slot = slot_id
+	# Prima di dire a chiunque che la partita è cominciata: chi si aggancia a
+	# `game_started` costruisce la scena dallo stato, e lo stato deve essere già
+	# quello recuperato. Altrimenti la mappa nascerebbe all'ora di ieri sera e
+	# salterebbe avanti un attimo dopo.
+	_catch_up_offline()
 	game_started.emit(current)
 	return true
+
+## Recupera il tempo passato mentre il gioco era chiuso.
+##
+## Il lavoro vero lo fa `Offline`, che sposta l'orologio e lascia lavorare i
+## sistemi che c'erano già — vedi il commento in cima a `offline.gd`. Qui c'è
+## solo il collegamento: da dove arriva il ritmo dell'orologio, e come si
+## racconta al giocatore quello che è successo.
+func _catch_up_offline() -> void:
+	var away := Offline.away_seconds(current, Time.get_unix_time_from_system())
+	var report := Offline.catch_up(current, away, GAME_MINUTES_PER_SECOND)
+	if not Offline.happened(report):
+		return
+	# Si scrive subito su disco. Il recupero è già stato speso: se il giocatore
+	# chiudesse il gioco senza salvare, riaprendolo si ritroverebbe il resoconto
+	# di prima e nient'altro, e un raccolto che aveva già letto non ci sarebbe più.
+	save_game()
+	message(tr("MSG_AWAY_SPEAKER"), _away_body(report))
+
+## Il resoconto di quello che è successo mentre il gioco era chiuso.
+##
+## Le righe compaiono solo quando hanno qualcosa da dire, come i segmenti
+## dell'HUD: una partita senza personale legge due righe, una con la cantina
+## avviata ne legge sei. Le prime due ci sono sempre, e servono a spiegare il
+## salto dell'orologio: senza, si riaprirebbe il gioco al giorno 5 ricordandosi
+## di averlo chiuso al giorno 3.
+func _away_body(report: Dictionary) -> String:
+	var lines := PackedStringArray()
+	lines.append(tr("AWAY_HEADER") % UiFormat.play_time(float(report["away_seconds"])))
+	lines.append("%s %d %s  %s  %s %d %s" % [
+		tr("HUD_DAY"), int(report["from_day"]), UiFormat.clock(float(report["from_time"])),
+		AWAY_ARROW,
+		tr("HUD_DAY"), current.day, UiFormat.clock(current.time_of_day)])
+	if bool(report["capped"]):
+		lines.append(tr("AWAY_CAPPED") % int(Offline.MAX_GAME_HOURS))
+
+	var facts := PackedStringArray()
+	if int(report["grams"]) > 0:
+		facts.append(tr("AWAY_HARVEST") % int(report["grams"]))
+	if int(report["sold"]) > 0:
+		facts.append(tr("AWAY_SOLD") % [int(report["sold"]), UiFormat.money(int(report["gross"]))])
+	if int(report["commission"]) > 0:
+		facts.append(tr("AWAY_CUT") % UiFormat.money(int(report["commission"])))
+	if int(report["wages"]) > 0:
+		facts.append(tr("AWAY_WAGES") % UiFormat.money(int(report["wages"])))
+	if int(report["power"]) > 0:
+		facts.append(tr("AWAY_POWER") % UiFormat.money(int(report["power"])))
+	var quit_role: String = report["quit"]
+	if not quit_role.is_empty():
+		facts.append(tr("AWAY_QUIT") % Staff.role_name(quit_role))
+	if int(report["idle"]) > 0:
+		facts.append(tr("AWAY_IDLE"))
+	if int(report["thirsty"]) > 0:
+		facts.append(tr("AWAY_THIRSTY") % int(report["thirsty"]))
+	match str(report["deal"]):
+		"ready":
+			facts.append(tr("AWAY_DEAL_READY") % str(report["place"]))
+		"gone":
+			facts.append(tr("AWAY_DEAL_GONE"))
+	if facts.is_empty():
+		facts.append(tr("AWAY_NO_STAFF") if Staff.total(current) <= 0 else tr("AWAY_QUIET"))
+
+	return "\n".join(lines) + "\n\n" + "\n".join(facts)
 
 func save_game() -> bool:
 	if current == null:

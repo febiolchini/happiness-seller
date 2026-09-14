@@ -45,6 +45,28 @@ const TREE_LEAVES_LIT := Color(0.28, 0.42, 0.24)
 const LABEL_SIZE := 8
 const DISTRICT_LABEL_SIZE := 16
 
+## Il nome della strada, stampato **sul marciapiede**.
+##
+## Non su un cartello a un angolo: a 640x360 un cartello leggibile sarebbe
+## grosso quanto mezzo isolato. E non sull'asfalto, che è la prima cosa che ho
+## provato — lì la scritta cade sulla mezzeria tratteggiata, ci passano sopra le
+## auto, e su un grigio scuro un giallo tenue non si legge comunque.
+##
+## Sul marciapiede invece il fondo è chiaro (`SIDEWALK`), quindi basta uno
+## scuro poco carico per leggersi bene restando discreto: si vede quando lo si
+## cerca e non dà fastidio quando non lo si cerca. Ed è anche il posto giusto —
+## il nome serve **dove si cammina**, e gli appuntamenti con Brian si danno per
+## strada ("MILL ROAD NORTH OF MAIN STREET").
+##
+## Sta su un lato solo (nord per le orizzontali, ovest per le verticali): su
+## tutti e due sarebbe il doppio delle scritte per la stessa informazione.
+const STREET_LABEL := Color(0.19, 0.20, 0.24, 0.55)
+const STREET_LABEL_SIZE := 13
+## Ogni quanto si ripete lungo la stessa strada. A 900 px se ne incontra uno
+## ogni schermata e mezza alla vista di default: abbastanza da trovarlo
+## camminando, non tanto da diventare una decorazione a righe.
+const STREET_LABEL_STEP := 900.0
+
 func _draw() -> void:
 	_draw_districts()
 	_draw_lots()
@@ -59,6 +81,7 @@ func _draw() -> void:
 	for road in CityMap.ROADS_V:
 		_draw_road_markings(road, false)
 	_draw_crosswalks()
+	_draw_street_names()
 	_draw_trees()
 	_draw_labels()
 
@@ -236,6 +259,80 @@ func _draw_stripes(rect: Rect2, horizontal: bool) -> void:
 func _inside_any(rects: Array, point: Vector2) -> bool:
 	for rect in rects:
 		if (rect as Rect2).has_point(point):
+			return true
+	return false
+
+# --- Nomi delle strade -----------------------------------------------------
+
+## Il nome di ogni strada, ripetuto lungo la carreggiata e orientato con essa.
+##
+## Sulle verticali il testo è ruotato di novanta gradi e si legge dall'alto
+## verso il basso: è l'unico verso che non costringe a piegare la testa
+## dall'altra parte rispetto a come si guarda la mappa.
+##
+## Niente nomi dentro agli incroci: lì sotto ci sono già le strisce pedonali, e
+## una scritta che ci passa sopra si legge come un errore di disegno. È la
+## stessa regola della mezzeria tratteggiata, che pure si interrompe.
+func _draw_street_names() -> void:
+	var font := ThemeDB.fallback_font
+	if font == null:
+		return
+	# Mezza fascia sopra all'asfalto: il marciapiede è profondo 32 px, quindi la
+	# scritta gli finisce in mezzo.
+	var band := CityMap.SIDEWALK_DEPTH * 0.5
+
+	for i in CityMap.ROADS_H.size():
+		var road: Rect2 = CityMap.ROADS_H[i]
+		var name := str(CityMap.ROAD_NAMES_H[i])
+		var width := font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, STREET_LABEL_SIZE).x
+		var y := road.position.y - band
+		var x := road.position.x + STREET_LABEL_STEP * 0.5
+		while x < road.end.x:
+			# Agli incroci il marciapiede non c'è: lì passa l'altra strada, e una
+			# scritta sull'asfalto si legge come un errore di disegno. Si
+			# controllano tutti e due i capi, non solo il centro, o una scritta
+			# lunga ci entra per metà.
+			if not _crosses_road(CityMap.ROADS_V, x - width * 0.5, x + width * 0.5, y):
+				draw_string(
+					font, Vector2(x - width * 0.5, y + STREET_LABEL_SIZE * 0.36), name,
+					HORIZONTAL_ALIGNMENT_LEFT, -1, STREET_LABEL_SIZE, STREET_LABEL)
+			x += STREET_LABEL_STEP
+
+	for i in CityMap.ROADS_V.size():
+		var road: Rect2 = CityMap.ROADS_V[i]
+		var name := str(CityMap.ROAD_NAMES_V[i])
+		var width := font.get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, STREET_LABEL_SIZE).x
+		var x := road.position.x - band
+		var y := road.position.y + STREET_LABEL_STEP * 0.5
+		while y < road.end.y:
+			if not _crosses_road_v(CityMap.ROADS_H, y - width * 0.5, y + width * 0.5, x):
+				# Ruotare la tela e disegnare nell'origine: `draw_string` non sa
+				# girare il testo da solo, e comporre la rotazione lettera per
+				# lettera costerebbe un giro in più per niente. Novanta gradi in
+				# senso orario, così si legge dall'alto verso il basso: è l'unico
+				# verso che non costringe a piegare la testa dalla parte opposta
+				# a come si guarda la mappa.
+				draw_set_transform(Vector2(x, y), PI * 0.5, Vector2.ONE)
+				draw_string(
+					font, Vector2(-width * 0.5, STREET_LABEL_SIZE * 0.36), name,
+					HORIZONTAL_ALIGNMENT_LEFT, -1, STREET_LABEL_SIZE, STREET_LABEL)
+				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			y += STREET_LABEL_STEP
+
+## Se il tratto orizzontale da `from` a `to` alla quota `y` incrocia una di
+## queste strade (asfalto più marciapiedi).
+func _crosses_road(roads: Array, from: float, to: float, y: float) -> bool:
+	for road: Rect2 in roads:
+		var band := road.grow(CityMap.SIDEWALK_DEPTH)
+		if to >= band.position.x and from <= band.end.x and y >= band.position.y and y <= band.end.y:
+			return true
+	return false
+
+## Lo stesso per un tratto verticale: `from`-`to` sono quote, `x` l'ascissa.
+func _crosses_road_v(roads: Array, from: float, to: float, x: float) -> bool:
+	for road: Rect2 in roads:
+		var band := road.grow(CityMap.SIDEWALK_DEPTH)
+		if to >= band.position.y and from <= band.end.y and x >= band.position.x and x <= band.end.x:
 			return true
 	return false
 

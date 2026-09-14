@@ -43,6 +43,8 @@ func _ready() -> void:
 	for test in [
 		["carica tutto", _test_everything_loads],
 		["le tre lingue", _test_translations],
+		["la luce del giorno", _test_daylight],
+		["il meteo", _test_weather],
 		["pianta della citta'", _test_city_layout],
 		["percorsi", _test_navigation],
 		["partita nuova", _test_new_game],
@@ -57,10 +59,15 @@ func _ready() -> void:
 		["il personale vende", _test_staff_selling],
 		["le paghe", _test_staff_wages],
 		["posti dove vedersi", _test_meet_spots],
+		["come si chiamano i posti", _test_place_names],
 		["appuntamento con brian", _test_seed_deal],
 		["salvataggio e ricaricamento", _test_save_roundtrip],
 		["riprendi l'ultima partita", _test_continue_last],
 		["mezzanotte", _test_day_rollover],
+		["i quartieri ricchi", _test_district_price],
+		["la bolletta della luce", _test_power_bill],
+		["il telefono", _test_phone_alerts],
+		["il tempo a gioco chiuso", _test_offline],
 	]:
 		print("- %s" % test[0])
 		var started := Time.get_ticks_msec()
@@ -408,7 +415,13 @@ func _test_street_customer() -> void:
 	var data := _fresh()
 	data.add_item(Economy.PRODUCT, 200)
 	var wanted := Economy.street_demand_left(data, "tony")
-	_check(wanted >= Economy.STREET_DEMAND.x and wanted <= Economy.STREET_DEMAND.y, "domanda nell'intervallo")
+	# L'intervallo di listino, allargato dal tempo che fa: col sole si compra di
+	# piu' della forchetta, sotto la pioggia di meno. Vedi `_test_weather()`.
+	var mod := Weather.demand_mod(Weather.of(data))
+	_check(
+		wanted >= int(float(Economy.STREET_DEMAND.x) * mod)
+			and wanted <= int(ceil(float(Economy.STREET_DEMAND.y) * mod)),
+		"domanda nell'intervallo")
 	_check_eq(
 		Economy.street_demand("tony", data.day), Economy.street_demand("tony", data.day),
 		"la domanda del giorno e' deterministica")
@@ -484,6 +497,63 @@ func _test_meet_spots() -> void:
 
 ## Il giro completo dell'appuntamento con Brian: chiedo, aspetto, arriva la
 ## posizione, compro, e lui se ne va.
+## I nomi dei posti d'incontro devono dire il vero.
+##
+## Il difetto che questo controllo blocca era vero e si vedeva solo giocando: un
+## appuntamento a (736, -64) su MILL ROAD veniva annunciato "BY THE LAUNDROMAT"
+## perche' la lavanderia era a 314 px in linea d'aria — ma la lavanderia sta su
+## MAIN STREET, tre isolati piu' in basso. Il giocatore ci andava, si trovava
+## davanti alla lavanderia, e Brian era fuori schermo su un'altra strada.
+func _test_place_names() -> void:
+	var liars: Array = []
+	var wrong_street: Array = []
+	for point: Vector2 in CityMap.meet_spots():
+		var place := CityMap.place_name(point)
+		var street := CityMap.street_at(point)
+		if place.strip_edges().is_empty():
+			liars.append("%s non ha nome" % point)
+			continue
+		# Il nome comincia sempre con la strada su cui si e' davvero.
+		if not street.is_empty() and not place.begins_with(street):
+			wrong_street.append("%s e' su %s ma si chiama '%s'" % [point, street, place])
+		# Se nomina un'insegna, quell'insegna deve essere vicina E sulla stessa
+		# strada, o il nome manda da un'altra parte.
+		var by := place.find(" BY ")
+		if by < 0:
+			continue
+		var sign_name := place.substr(by + 4).trim_prefix("THE ")
+		var found := false
+		for entry: Dictionary in CityMap.BUILDINGS:
+			if str(entry.get("label", "")).trim_prefix("THE ") != sign_name:
+				continue
+			found = true
+			var base: Vector2 = entry["base"]
+			if base.distance_to(point) >= CityMap.MEET_SIGN_RANGE:
+				liars.append("%s dice '%s' ma l'insegna e' a %.0f px" % [
+					point, place, base.distance_to(point)])
+			if CityMap.street_at(base) != street:
+				liars.append("%s dice '%s' ma quell'insegna sta su %s" % [
+					point, place, CityMap.street_at(base)])
+			break
+		if not found:
+			liars.append("%s nomina '%s', che non e' un punto di riferimento" % [point, sign_name])
+	_check_empty(wrong_street, "il nome del posto comincia con la strada giusta")
+	_check_empty(liars, "il nome del posto non manda da un'altra parte")
+
+	# Un'insegna che esiste in piu' copie in citta' non puo' fare da indicazione:
+	# manderebbe a quella sbagliata. Vedi `CityMap._is_generic()`.
+	var ambiguous: Array = []
+	for point: Vector2 in CityMap.meet_spots():
+		var place := CityMap.place_name(point)
+		var by := place.find(" BY ")
+		if by < 0:
+			continue
+		var sign_name := place.substr(by + 4).trim_prefix("THE ")
+		for district: Dictionary in CityMap.DISTRICTS:
+			if sign_name in (district["names"] as Array):
+				ambiguous.append("%s nomina '%s', che in citta' c'e' piu' volte" % [point, sign_name])
+	_check_empty(ambiguous, "nessun posto si fa riconoscere da un'insegna generica")
+
 func _test_seed_deal() -> void:
 	var data := _fresh()
 	_check(SeedDeal.can_ask(data), "all'inizio si può chiedere")
@@ -508,7 +578,10 @@ func _test_seed_deal() -> void:
 	_check(
 		SeedDeal.spot(data).distance_to(CityMap.home_doorstep()) <= CityMap.MEET_MAX_DISTANCE,
 		"il posto è vicino a casa")
-	_check_eq(SeedDeal.seeds_left(data), SeedDeal.SEEDS_PER_RUN, "ha portato i semi")
+	var brought := SeedDeal.seeds_left(data)
+	_check(
+		brought >= SeedDeal.SEEDS_PER_RUN.x and brought <= SeedDeal.SEEDS_PER_RUN.y,
+		"ha portato una consegna dentro all'intervallo")
 
 	# Ritick: fissato resta fissato finché non scade. Serve perché `tick()` gira
 	# a ogni frame, non una volta sola.
@@ -525,7 +598,7 @@ func _test_seed_deal() -> void:
 	_check_eq(SeedDeal.buy(data, 2), 2, "con i soldi si comprano")
 	_check_eq(Economy.seeds_owned(data), had + 2, "i semi arrivano in inventario")
 	_check_eq(data.cash, 0, "e i soldi se ne vanno")
-	_check_eq(SeedDeal.seeds_left(data), SeedDeal.SEEDS_PER_RUN - 2, "Brian ne ha due di meno")
+	_check_eq(SeedDeal.seeds_left(data), brought - 2, "Brian ne ha due di meno")
 
 	# Chiedendone più di quanti ne ha, ne dà quanti gliene restano e se ne va.
 	data.cash = price * 99
@@ -591,7 +664,10 @@ func _test_shop() -> void:
 
 	data.cash = 100000
 	_check(not Shop.can_buy(data, "toolkit"), "il toolkit e' uno solo, non se ne comprano due")
-	_check_eq(Shop.max_owned("lamps"), 3, "le lampade si fermano a tre set")
+	# Una lampada per vaso, e i vasi in cantina sono sei.
+	_check_eq(
+		Shop.max_owned("lamps"), Economy.MAX_PLOTS,
+		"si compra una lampada per ogni vaso del seminterrato")
 
 	# Le lampade accorciano il ciclo, il toolkit alza la resa.
 	var strain := Economy.strain(Economy.DEFAULT_STRAIN)
@@ -601,9 +677,41 @@ func _test_shop() -> void:
 	_check(int(mods["grams"]) > base_grams, "il toolkit alza la resa")
 	_check(is_equal_approx(float(mods["hours"]), base_hours), "ma non tocca il tempo")
 
-	_check(Shop.buy(data, "lamps"), "si comprano le lampade")
-	var lit := Shop.grow_mods(data, base_hours, base_grams)
-	_check(float(lit["hours"]) < base_hours, "le lampade accorciano il ciclo")
+	# Senza dire QUALE vaso, `grow_mods()` non regala nessuno sconto: e' il
+	# ripiego sicuro, non "assume che ce l'abbia".
+	_check(
+		is_equal_approx(float(Shop.grow_mods(data, base_hours, base_grams, -1)["hours"]), base_hours),
+		"senza un vaso indicato non c'e' nessuno sconto")
+
+	_check(Shop.buy(data, "lamps"), "si compra la prima lampada")
+	var lit := Shop.grow_mods(data, base_hours, base_grams, 0)
+	_check(float(lit["hours"]) < base_hours, "il vaso con la sua lampada e' piu' veloce")
+	_check(
+		is_equal_approx(
+			float(lit["hours"]), base_hours * (1.0 - Shop.LAMP_SPEEDUP)),
+		"di esattamente l'8%, non di piu'")
+	_check(
+		is_equal_approx(float(Shop.grow_mods(data, base_hours, base_grams, 1)["hours"]), base_hours),
+		"un vaso SENZA la sua lampada resta al tempo di listino")
+
+	# Il punto di tutto: comprare piu' lampade non fa sommare lo sconto sullo
+	# stesso vaso. Prima di questa correzione, con sei lampade comprate ogni
+	# vaso — coperto o no — si vedeva tagliare il 48% (8% x 6) invece dell'8%
+	# del solo vaso che ha davvero la lampada sopra.
+	for i in Economy.MAX_PLOTS - 1:
+		Shop.buy(data, "lamps")
+	_check_eq(Shop.owned(data, "lamps"), Economy.MAX_PLOTS, "tutte e sei le lampade comprate")
+	for index in Economy.MAX_PLOTS:
+		var covered := Shop.grow_mods(data, base_hours, base_grams, index)
+		_check(
+			is_equal_approx(float(covered["hours"]), base_hours * (1.0 - Shop.LAMP_SPEEDUP)),
+			"il vaso %d resta all'8%%, anche con tutte le lampade comprate" % index)
+	# Un vaso oltre l'ultima lampada — se un domani il seminterrato si allarga
+	# senza comprare altre lampade — non ha comunque nessuno sconto.
+	_check(
+		is_equal_approx(
+			float(Shop.grow_mods(data, base_hours, base_grams, Economy.MAX_PLOTS)["hours"]), base_hours),
+		"un vaso oltre l'ultima lampada non ha sconto")
 
 	# Il filtro a carbone abbassa l'attenzione per grammo venduto in strada.
 	var plain := Economy.street_heat(data)
@@ -650,24 +758,59 @@ func _test_staff_growing() -> void:
 	_check_eq(Staff.count(data, "grower"), 1, "ed e' in organico")
 	_check_eq(data.cash, 0, "l'assunzione si paga")
 
-	# Ha i semi: pianta da solo.
-	data.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 4)
+	# Un coltivatore copre TUTTO il seminterrato, quindi finche' i vasi sono sei
+	# ne basta uno. Il tetto lo dice il posto che c'e' (`Staff.max_for()`), non
+	# un numero scritto a mano: quando ci sara' una seconda proprieta' salira'
+	# da solo.
+	data.cash = 100000
+	_check_eq(Staff.max_for(data, "grower"), 1, "con sei vasi basta un coltivatore")
+	_check(not Staff.can_hire(data, "grower"), "e un secondo non si puo' assumere")
+	_check(Staff.max_for(data, "dealer") > 1, "i dealer invece si sommano")
+	data.cash = 0
+
+	# Ha i semi: pianta da solo. I vasi che segue sono tutti quelli che ci sono.
+	var tended := mini(Staff.POTS_PER_GROWER, data.plots.size())
+	_check(tended > 0, "c'e' almeno un vaso da seguire")
+	data.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 20)
 	var report := Staff.work(data, now)
-	_check_eq(int(report["planted"]), Staff.POTS_PER_GROWER, "pianta i vasi che segue")
+	_check_eq(int(report["planted"]), tended, "pianta tutti i vasi che ci sono")
 	_check(not Grow.is_empty(data.plot(0)), "il primo vaso e' pieno")
-	_check(Grow.is_empty(data.plot(2)), "il terzo no: un coltivatore segue due vasi")
+	_check(not Grow.is_empty(data.plot(tended - 1)), "e anche l'ultimo")
 
 	# Il ciclo passa senza che il giocatore tocchi niente: annaffia e raccoglie.
 	_advance(Grow.WATER_HOURS + 1.0)
 	var watered := Staff.work(data, GameState.total_hours())
-	_check_eq(int(watered["watered"]), Staff.POTS_PER_GROWER, "annaffia quando hanno sete")
+	_check_eq(int(watered["watered"]), tended, "annaffia quando hanno sete")
 
 	_advance(float(Economy.strain(Economy.DEFAULT_STRAIN)["grow_hours"]))
-	var cut := Staff.work(data, GameState.total_hours())
-	_check_eq(int(cut["harvested"]), Staff.POTS_PER_GROWER, "raccoglie quando sono pronte")
-	_check(int(cut["grams"]) > 0, "e la merce arriva in magazzino")
-	_check_eq(Economy.stock(data), int(cut["grams"]), "tutta quanta")
-	_check_eq(int(cut["planted"]), Staff.POTS_PER_GROWER, "e ripianta subito coi semi rimasti")
+	var reaped := Staff.work(data, GameState.total_hours())
+	_check_eq(int(reaped["harvested"]), tended, "raccoglie quando sono pronte")
+	_check(int(reaped["grams"]) > 0, "e la merce arriva in magazzino")
+	_check_eq(Economy.stock(data), int(reaped["grams"]), "tutta quanta")
+	_check_eq(int(reaped["planted"]), tended, "e ripianta subito coi semi rimasti")
+
+	# La lampada e' un effetto per vaso anche quando a piantare e' il
+	# personale: un coltivatore che ne segue sei non deve trovarsi lo stesso
+	# sconto su tutti solo perche' in cantina ci sono tre lampade in totale.
+	var lamped := _fresh()
+	lamped.cash = Staff.hire_cost("grower")
+	Staff.hire(lamped, "grower", GameState.total_hours())
+	lamped.cash = Shop.price("lamps") * 3
+	for i in 3:
+		Shop.buy(lamped, "lamps")
+	_check_eq(Shop.owned(lamped, "lamps"), 3, "tre lampade comprate, non sei")
+	lamped.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 20)
+	var strain := Economy.strain(Economy.DEFAULT_STRAIN)
+	var base := {"hours": strain["grow_hours"], "grams": strain["grams"]}
+	Staff.work(lamped, GameState.total_hours(), base)
+	for i in 3:
+		_check(
+			Grow.grow_hours(lamped.plot(i)) < float(strain["grow_hours"]),
+			"il vaso %d ha la sua lampada ed e' piu' veloce" % i)
+	for i in range(3, 6):
+		_check(
+			is_equal_approx(Grow.grow_hours(lamped.plot(i)), float(strain["grow_hours"])),
+			"il vaso %d non ha lampada e resta al tempo di listino" % i)
 
 func _test_staff_selling() -> void:
 	var data := _fresh()
@@ -686,6 +829,29 @@ func _test_staff_selling() -> void:
 	_check(int(bulk["revenue"]) > 0, "e porta a casa i soldi")
 	_check_eq(data.cash, int(bulk["revenue"]), "che finiscono in cassa")
 	_check_eq(data.heat, 0.0, "vendendo all'ingrosso non si alza l'attenzione")
+
+	# La quota del dealer: niente paga, si tiene una fetta di quello che piazza.
+	_check(int(bulk["gross"]) > 0, "la merce ha fatto un lordo")
+	_check(int(bulk["commission"]) > 0, "e il dealer si e' tenuto la sua quota")
+	_check_eq(
+		int(bulk["commission"]), int(roundf(float(bulk["gross"]) * Staff.cut("dealer"))),
+		"che e' la percentuale della tabella")
+	_check_eq(
+		int(bulk["revenue"]), int(bulk["gross"]) - int(bulk["commission"]),
+		"in cassa arriva il lordo meno la quota")
+	# La quota non dipende da quanti sono: la merce piazzata e' la stessa,
+	# divisa fra loro. Assumerne un altro aumenta quanto si riesce a piazzare,
+	# non la percentuale.
+	data.cash += Staff.hire_cost("dealer")
+	Staff.hire(data, "dealer", GameState.total_hours())
+	data.cash = 0
+	_advance(10.0)
+	var pair := Staff.work(data, GameState.total_hours())
+	if int(pair["gross"]) > 0:
+		_check_eq(
+			int(pair["commission"]), int(roundf(float(pair["gross"]) * Staff.cut("dealer"))),
+			"anche in due la percentuale e' la stessa")
+	_check(Staff.fire(data, "dealer"), "torniamo a uno solo")
 
 	# Tutto in strada: rende di piu' e scalda le acque.
 	Staff.set_wholesale_share(data, 0)
@@ -716,6 +882,17 @@ func _test_staff_wages() -> void:
 	_check(Staff.hire(data, "grower", GameState.total_hours()), "assunto")
 	_check_eq(Staff.daily_wages(data), Staff.wage("grower"), "la paga del giorno")
 
+	# I due ruoli si pagano in due modi diversi, ed e' la differenza che conta:
+	# un dealer fermo non costa niente, un coltivatore senza semi costa uguale.
+	data.cash = 100000
+	_check(Staff.hire(data, "dealer", GameState.total_hours()), "assunto anche un dealer")
+	_check_eq(Staff.wage("dealer"), 0, "il dealer non ha paga")
+	_check_eq(
+		Staff.daily_wages(data), Staff.wage("grower"),
+		"e non entra nel conto delle paghe")
+	_check(Staff.cut("dealer") > 0.0, "si tiene invece una quota sulle vendite")
+	_check_eq(Staff.cut("grower"), 0.0, "il coltivatore no: lui prende la paga")
+
 	data.cash = 1000
 	var paid := Staff.pay_wages(data)
 	_check_eq(int(paid["paid"]), Staff.wage("grower"), "a mezzanotte si paga")
@@ -726,8 +903,16 @@ func _test_staff_wages() -> void:
 	data.cash = 0
 	var broke := Staff.pay_wages(data)
 	_check_eq(str(broke["quit"]), "grower", "senza soldi il coltivatore se ne va")
-	_check_eq(Staff.total(data), 0, "e l'organico si svuota")
+	_check_eq(
+		Staff.count(data, "dealer"), 1,
+		"il dealer resta: non aveva niente da riscuotere")
 	_check(data.cash >= 0, "la cassa non va sotto zero")
+
+	# Con soli dealer in organico non c'e' nessuna paga da scalare, quindi non
+	# c'e' nessuna notte in cui la cassa vuota possa mandare via qualcuno.
+	var only_cut := Staff.pay_wages(data)
+	_check_eq(int(only_cut["paid"]), 0, "con soli dealer non si paga niente")
+	_check_eq(str(only_cut["quit"]), "", "e non se ne va nessuno")
 
 	_check(not Staff.fire(data, "grower"), "non si puo' licenziare chi non c'e'")
 
@@ -752,6 +937,7 @@ func _test_save_roundtrip() -> void:
 	data.add_item(Economy.PRODUCT, 42)
 	data.heat = 23.5
 	data.market_price = 13
+	data.weather = "storm"
 	Economy.sell_street(data, "dee", 3)
 	# Dopo la vendita, non prima: vendere in strada alza l'attenzione, quindi il
 	# valore da confrontare è quello che c'è davvero al momento del salvataggio.
@@ -776,6 +962,7 @@ func _test_save_roundtrip() -> void:
 		"la durata fotografata sulla pianta e' conservata")
 	_check_eq(Economy.stock(restored), Economy.stock(data), "merce conservata")
 	_check_eq(restored.market_price, 13, "prezzo del giorno conservato")
+	_check_eq(restored.weather, "storm", "il tempo del giorno e' conservato")
 	_check(is_equal_approx(restored.heat, heat_before), "attenzione conservata")
 	_check(
 		is_equal_approx(float(restored.plots[1]["planted_at"]), float(data.plots[1]["planted_at"])),
@@ -802,6 +989,7 @@ func _test_save_roundtrip() -> void:
 	var legacy := {"version": 1, "cash": 500, "day": 4}
 	var old := SaveData.from_dict(legacy)
 	_check_eq(old.cash, 500, "salvataggio vecchio: soldi letti")
+	_check_eq(old.weather, Weather.DEFAULT, "salvataggio vecchio: tempo di ripiego")
 	_check_eq(old.plots.size(), old.plot_slots, "salvataggio vecchio: vasi creati vuoti")
 	_check(Grow.is_empty(old.plot(0)), "salvataggio vecchio: vasi vuoti")
 
@@ -898,3 +1086,496 @@ func _test_day_rollover() -> void:
 	data.heat = 3.0
 	Economy.roll_new_day(data)
 	_check_eq(data.heat, 0.0, "l'attenzione non va sotto zero")
+
+# ---------------------------------------------------------------------------
+
+## La tabella della luce.
+##
+## Sono funzioni pure dell'ora, quindi si provano senza scena e senza aspettare:
+## e' lo stesso motivo per cui si provano cosi' la coltivazione e l'economia.
+func _test_daylight() -> void:
+	# Il giro si deve chiudere a mezzanotte. Un salto di colore fra le 23:59 e
+	# le 00:01 sarebbe uno sfarfallio a schermo tutte le notti.
+	var before := Daylight.air(23.99)
+	var after := Daylight.air(0.01)
+	_check(
+		absf(before.r - after.r) < 0.02 and absf(before.b - after.b) < 0.02,
+		"a mezzanotte il colore non salta")
+
+	# Mai al buio pesto: vedi il commento su KEYFRAMES.
+	var darkest := 1.0
+	var hour := 0.0
+	while hour < 24.0:
+		var air := Daylight.air(hour)
+		darkest = minf(darkest, (air.r + air.g + air.b) / 3.0)
+		hour += 0.1
+	_check(darkest > 0.25, "nemmeno di notte la citta' diventa illeggibile")
+
+	_check(
+		Daylight.air(13.0).g > Daylight.air(1.0).g,
+		"a mezzogiorno c'e' piu' luce che all'una di notte")
+	_check_eq(Daylight.sun_height(3.0), 0.0, "di notte il sole e' sotto l'orizzonte")
+	_check(Daylight.sun_height(13.0) > 0.9, "a mezzogiorno il sole e' alto")
+	_check(
+		Daylight.sun_height(12.5) > Daylight.sun_height(7.5),
+		"a mezzogiorno e' piu' alto che alle sette e mezza")
+
+	var data := _fresh()
+	data.weather = "clear"
+	data.time_of_day = 2.0
+	_check(Daylight.lamps_on(data), "di notte i lampioni sono accesi")
+	data.time_of_day = 13.0
+	_check(not Daylight.lamps_on(data), "a mezzogiorno sono spenti")
+	# Col brutto tempo si accendono anche di giorno: e' quello che fa capire che
+	# il tempo e' cambiato anche senza guardare la pioggia.
+	data.weather = "storm"
+	_check(Daylight.lamps_on(data), "sotto il temporale si accendono anche di giorno")
+
+	# L'ombra gira: la mattina cade da una parte, il pomeriggio dall'altra.
+	data.weather = "clear"
+	data.time_of_day = 8.0
+	var morning := Daylight.shadow(data)
+	data.time_of_day = 18.0
+	var evening := Daylight.shadow(data)
+	var morning_dir: Vector2 = morning["direction"]
+	var evening_dir: Vector2 = evening["direction"]
+	_check(morning_dir.x * evening_dir.x < 0.0, "l'ombra gira da una parte all'altra col sole")
+	_check(morning_dir.y > 0.0 and evening_dir.y > 0.0, "ma cade sempre verso chi guarda")
+
+	# E si accorcia col sole alto: e' la cosa che fa leggere l'ora guardando
+	# la strada invece dell'orologio dell'HUD.
+	data.time_of_day = 13.0
+	var noon := Daylight.shadow(data)
+	_check(float(noon["length"]) < float(morning["length"]), "a mezzogiorno l'ombra e' piu' corta")
+
+	# Col cielo coperto le ombre portate spariscono e resta il velo di contatto.
+	var sunny := float(noon["alpha"])
+	data.weather = "overcast"
+	var dull := float(Daylight.shadow(data)["alpha"])
+	_check(dull < sunny, "col coperto l'ombra sbiadisce")
+	_check(dull > 0.0, "ma resta il contatto con il terreno")
+
+	# Il giro che fa ogni cosa accesa: divisa per la luce, poi moltiplicata dal
+	# `CanvasModulate`, deve tornare il colore di partenza.
+	var ambient := Color(0.3, 0.33, 0.55)
+	var lit := Color(1.0, 0.84, 0.5, 0.7)
+	var compensated := Daylight.emissive(lit, ambient)
+	_check(
+		is_equal_approx(compensated.r * ambient.r, lit.r)
+			and is_equal_approx(compensated.g * ambient.g, lit.g),
+		"il colore compensato torna dov'era una volta moltiplicato")
+	_check_eq(compensated.a, lit.a, "e l'opacita' non viene toccata")
+	# Col buio pesto il tetto deve reggere, o un lampione diventa una macchia.
+	var extreme := Daylight.emissive(Color.WHITE, Color(0.001, 0.001, 0.001))
+	_check(extreme.r <= Daylight.EMISSIVE_CEILING, "il tetto regge anche col buio pesto")
+
+	# Le finestre: di giorno quasi tutte spente, dopo cena quasi tutte accese.
+	_check(
+		Daylight.window_lit_ratio(21.0) > Daylight.window_lit_ratio(12.0) * 3.0,
+		"dopo cena le finestre accese sono molte piu' che a mezzogiorno")
+	var probe := 0.0
+	var outside: Array = []
+	while probe < 24.0:
+		var value := Daylight.window_lit_ratio(probe)
+		if value < 0.0 or value > 1.0:
+			outside.append("alle %.1f vale %.2f" % [probe, value])
+		probe += 0.25
+	_check_empty(outside, "la quota di finestre accese resta fra 0 e 1")
+
+# ---------------------------------------------------------------------------
+
+## Il meteo: la tabella, il tiro del giorno nuovo, e quanto pesa in partita.
+func _test_weather() -> void:
+	_check_empty(Weather.problems(), "la tabella del meteo e' completa")
+
+	# Il tiro non deve mai restituire un tempo che non esiste: una chiave
+	# sbagliata non schianta, ricade sul sereno, ed e' l'errore che non si vede.
+	var bad: Array = []
+	for start in Weather.TYPES:
+		for i in 60:
+			var next := Weather.roll(str(start))
+			if not Weather.TYPES.has(next):
+				bad.append("da %s si finisce su %s" % [start, next])
+				break
+	_check_empty(bad, "il tiro resta dentro alla tabella")
+	# Anche partendo da una chiave che non esiste — un salvataggio scritto con
+	# una tabella diversa — deve venire fuori qualcosa di valido.
+	_check(
+		Weather.TYPES.has(Weather.roll("un_tempo_che_non_esiste")),
+		"un tempo sconosciuto non blocca il tiro")
+
+	# I passaggi devono avere una direzione: dal temporale non si torna al sole
+	# piu' facilmente di quanto ci si torni dal nuvoloso.
+	_check(
+		int(Weather.TRANSITIONS["storm"].get("clear", 0))
+			< int(Weather.TRANSITIONS["clouds"].get("clear", 0)),
+		"il tempo si schiarisce per gradi, non di colpo")
+
+	var data := _fresh()
+	data.add_item(Economy.PRODUCT, 400)
+
+	# Il punto di tutto: sotto la pioggia si vende meno, ma ci si fa notare meno.
+	data.weather = "clear"
+	var sunny_demand := Economy.street_demand("tony", data.day, "clear")
+	var sunny_heat := Economy.street_heat(data)
+	data.weather = "rain"
+	var wet_demand := Economy.street_demand("tony", data.day, "rain")
+	var wet_heat := Economy.street_heat(data)
+	_check(wet_demand < sunny_demand, "sotto la pioggia i clienti comprano meno")
+	_check(wet_heat < sunny_heat, "ma ci si fa notare meno")
+	_check(wet_demand >= 1, "nemmeno col tempo peggiore la domanda si azzera")
+
+	# E quello che conta davvero: la differenza si vede nell'incasso.
+	data.weather = "clear"
+	data.npc_state.clear()
+	var sunny_take := Economy.sell_street(data, "tony", 999)
+	data.weather = "rain"
+	data.npc_state.clear()
+	var wet_take := Economy.sell_street(data, "tony", 999)
+	_check(wet_take < sunny_take, "una giornata di pioggia incassa meno di una di sole")
+
+	# Mezzanotte tira il tempo nuovo insieme al prezzo.
+	var seen := {}
+	var invalid: Array = []
+	for i in 40:
+		Economy.roll_new_day(data)
+		seen[data.weather] = true
+		if not Weather.TYPES.has(data.weather):
+			invalid.append(data.weather)
+	_check_empty(invalid, "a mezzanotte esce sempre un tempo valido")
+	_check(seen.size() > 1, "in quaranta giorni il tempo cambia almeno una volta")
+
+	# `Weather.of()` deve reggere il caso in cui non c'e' nessuna partita: e' il
+	# menu principale, ed e' il primo posto in cui gira questo codice.
+	_check_eq(Weather.of(null), Weather.DEFAULT, "senza partita vale il tempo di ripiego")
+	data.weather = "questo_non_esiste"
+	_check_eq(Weather.of(data), Weather.DEFAULT, "e anche con un tempo sconosciuto nel salvataggio")
+
+# ---------------------------------------------------------------------------
+
+## Il recupero del tempo passato a gioco chiuso.
+##
+## Gira senza aspettare niente: `Offline.catch_up()` prende i secondi veri come
+## parametro invece di leggere l'orologio del sistema, apposta perche' si possa
+## provare una notte intera in un millisecondo. E' lo stesso motivo per cui il
+## ritmo dell'orologio glielo passa chi chiama.
+func _test_offline() -> void:
+	const RATE := 4.0  # minuti di gioco per secondo vero, come in GameState
+	const HOUR := 3600.0
+
+	# --- Sotto al minuto non succede niente --------------------------------
+	var data := _fresh()
+	var before_day := data.day
+	var quick := Offline.catch_up(data, 30.0, RATE)
+	_check(not Offline.happened(quick), "riaprire subito non fa scattare il recupero")
+	_check_eq(data.day, before_day, "e non sposta l'orologio")
+
+	# Un salvataggio nel futuro (orologio di sistema spostato indietro) deve
+	# dare zero, non un numero negativo che farebbe camminare l'ora all'indietro.
+	data.saved_at = Time.get_unix_time_from_system() + 10000.0
+	_check_eq(
+		Offline.away_seconds(data, Time.get_unix_time_from_system()), 0.0,
+		"un salvataggio nel futuro non regala tempo")
+
+	# --- L'orologio avanza di quanto deve ----------------------------------
+	#
+	# A 4 minuti di gioco al secondo, due minuti veri sono 480 minuti di gioco,
+	# cioe' otto ore. E' il rapporto che rende necessario il tetto: vedi sotto.
+	data = _fresh()
+	data.time_of_day = 8.0
+	data.day = 1
+	var report := Offline.catch_up(data, 120.0, RATE)
+	_check(Offline.happened(report), "due minuti veri fanno scattare il recupero")
+	_check(is_equal_approx(float(report["game_hours"]), 8.0), "due minuti veri sono otto ore di gioco")
+	_check(
+		data.day == 1 and is_equal_approx(data.time_of_day, 16.0),
+		"e l'orologio della partita arriva alle sedici")
+	_check(not bool(report["capped"]), "otto ore stanno sotto al tetto")
+
+	# --- Il tetto -----------------------------------------------------------
+	data = _fresh()
+	data.time_of_day = 8.0
+	var long_away := Offline.catch_up(data, 2.0 * HOUR, RATE)
+	_check(bool(long_away["capped"]), "due ore vere sbattono contro il tetto")
+	_check(
+		is_equal_approx(float(long_away["game_hours"]), Offline.MAX_GAME_HOURS),
+		"e vengono recuperate solo le ore del tetto")
+	# Il tetto e' quello che tiene il gioco un gestionale invece di un idle:
+	# tornare dopo una settimana deve dare quanto tornare dopo un quarto d'ora.
+	var week := _fresh()
+	week.time_of_day = 8.0
+	var week_report := Offline.catch_up(week, 24.0 * 7.0 * HOUR, RATE)
+	_check(
+		is_equal_approx(float(week_report["game_hours"]), float(long_away["game_hours"])),
+		"una settimana vale quanto il tetto, non di piu'")
+
+	# --- Il personale lavora davvero ---------------------------------------
+	data = _fresh()
+	data.cash = 100000
+	data.time_of_day = 8.0
+	Staff.hire(data, "grower", GameState.total_hours())
+	Staff.hire(data, "dealer", GameState.total_hours())
+	data.staff_checked_at = 0.0
+	data.time_of_day = 8.0
+	data.day = 1
+	data.staff_checked_at = 8.0
+	# Semi in mano: senza, i coltivatori non hanno niente da piantare.
+	data.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 6)
+	var cash_before := data.cash
+	# Dodici minuti veri: il tetto pieno, due giornate di gioco.
+	var worked := Offline.catch_up(data, 12.0 * 60.0, RATE)
+	_check(int(worked["planted"]) > 0, "i coltivatori piantano mentre il gioco e' chiuso")
+	_check(int(worked["grams"]) > 0, "e raccolgono")
+	_check(int(worked["sold"]) > 0, "i dealer piazzano la merce")
+	_check(int(worked["revenue"]) > 0, "e portano a casa dei soldi")
+	_check(int(worked["wages"]) > 0, "le paghe delle mezzanotti attraversate sono state scalate")
+	_check(data.cash != cash_before, "e il conto in banca se n'e' accorto")
+
+	# --- Un passo solo non basta: il punto di tutto il file ----------------
+	#
+	# Un vaso completa un ciclo in 29 ore di gioco. In 40 ore ne fa uno e mezzo,
+	# quindi un coltivatore deve raccogliere E ripiantare. Saltando l'orologio
+	# in un colpo e chiamando `Staff.work()` una volta sola se ne raccoglierebbe
+	# uno e basta, e chi lascia il gioco aperto guadagnerebbe piu' di chi lo
+	# chiude per lo stesso tempo.
+	var stepped := _fresh()
+	stepped.cash = 100000
+	stepped.time_of_day = 0.0
+	stepped.day = 1
+	Staff.hire(stepped, "grower", 0.0)
+	stepped.staff_checked_at = 0.0
+	stepped.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 8)
+	# Il tetto pieno: 48 ore di gioco, sopra a un ciclo e mezzo di 29 ore.
+	var tended_pots := mini(Staff.POTS_PER_GROWER, stepped.plots.size())
+	var many := Offline.catch_up(stepped, 30.0 * 60.0, RATE)
+	_check(
+		int(many["planted"]) > tended_pots,
+		"in due giornate di gioco i vasi vengono ripiantati, non seminati una volta sola")
+
+	# --- Finiti i semi, la produzione si ferma da sola ----------------------
+	var seedless := _fresh()
+	seedless.cash = 100000
+	seedless.time_of_day = 8.0
+	Staff.hire(seedless, "grower", GameState.total_hours())
+	seedless.staff_checked_at = 8.0
+	seedless.day = 1
+	seedless.time_of_day = 8.0
+	seedless.inventory.erase(Economy.seed_item(Economy.DEFAULT_STRAIN))
+	var dry_run := Offline.catch_up(seedless, 12.0 * 60.0, RATE)
+	_check_eq(int(dry_run["planted"]), 0, "senza semi non si pianta niente")
+	_check(int(dry_run["idle"]) > 0, "e il resoconto dice perche' i vasi sono fermi")
+	_check_eq(
+		Economy.seeds_owned(seedless), 0,
+		"a gioco chiuso i semi non si comprano da soli")
+
+	# --- Senza personale scorre solo l'orologio ----------------------------
+	var alone := _fresh()
+	alone.time_of_day = 8.0
+	alone.day = 1
+	var stock_before := Economy.stock(alone)
+	var idle := Offline.catch_up(alone, 12.0 * 60.0, RATE)
+	_check_eq(int(idle["revenue"]), 0, "senza personale non entra un soldo")
+	_check_eq(Economy.stock(alone), stock_before, "e la merce resta dov'era")
+	_check(is_equal_approx(alone.time_of_day, 0.0) or alone.day > 1, "ma l'orologio e' andato avanti")
+	# Il segnaposto del personale deve seguire l'orologio anche senza nessuno
+	# assunto, o il primo assunto si troverebbe addosso tutte quelle ore.
+	_check(
+		is_equal_approx(alone.staff_checked_at, float(alone.day - 1) * 24.0 + alone.time_of_day),
+		"il segnaposto del personale segue l'orologio")
+
+	# --- L'appuntamento con Brian scorre anche a gioco chiuso --------------
+	var meeting := _fresh()
+	meeting.day = 1
+	meeting.time_of_day = 8.0
+	SeedDeal.ask(meeting, 8.0)
+	# Piu' della finestra dell'incontro: Brian non aspetta in pausa.
+	var missed := Offline.catch_up(meeting, 12.0 * 60.0, RATE)
+	_check_eq(str(missed["deal"]), "gone", "un appuntamento lasciato in sospeso scade")
+	_check(not SeedDeal.is_active(meeting), "e l'appuntamento viene chiuso")
+
+	# --- Le piante hanno sete ----------------------------------------------
+	var thirsty := _fresh()
+	thirsty.day = 1
+	thirsty.time_of_day = 8.0
+	Grow.plant(thirsty.plot(0), Economy.DEFAULT_STRAIN, GameState.total_hours())
+	var quality_before := Grow.quality(thirsty.plot(0))
+	var neglected := Offline.catch_up(thirsty, 12.0 * 60.0, RATE)
+	Grow.sync(thirsty.plot(0), float(thirsty.day - 1) * 24.0 + thirsty.time_of_day)
+	_check(int(neglected["thirsty"]) > 0, "i vasi che nessuno segue restano a secco")
+	_check(
+		Grow.quality(thirsty.plot(0)) < quality_before,
+		"e la sete si porta via un pezzo di resa, come a gioco aperto")
+	_check(
+		Grow.quality(thirsty.plot(0)) >= Grow.MIN_QUALITY,
+		"ma non sotto al minimo: una notte via non azzera un raccolto")
+
+# ---------------------------------------------------------------------------
+
+## In collina la stessa roba si paga di piu'.
+func _test_district_price() -> void:
+	# Le due tabelle devono essere d'accordo: un nome di quartiere scritto male
+	# passerebbe in silenzio come "nessun aumento", ed e' il tipo di errore che
+	# non si nota mai perche' non rompe niente.
+	var unknown: Array = []
+	for key in Economy.DISTRICT_PRICE:
+		var found := false
+		for district: Dictionary in CityMap.DISTRICTS:
+			if str(district["name"]) == str(key):
+				found = true
+				break
+		if not found:
+			unknown.append(str(key))
+	_check_empty(unknown, "i quartieri col prezzo maggiorato esistono sulla mappa")
+
+	var data := _fresh()
+	# Un prezzo tondo e alto: cosi' l'arrotondamento agli interi non sporca il
+	# confronto fra le due cifre.
+	data.market_price = 100
+	var base := Economy.retail_price(data)
+	var uptown := Economy.retail_price(data, "HILLSIDE")
+	_check(uptown > base, "in collina il prezzo e' piu' alto")
+	_check(
+		absf(float(uptown) / float(base) - Economy.district_price("HILLSIDE")) < 0.01,
+		"ed e' la maggiorazione della tabella")
+	_check_eq(
+		Economy.retail_price(data, "THE FLATS"), base,
+		"in un quartiere qualunque si paga il prezzo di strada")
+	_check_eq(
+		Economy.retail_price(data, "un quartiere che non esiste"), base,
+		"e un quartiere sconosciuto non regala niente")
+
+	# Il punto: la stessa vendita in collina incassa di piu'.
+	data.add_item(Economy.PRODUCT, 400)
+	var here := Economy.sell_street(data, "tony", 10)
+	data.npc_state.clear()
+	var there := Economy.sell_street(data, "tony", 10, "HILLSIDE")
+	_check(there > here, "dieci grammi in collina rendono piu' che sotto casa")
+
+	# Il personale non ha una posizione sulla mappa, quindi prende il prezzo
+	# base: andarci di persona e' l'unica cosa che quel dieci per cento lo porta
+	# a casa. E' una differenza voluta, non una dimenticanza.
+	data.npc_state.clear()
+	_check_eq(
+		Economy.sell_street(data, "tony", 10), here,
+		"senza quartiere si torna al prezzo base")
+
+# ---------------------------------------------------------------------------
+
+## La bolletta della luce: una spesa che arriva al mese, non ogni notte.
+func _test_power_bill() -> void:
+	var data := _fresh()
+	data.cash = 100000
+
+	_check_eq(Economy.power_bill(data), Economy.POWER_BASE, "a cantina spenta si paga la quota fissa")
+	Shop.buy(data, "lamps")
+	Shop.buy(data, "lamps")
+	_check_eq(
+		Economy.power_bill(data), Economy.POWER_BASE + 2 * Economy.POWER_PER_LAMP,
+		"ogni lampada accesa aggiunge la sua quota")
+
+	# Prima della scadenza non si paga niente.
+	data.cash = 5000
+	var early := Economy.charge_power(data)
+	_check_eq(int(early["due"]), 0, "il primo giorno non c'e' niente da pagare")
+	_check_eq(data.cash, 5000, "e la cassa non si tocca")
+	_check_eq(Economy.days_to_bill(data), Economy.BILL_DAYS, "mancano trenta giorni")
+
+	# A scadenza si paga.
+	data.day += Economy.BILL_DAYS
+	var due := Economy.power_bill(data)
+	var bill := Economy.charge_power(data)
+	_check_eq(int(bill["due"]), due, "dopo un mese arriva la bolletta")
+	_check_eq(int(bill["paid"]), due, "e si paga tutta")
+	_check_eq(data.cash, 5000 - due, "la cassa cala di quello che era dovuto")
+	# Due volte lo stesso giorno non si paga: il conto riparte da quando e'
+	# scaduta, non da oggi.
+	_check_eq(int(Economy.charge_power(data)["due"]), 0, "non arriva due volte lo stesso mese")
+
+	# Cassa a secco: si paga quello che c'e', e non si va sotto zero.
+	data.day += Economy.BILL_DAYS
+	data.cash = 30
+	var short_bill := Economy.charge_power(data)
+	_check(int(short_bill["due"]) > int(short_bill["paid"]), "a cassa vuota la bolletta resta scoperta")
+	_check_eq(int(short_bill["paid"]), 30, "si paga quello che c'era")
+	_check_eq(data.cash, 0, "e la cassa non va sotto zero")
+
+	# Attraversando piu' mesi in un colpo solo — il recupero del tempo a gioco
+	# chiuso — non se ne deve saltare nessuno.
+	var away := _fresh()
+	away.cash = 100000
+	away.day = 1
+	away.time_of_day = 8.0
+	var before := away.cash
+	for i in Economy.BILL_DAYS * 2:
+		away.day += 1
+		Economy.charge_power(away)
+	_check_eq(
+		before - away.cash, Economy.POWER_BASE * 2,
+		"in sessanta giorni arrivano due bollette, non una e non tre")
+
+# ---------------------------------------------------------------------------
+
+## I messaggi che arrivano sul telefono.
+##
+## La parte che puo' sbagliare in silenzio e' QUANDO parte l'avviso: un avviso
+## che si ripete a ogni frame riempirebbe lo schermo, uno che non riparte mai
+## lascerebbe il giocatore senza semi e senza nessuno che glielo dice.
+func _test_phone_alerts() -> void:
+	var data := _fresh()
+
+	# Con i semi in mano non c'e' niente da dire, nemmeno con dei vasi fermi.
+	_check_eq(
+		Staff.seedless_alert(data, 3), false,
+		"finche' ci sono semi il personale non avvisa")
+
+	# Semi finiti ma nessun vaso fermo: il lavoro sta andando avanti lo stesso,
+	# non c'e' niente da segnalare.
+	data.inventory.erase(Economy.seed_item(Economy.DEFAULT_STRAIN))
+	_check_eq(
+		Staff.seedless_alert(data, 0), false,
+		"senza vasi fermi non si avvisa, anche a semi zero")
+
+	# Semi finiti E vasi fermi: si avvisa, UNA volta sola.
+	_check_eq(Staff.seedless_alert(data, 2), true, "semi finiti e vasi fermi: si avvisa")
+	_check_eq(Staff.seedless_alert(data, 2), false, "ma una volta sola, non a ogni giro")
+	for i in 20:
+		_check_eq(Staff.seedless_alert(data, 2), false, "e nemmeno insistendo")
+
+	# Il flag sta nel salvataggio: riaprire la partita non fa ripartire
+	# l'avviso da capo.
+	var reloaded := SaveData.from_dict(JSON.parse_string(JSON.stringify(data.to_dict())))
+	_check_eq(
+		Staff.seedless_alert(reloaded, 2), false,
+		"ricaricando la partita l'avviso non si ripete")
+
+	# Arrivano altri semi: il permesso torna, e alla prossima secca si riavvisa.
+	data.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 4)
+	_check_eq(Staff.seedless_alert(data, 2), false, "coi semi in mano si sta zitti")
+	data.inventory.erase(Economy.seed_item(Economy.DEFAULT_STRAIN))
+	_check_eq(
+		Staff.seedless_alert(data, 2), true,
+		"finiti di nuovo, si avvisa di nuovo")
+
+	# Il recupero del tempo a gioco chiuso lo dice nel suo resoconto
+	# (`AWAY_IDLE`), quindi segna il flag: il telefono non deve ripetere un
+	# attimo dopo una notizia che il giocatore ha appena letto.
+	var away := _fresh()
+	away.cash = 100000
+	away.day = 1
+	away.time_of_day = 8.0
+	Staff.hire(away, "grower", 0.0)
+	away.staff_checked_at = 8.0
+	away.inventory.erase(Economy.seed_item(Economy.DEFAULT_STRAIN))
+	var report := Offline.catch_up(away, 12.0 * 60.0, 4.0)
+	if int(report["idle"]) > 0:
+		_check_eq(
+			Staff.seedless_alert(away, int(report["idle"])), false,
+			"quello che ha gia' detto il resoconto non lo ripete il telefono")
+
+	# `GameState.text_message()` tiene l'ultimo messaggio, cosi' il telefono lo
+	# ritrova cambiando stanza.
+	GameState.text_message("BRIAN", "MAIN STREET AT MILL ROAD")
+	_check_eq(str(GameState.last_text.get("sender", "")), "BRIAN", "il mittente resta")
+	_check_eq(
+		str(GameState.last_text.get("body", "")), "MAIN STREET AT MILL ROAD",
+		"e anche il testo")

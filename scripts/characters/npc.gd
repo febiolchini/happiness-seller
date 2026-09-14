@@ -49,6 +49,13 @@ var _busy := false
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	# Fermo su una tappa un personaggio smette di ridisegnarsi, e la sua ombra
+	# resterebbe ferma mentre quella di tutti gli altri gira col sole.
+	add_to_group(Daylight.LIGHT_GROUP)
+
+## Chiamata da `atmosphere.gd` quando la luce è cambiata abbastanza da vedersi.
+func on_light_changed() -> void:
+	queue_redraw()
 
 func setup(data: Dictionary) -> void:
 	entry = data
@@ -202,9 +209,13 @@ func _talk_seeds(dialogue: Node) -> void:
 
 ## Tagli sensati per quanti semi ha addosso, con sempre uno che li prende tutti.
 ## Stessa idea di `_sale_steps()`: pochi bottoni e nessuna aritmetica da fare.
+##
+## Il taglio da sei c'è perché le consegne arrivano fino a dodici: saltare da
+## tre a dodici vorrebbe dire, per chi non ha in tasca quattrocentottanta
+## dollari, comprarne tre per volta a bottonate.
 func _seed_steps(most: int) -> Array:
 	var steps: Array = []
-	for count in [1, 3]:
+	for count in [1, 3, 6]:
 		if count < most:
 			steps.append(count)
 	steps.append(most)
@@ -229,7 +240,7 @@ func _buy_seeds(dialogue: Node, count: int) -> void:
 func _talk_buyer(dialogue: Node) -> void:
 	var data := GameState.current
 	var wanted := Economy.street_demand_left(data, npc_id)
-	var price := Economy.retail_price(data)
+	var price := Economy.retail_price(data, _district())
 	var stock := Economy.stock(data)
 
 	if wanted <= 0:
@@ -240,6 +251,11 @@ func _talk_buyer(dialogue: Node) -> void:
 		return
 
 	var body := tr("NPC_BUYER_BODY") % [wanted, price, stock]
+	# Se qui si paga più che altrove, il cliente lo dice. Senza, l'aumento
+	# resterebbe un numero che cambia senza che si capisca perché — e quindi
+	# nessuno andrebbe mai apposta in collina.
+	if Economy.district_price(_district()) > 1.0:
+		body += "\n\n" + tr("NPC_BUYER_UPTOWN")
 	var choices: Array = []
 	for amount in _sale_steps(mini(wanted, stock)):
 		choices.append({
@@ -260,8 +276,13 @@ func _sale_steps(most: int) -> Array:
 	steps.append(most)
 	return steps
 
+## Il quartiere in cui sta questo personaggio. Nei quartieri ricchi la stessa
+## roba si paga di più: vedi `Economy.DISTRICT_PRICE`.
+func _district() -> String:
+	return CityMap.district_at(global_position)
+
 func _sell_to(dialogue: Node, grams: int) -> void:
-	var revenue := Economy.sell_street(GameState.current, npc_id, grams)
+	var revenue := Economy.sell_street(GameState.current, npc_id, grams, _district())
 	if revenue > 0:
 		GameState.notify(tr("NOTE_SOLD") % [UiFormat.money(revenue), grams])
 	_talk_buyer(dialogue)
@@ -283,7 +304,7 @@ func _talk_cop(dialogue: Node) -> void:
 
 func _draw() -> void:
 	var hop := -absf(sin(_bob)) * 1.5
-	draw_colored_polygon(_ellipse(Vector2(1, -1), Vector2(10, 4)), Color(0, 0, 0, 0.28))
+	_draw_shadow()
 	# Gambe, torso, testa: tre rettangoli e un cerchio, dal basso verso l'alto.
 	draw_rect(Rect2(-7, -16 + hop, 14, 16), _accent, true)
 	draw_rect(Rect2(-9, -34 + hop, 18, 19), _color, true)
@@ -295,6 +316,19 @@ func _draw() -> void:
 	_draw_marker(hop)
 	_draw_name()
 
+## L'ombra ai piedi, che gira e si allunga col sole come quella degli edifici.
+##
+## È corta anche all'alba: una persona è alta un metro e settanta, e un'ombra
+## lunga come quella di un palazzo la farebbe sembrare un lampione. Quello che
+## conta è che giri nella stessa direzione di tutte le altre — un'ombra che va
+## per conto suo si nota subito, anche senza saper dire cosa non va.
+func _draw_shadow() -> void:
+	var info := Daylight.shadow(GameState.current)
+	var slide: Vector2 = (info["direction"] as Vector2) * minf(float(info["length"]) * 9.0, 20.0)
+	draw_colored_polygon(
+		_ellipse(Vector2(1, -1) + slide, Vector2(10, 4)),
+		Color(0, 0, 0, 0.14 + float(info["alpha"]) * 0.45))
+
 func _draw_marker(hop: float) -> void:
 	var color := Color.TRANSPARENT
 	if role == NpcRoster.ROLE_SEEDS:
@@ -304,18 +338,22 @@ func _draw_marker(hop: float) -> void:
 	if color.a <= 0.0:
 		return
 	var tip := Vector2(0, -58 + hop)
+	# Il rombo è un segnale al giocatore, non un oggetto della città: deve
+	# restare dello stesso verde anche a mezzanotte, o di notte sparirebbe
+	# proprio quando serve di più per trovare Brian.
 	draw_colored_polygon(PackedVector2Array([
 		tip + Vector2(0, -5), tip + Vector2(5, 0), tip + Vector2(0, 5), tip + Vector2(-5, 0),
-	]), color)
+	]), Daylight.emissive(color, Daylight.light(GameState.current)))
 
 func _draw_name() -> void:
 	var font := ThemeDB.fallback_font
 	if font == null:
 		return
 	var width := font.get_string_size(npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+	# Anche il nome è un'etichetta e non una cosa della città: stessa regola.
 	draw_string(
-		font, Vector2(-width * 0.5, -66), npc_name,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(0.94, 0.95, 0.92, 0.75))
+		font, Vector2(-width * 0.5, -66), npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 8,
+		Daylight.emissive(Color(0.94, 0.95, 0.92, 0.75), Daylight.light(GameState.current)))
 
 func _ellipse(center: Vector2, radius: Vector2) -> PackedVector2Array:
 	var points := PackedVector2Array()

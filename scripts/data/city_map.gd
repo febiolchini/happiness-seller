@@ -632,6 +632,63 @@ static func trees() -> Array:
 				rng.randf() * rect.size.x, rng.randf() * rect.size.y))
 	return list
 
+# --- Lampioni --------------------------------------------------------------
+
+## Passo fra un lampione e l'altro lungo la stessa strada.
+##
+## A 384 px (dodici tile) le pozze di luce restano staccate una dall'altra
+## invece di fondersi in una striscia continua: è quello che fa leggere la
+## strada di notte come una fila di luci e non come un corridoio illuminato.
+const LAMP_SPACING := 384.0
+## Quanto sta il palo dentro al marciapiede, misurato dal bordo dell'asfalto.
+## Sul cordolo esatto verrebbe investito dalle auto, che passano a 24 px.
+const LAMP_CURB := 12.0
+
+## Tutti i lampioni della città, ricavati dalle strade.
+##
+## Generati e non elencati, per lo stesso motivo delle corsie del traffico: un
+## lampione scritto a mano che non combacia con la sua strada si vede come una
+## luce in mezzo al prato, e con undici strade prima o poi succede.
+##
+## I lati si alternano lungo la strada — uno a nord, il prossimo a sud — invece
+## di stare in fila su un lato solo: è come sono messi davvero, costa la metà
+## dei nodi e illumina lo stesso la carreggiata da entrambe le parti.
+##
+## Niente lampioni dentro agli incroci: lì la luce arriva dai quattro angoli, e
+## un palo in mezzo alla piazzola sarebbe in mezzo alla strada.
+static func street_lamps() -> Array:
+	var list: Array = []
+	for index in ROADS_H.size():
+		var road: Rect2 = ROADS_H[index]
+		var x := road.position.x + LAMP_SPACING * 0.5
+		var flip := index % 2 == 0
+		while x < road.end.x:
+			if not _crosses(ROADS_V, Vector2(x, road.get_center().y)):
+				var y := road.position.y - LAMP_CURB if flip else road.end.y + LAMP_CURB
+				# Il braccio sporge verso la carreggiata, quindi la pozza di
+				# luce cade sull'asfalto e non sul marciapiede dietro.
+				list.append({"pos": Vector2(x, y), "reach": Vector2(0, 1 if flip else -1)})
+			flip = not flip
+			x += LAMP_SPACING
+	for index in ROADS_V.size():
+		var road: Rect2 = ROADS_V[index]
+		var y := road.position.y + LAMP_SPACING * 0.5
+		var flip := index % 2 == 0
+		while y < road.end.y:
+			if not _crosses(ROADS_H, Vector2(road.get_center().x, y)):
+				var x := road.position.x - LAMP_CURB if flip else road.end.x + LAMP_CURB
+				list.append({"pos": Vector2(x, y), "reach": Vector2(1 if flip else -1, 0)})
+			flip = not flip
+			y += LAMP_SPACING
+	return list
+
+## Se un punto cade dentro a una delle strade date. Serve a saltare gli incroci.
+static func _crosses(roads: Array, point: Vector2) -> bool:
+	for road: Rect2 in roads:
+		if road.has_point(point):
+			return true
+	return false
+
 # --- Traffico --------------------------------------------------------------
 
 ## Due corsie per strada, ricavate dalle strade stesse.
@@ -698,7 +755,12 @@ const MEET_MAX_DISTANCE := 900.0
 ## finirebbero a un passo l'uno dall'altro e sembrerebbero lo stesso posto.
 const MEET_STEP := TILE * 2.0
 ## Oltre questa distanza un'insegna non serve più a dire dove si è.
-const MEET_SIGN_RANGE := 320.0
+const MEET_SIGN_RANGE := 150.0
+## Entro questa distanza dall'asse di una strada si è "all'incrocio"; oltre, si
+## è a nord, a sud, a est o a ovest di quella. Novantasei px sono tre tile: la
+## larghezza di una carreggiata, cioè quanto basta per vedere l'incrocio da dove
+## si è.
+const MEET_CROSS_RANGE := 96.0
 
 ## Quanto deve restare libero intorno a un punto d'incontro.
 ##
@@ -790,43 +852,127 @@ static func _on_asphalt(point: Vector2) -> bool:
 ##
 ## Senza punteggiatura di proposito: solo lettere e spazi si possono scrivere
 ## anche col font del gioco, che di cifre e virgole non ne ha.
+## Come si dice a voce dove ci si vede.
+##
+## ## Un nome che non aiuta a trovare il posto è peggio di nessun nome
+##
+## La prima versione diceva solo strada + insegna più vicina entro 320 px, e
+## sbagliava in due modi che si vedevano solo giocando:
+##
+## 1. **L'insegna poteva stare su un'altra strada.** Un appuntamento a
+##    (736, -64), su MILL ROAD, veniva annunciato "BY THE LAUNDROMAT" perché la
+##    lavanderia era a 314 px — ma la lavanderia sta su MAIN STREET, tre isolati
+##    più in basso. Chi ci andava si trovava davanti alla lavanderia con Brian
+##    fuori schermo, e non aveva nessun motivo di sospettare di essere nel posto
+##    sbagliato: il gioco gli aveva detto proprio quello.
+## 2. **Lo stesso nome copriva posti diversi.** Ventisei posti d'incontro
+##    finivano in undici nomi, e uno solo ne copriva sette, distanti fra loro
+##    fino a 286 px.
+##
+## Adesso l'insegna si usa solo se è **vicina davvero** (`MEET_SIGN_RANGE`) e
+## **sulla stessa strada** del punto. Quando non ce n'è una, si dà l'incrocio col
+## verso — "MILL ROAD NORTH OF MAIN STREET" — che in una città a reticolo è un
+## indirizzo vero e c'è sempre.
+##
+## I nomi restano in inglese come le insegne degli edifici: è una cittadina
+## americana inventata, e "MILL ROAD a nord di MAIN STREET" la sposterebbe
+## altrove. Vedi la nota in cima a `strings.gd`.
 static func place_name(point: Vector2) -> String:
-	var street := street_at(point)
-	var sign_name := _nearest_sign(point)
-	if sign_name.is_empty():
-		return street if not street.is_empty() else "THE FLATS"
-	# Un'insegna che comincia già per "THE" l'articolo ce l'ha: senza questo si
-	# ottiene "BY THE THE PROJECTS".
-	var by := "BY %s" % sign_name if sign_name.begins_with("THE ") else "BY THE %s" % sign_name
+	var here := street_of(point)
+	var street: String = here["name"]
+	var sign_name := _nearest_sign(point, street)
+	if not sign_name.is_empty():
+		# Un'insegna che comincia già per "THE" l'articolo ce l'ha: senza questo
+		# si ottiene "BY THE THE PROJECTS".
+		var by := "BY %s" % sign_name if sign_name.begins_with("THE ") else "BY THE %s" % sign_name
+		return by if street.is_empty() else "%s %s" % [street, by]
+
 	if street.is_empty():
-		return by
-	return "%s %s" % [street, by]
+		return "THE FLATS"
+	var cross := _cross_reference(point, bool(here["vertical"]))
+	return street if cross.is_empty() else "%s %s" % [street, cross]
 
 ## Nome della strada su cui cade un punto, contando anche i marciapiedi.
 ## "" se il punto è lontano da qualsiasi strada.
 static func street_at(point: Vector2) -> String:
+	return str(street_of(point)["name"])
+
+## La strada su cui cade un punto, e se è una di quelle verticali.
+##
+## Restituisce le due cose insieme perché a chi deve dare un indirizzo servono
+## tutte e due: l'incrocio da nominare è su una strada **perpendicolare**, e per
+## sapere quali sono bisogna sapere com'è messa questa.
+static func street_of(point: Vector2) -> Dictionary:
 	for i in ROADS_H.size():
 		if (ROADS_H[i] as Rect2).grow(SIDEWALK_DEPTH).has_point(point):
-			return str(ROAD_NAMES_H[i])
+			return {"name": str(ROAD_NAMES_H[i]), "vertical": false, "index": i}
 	for i in ROADS_V.size():
 		if (ROADS_V[i] as Rect2).grow(SIDEWALK_DEPTH).has_point(point):
-			return str(ROAD_NAMES_V[i])
-	return ""
+			return {"name": str(ROAD_NAMES_V[i]), "vertical": true, "index": i}
+	return {"name": "", "vertical": false, "index": -1}
 
-## Insegna del punto di riferimento più vicino, "" se non ce n'è uno abbastanza
-## vicino da servire come indicazione.
+## Insegna del punto di riferimento più vicino, "" se non ce n'è una che serva.
 ##
-## Cerca solo fra i punti di riferimento di `BUILDINGS` e non fra tutti gli
-## edifici: quelli generati hanno insegne generiche pescate a caso dal
-## quartiere, e "BY THE HOUSE" non dice a nessuno dove andare.
-static func _nearest_sign(point: Vector2) -> String:
+## Due filtri, e il secondo conta quanto il primo:
+##
+## - **Solo i punti di riferimento** di `BUILDINGS`, non tutti gli edifici:
+##   quelli generati hanno insegne generiche pescate a caso dal quartiere, e
+##   "BY THE HOUSE" non dice a nessuno dove andare. Per la stessa ragione le
+##   insegne che compaiono anche nel pool di un quartiere non valgono: ce n'è
+##   più d'una in città, e mandano alla copia sbagliata.
+## - **Solo sulla stessa strada**: un'insegna vicina in linea d'aria ma affacciata
+##   su un'altra via manda dall'altra parte di un isolato. Vedi sopra.
+static func _nearest_sign(point: Vector2, street: String) -> String:
 	var best := ""
 	var best_distance := MEET_SIGN_RANGE
 	for entry: Dictionary in BUILDINGS:
 		if not entry.has("label"):
 			continue
-		var distance: float = (entry["base"] as Vector2).distance_to(point)
+		var base: Vector2 = entry["base"]
+		var distance := base.distance_to(point)
+		if distance >= best_distance:
+			continue
+		if street_at(base) != street:
+			continue
+		var label := str(entry["label"])
+		if _is_generic(label):
+			continue
+		best_distance = distance
+		best = label
+	return best
+
+## Se questa insegna compare anche fra i nomi generati di un quartiere, e quindi
+## in città ce n'è più di una.
+static func _is_generic(label: String) -> bool:
+	for district: Dictionary in DISTRICTS:
+		if label in (district["names"] as Array):
+			return true
+	return false
+
+## L'incrocio più vicino, col verso: "AT MAIN STREET", "NORTH OF CROSS STREET".
+##
+## Il verso non è un vezzo: fra due incroci ci sono settecento pixel, e senza
+## sapere da che parte dell'incrocio si è, metà delle volte si cammina nella
+## direzione sbagliata.
+static func _cross_reference(point: Vector2, on_vertical: bool) -> String:
+	var roads: Array = ROADS_H if on_vertical else ROADS_V
+	var names: Array = ROAD_NAMES_H if on_vertical else ROAD_NAMES_V
+	var value := point.y if on_vertical else point.x
+	var best := -1
+	var best_distance := INF
+	for i in roads.size():
+		var centre: float = (roads[i] as Rect2).get_center().y if on_vertical else (roads[i] as Rect2).get_center().x
+		var distance := absf(value - centre)
 		if distance < best_distance:
 			best_distance = distance
-			best = str(entry["label"])
-	return best
+			best = i
+	if best < 0:
+		return ""
+
+	var name: String = str(names[best])
+	if best_distance <= MEET_CROSS_RANGE:
+		return "AT %s" % name
+	var centre: float = (roads[best] as Rect2).get_center().y if on_vertical else (roads[best] as Rect2).get_center().x
+	if on_vertical:
+		return "%s OF %s" % ["NORTH" if value < centre else "SOUTH", name]
+	return "%s OF %s" % ["WEST" if value < centre else "EAST", name]

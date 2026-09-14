@@ -16,6 +16,15 @@ rende meno faticoso (attrezzatura, lampade, filtri), e a **1000 $** il
 prologo si chiude e si può **assumere personale** che coltiva e vende da solo.
 Vedi "Il negozio online", "La fine del prologo" e "Il personale".
 
+Il mondo non si ferma quando si chiude il gioco: riaprendolo, il personale ha
+lavorato e le piante sono cresciute. Vedi "Il tempo a gioco chiuso".
+
+Sopra a tutto questo scorre una giornata vera: la luce cambia con l'ora, le
+ombre girano col sole, al tramonto si accendono lampioni e finestre, e ogni
+mezzanotte esce il tempo del giorno dopo — che non è solo da guardare, perché
+sotto la pioggia si vende meno in strada ma ci si fa anche notare meno. Vedi
+"Luce, ore e meteo".
+
 ## Struttura cartelle
 
 ```
@@ -39,13 +48,13 @@ scenes/
 
 scripts/
   autoload/       singleton globali (GameState, GameSettings, SaveData)
-  data/           tabelle di bilanciamento, pianta della citta', testi
+  data/           tabelle di bilanciamento, pianta della citta', luce, meteo, testi
   characters/     logica personaggi e NPC
   components/     pezzi riutilizzabili (edifici, vasi, veicoli, fontana)
   levels/         mappa e disegno del terreno
   rooms/          logica delle stanze
-  systems/        sistemi di gioco (coltivazione, camera, effetti)
-  ui/             HUD, dialoghi, gestionale, formattazione
+  systems/        sistemi di gioco (coltivazione, camera, atmosfera, meteo, tempo offline)
+  ui/             HUD, telefono, dialoghi, gestionale, formattazione
   tests/          controlli automatici
 
 tests/            scena da lanciare per i controlli automatici
@@ -69,7 +78,9 @@ addons/           plugin di terze parti
 Per la profondità in stile isometrico/obliquo (tipo Eastward, Sea of Stars):
 - `TileMap`/`TileMapLayer` per il terreno.
 - Y-sort abilitato sui nodi con personaggi/oggetti per gestire l'ordine di disegno in base alla posizione verticale.
-- `PointLight2D` / `DirectionalLight2D` + `LightOccluder2D` per luci e ombre dinamiche.
+- Luci e ombre: **non** `PointLight2D`, per il motivo spiegato in "Luce, ore e
+  meteo" — la luce è un `CanvasModulate` sulla tela del mondo, e quello che deve
+  restare acceso dentro al buio si disegna con `Daylight.emissive()`.
 - Shader `.gdshader` in `shaders/` per effetti custom (outline, dissolve, palette swap, ecc.).
 
 ## Mappa della cittadina
@@ -186,6 +197,23 @@ Stessa idea per gli **alberi** (`CityMap.trees()`, sparsi nei prati) e per le
 **corsie del traffico** (`CityMap.lanes()`, due per strada). Una corsia scritta
 a mano che non combacia col suo asfalto si vede come un'auto che viaggia sul
 marciapiede, e con undici strade prima o poi succede.
+
+### Come si chiamano le strade
+
+Il nome di ogni via è stampato **sul marciapiede**, ripetuto ogni 900 px e
+orientato con la strada (ruotato di novanta gradi sulle verticali, così si legge
+dall'alto verso il basso).
+
+Sul marciapiede e non sull'asfalto, che era il primo tentativo: lì la scritta
+cade sulla mezzeria tratteggiata, ci passano sopra le auto, e su un grigio scuro
+un giallo tenue non si legge comunque. Il marciapiede è chiaro, quindi basta uno
+scuro poco carico per leggersi bene restando discreto — si vede quando lo si
+cerca e non dà fastidio quando non lo si cerca. Ed è il posto giusto: il nome
+serve dove si cammina, e gli appuntamenti con Brian si danno per strada.
+
+Sta su un lato solo (nord per le orizzontali, ovest per le verticali): su tutti
+e due sarebbe il doppio delle scritte per la stessa informazione. E si
+interrompe agli incroci, come la mezzeria, perché lì il marciapiede non c'è.
 
 ### Sostituire un segnaposto con la pixel art
 
@@ -492,6 +520,276 @@ A mezzanotte scatta il segnale `day_started(day)`. Ci è già agganciato
 partita: è quello con cui ragiona la coltivazione, perché `time_of_day` riparte
 da zero ogni mezzanotte e non servirebbe a niente.
 
+## Luce, ore e meteo
+
+Il gioco aveva già un orologio che scorreva, ma non si vedeva da nessuna parte
+se non nella riga dell'HUD: mezzogiorno e mezzanotte erano lo stesso identico
+schermo. Adesso l'ora si legge guardando la strada.
+
+Le regole sono due sole, e tutto il resto viene da lì:
+
+1. Un `CanvasModulate` (`Atmosphere`, in `City.tscn`) moltiplica **tutto quello
+   che sta sulla tela del mondo** per il colore dell'ora.
+2. Le cose che devono restare **accese** dentro a quel buio — lampioni, finestre,
+   fari, il rombo sopra la testa di Brian — si disegnano con
+   `Daylight.emissive()`, che pre-divide il colore per quella stessa luce. La
+   moltiplicazione del punto 1 lo riporta esattamente dov'era.
+
+`scripts/data/daylight.gd` è la tabella: dieci momenti della giornata con il
+colore dell'aria e quello del cielo, interpolati con `smoothstep`. Come la
+crescita delle piante, la luce **non è simulata**: nessuno tiene un colore vivo
+e lo porta avanti un frame per volta. Si guarda che ore sono e si ricava il
+colore. Ricaricare una partita alle 19:40 la ritrova nella luce del tramonto in
+cui era, e nel salvataggio non c'è scritto un solo colore.
+
+### Perché non i `PointLight2D`
+
+Godot ha le luci 2D vere, ed era la strada maestra. Il problema è il terreno:
+`city_ground.gd` disegna **tutta** la città in un nodo solo, quindi ogni luce
+del mondo "tocca" quell'unico oggetto, e un oggetto può ricevere un numero
+limitato di luci per volta. Con centoventi lampioni le prime sedici si
+prenderebbero tutti i posti e le altre smetterebbero di illuminare il terreno a
+seconda di dove guarda la camera — un errore che compare e sparisce muovendosi,
+cioè il peggiore da inseguire.
+
+Con `emissive()` invece la luce è disegno: costa qualche poligono per lampione
+**acceso e inquadrato** — uno fuori schermo non disegna niente — e resta dentro
+all'Y-sort, quindi chi passa davanti a un lampione ci passa davanti davvero.
+
+Che i colori sopra a 1.0 sopravvivano alla moltiplicazione non è stato dato per
+buono: è stato provato sul motore prima di costruirci sopra. Con il
+`CanvasModulate` a 0.3, un rettangolo disegnato a 3.0 viene fuori a 0.898.
+
+### Cosa cambia con l'ora
+
+| | |
+|---|---|
+| colore dell'aria | dieci keyframe, dal blu della notte al bianco di mezzogiorno all'arancio delle 19 |
+| ombre | girano col sole (ovest all'alba, est al tramonto), corte a mezzogiorno, lunghe agli estremi |
+| lampioni | si accendono un'ora prima del tramonto e si spengono un'ora dopo l'alba, con una salita graduale |
+| finestre | una curva di palazzo vero: poche di giorno, tantissime dopo cena, poche alle tre di notte |
+| fari e stop | accesi quando lo sono i lampioni |
+| fondale oltre i bordi | segue l'aria, molto più cupo |
+
+La notte **non scende mai vicino al nero**: un gestionale si gioca anche di
+notte, e una notte a 0.1 è una schermata nera con dentro dei soldi da contare. A
+fare la differenza fra giorno e notte sono i lampioni accesi e le finestre, non
+il buio. C'è un controllo automatico che lo verifica ora per ora.
+
+### Le finestre degli edifici
+
+I segnaposto degli edifici adesso hanno le finestre, e sono il pezzo che fa più
+lavoro di tutti: di giorno danno la scala a quello che altrimenti resta un
+rettangolo colorato, di notte trasformano una fila di scatole spente in una
+città abitata.
+
+**Quali** sono accese lo decide l'ora, ma **quale finestra** si accende prima
+delle altre è deciso una volta per sempre dalla sua posizione nel mondo: ogni
+finestra ha la sua soglia e si accende quando la quota dell'ora la supera. Non
+c'è niente da tenere in vita e niente da salvare, e soprattutto le finestre non
+sfarfallano — le accende e le spegne il passare delle ore, sempre nello stesso
+ordine. Tre tinte: il giallo delle lampade, l'ambra delle stanze sul retro, e il
+bluastro di chi sta guardando la TV.
+
+### Il meteo
+
+`scripts/data/weather.gd`: sereno, nuvoloso, coperto, pioggia, temporale,
+nebbia. Ogni voce dice insieme come si vede (tinta, pioggia, nebbia, vento,
+nuvole, fulmini) e **cosa cambia in partita**.
+
+Il tempo di domani si tira a mezzanotte insieme al prezzo del giorno, dentro a
+`Economy.roll_new_day()`, e si salva — come il prezzo, e per lo stesso motivo:
+ricavarlo da giorno e seme sarebbe più compatto, ma basterebbe ritoccare la
+tabella perché "il giorno che pioveva" diventasse un altro giorno in tutte le
+partite salvate.
+
+Non è un dado piatto su sei voci ma una **tabella di passaggi**: si annuvola
+prima di piovere e si schiarisce dopo. Coi pesi piatti si passerebbe da sereno a
+temporale e di nuovo a sereno in tre giorni, e il meteo si leggerebbe come
+rumore invece che come stagione.
+
+**Un meteo che non pesa è carta da parati.** Sotto la pioggia i clienti di
+strada comprano circa un terzo in meno, ma ci si fa anche notare meno — la gente
+cammina a testa bassa e le pattuglie restano in macchina. Una giornata brutta
+diventa così una scelta (oggi si piazza tutto all'ingrosso dal PC?) e non solo
+un danno. È lo stesso mestiere che fa il prezzo del giorno: dare un motivo per
+cui domani non è uguale a oggi.
+
+Dove sta cosa:
+
+| | |
+|---|---|
+| `Atmosphere` | il colore dell'aria, il fondale, i fulmini |
+| `GroundWeather` | **nel mondo**, sotto a tutto: ombre delle nuvole, asfalto bagnato, pozze, cartacce nel vento |
+| `WeatherLayer/WeatherView` | **a schermo**, sopra a tutto: gocce, schizzi, foschia, il lampo, il buio agli angoli |
+
+La divisione non è estetica. Un'ombra di nuvola ha un posto nella città, quindi
+sta nel mondo: ancorata allo schermo scivolerebbe sui tetti mentre ci si guarda
+intorno col tasto destro. La pioggia invece non ha un posto — è fra l'occhio e
+la scena — e disegnata nel mondo bisognerebbe riempire di gocce mezza mappa per
+vederne trenta. Le nuvole e le pozze sono ricavate da una griglia infinita
+agganciata alla camera: non esistono finché non le si guarda, e sono sempre le
+stesse.
+
+### Dentro casa
+
+Le stanze hanno la loro atmosfera (`scripts/systems/room_ambience.gd`), che fa
+lo stesso mestiere con gli stessi due attrezzi — un `CanvasModulate` e
+`emissive()` — ma con regole diverse, perché **dentro non è fuori**:
+
+- la luce dell'interno è quella della strada **smorzata**, e dopo il tramonto
+  vira verso la lampadina di casa invece di andare sul blu. Copiare la luce
+  esterna vorrebbe dire una cucina blu notte alle dieci di sera, quando invece a
+  quell'ora una cucina è il posto più caldo della città: è il contrasto fra le
+  due cose a far sentire che si è rientrati;
+- dalla finestra entra un **taglio di luce** che cade nella stessa direzione
+  delle ombre di fuori, quindi la stanza e la strada raccontano la stessa ora;
+- **fuori dalla finestra c'è l'ora che è.** Il fondale è un disegno fisso, e nel
+  disegno fuori è sempre giorno: alle dieci di sera si vedeva un cortile
+  assolato dietro ai vetri, ed era la cosa che rompeva di più l'illusione in
+  tutta la stanza. Adesso sopra al vetro va il cielo di quest'ora, e di notte si
+  accendono tre finestre nel palazzo di fronte;
+- se piove, l'acqua scende **sul vetro** e non davanti alla stanza, perché da
+  dentro è lì che si vede;
+- il temporale entra anche in casa: il lampo accende prima la finestra e poi la
+  stanza;
+- c'è del pulviscolo nell'aria, che è la sola cosa che si muove in un interno e
+  gli toglie l'aria di uno screenshot.
+
+La **cantina** non ha niente di tutto questo di proposito: `daylight = false`.
+Sottoterra l'ora non si vede, ed è esattamente il motivo per cui si perde la
+cognizione del tempo a coltivare di sotto — l'orologio dell'HUD diventa l'unico
+modo di sapere che ore sono. Quello che cambia lì è il rosso delle lampade da
+coltivazione, che prende la stanza man mano che se ne comprano, e il tremolio
+lentissimo del neon.
+
+Nome della stanza e uscite restano **sempre della stessa luminosità**: sono
+interfaccia, non arredamento, e una scritta che si spegne alle dieci di sera
+sembra un errore e non un effetto. Gli si rimette addosso l'inverso della tinta,
+che è lo stesso giro di `emissive()`.
+
+L'atmosfera delle stanze non sta in `Room.tscn` ma la costruisce `room.gd`:
+`Entrance`, `Kitchen` e `Basement` sono scene ereditate che si riferiscono ai
+propri nodi per indice, e aggiungere un nodo alla scena base sposterebbe quegli
+indici in tutte e tre. È la stessa regola della città — la scena si costruisce
+dai dati.
+
+### Ridisegnare senza sprecare
+
+Edifici, lampioni, auto e persone devono ridisegnarsi quando la luce cambia, ma
+sono qualche centinaio: un `_process` a testa per guardare l'orologio sarebbe
+qualche centinaio di chiamate a vuoto per frame. `Atmosphere` arrotonda l'ora al
+quarto d'ora di gioco e avvisa il gruppo `Daylight.LIGHT_GROUP` solo quando quel
+numero cambia — meno di venti avvisi per giornata di gioco. Chi ci si iscrive
+implementa `on_light_changed()` e si iscrive da solo, senza che nessuno debba
+tenere un elenco in un altro file.
+
+### Tarare la luce
+
+`scripts_tools/LightContactSheet.tscn` fotografa la città e le stanze a una
+dozzina di ore e di condizioni, e salva i PNG in `user://shots/`. Va lanciato
+**con la finestra**, non headless, perché senza rendering non c'è niente da
+leggere:
+
+```
+Godot_v4.7.2-stable_win64_console.exe --path . scripts_tools/LightContactSheet.tscn
+```
+
+Serve perché la luce di un gioco si aggiusta guardandola, e guardarla a mano
+vorrebbe dire aprire la partita e aspettare sei minuti reali per vedere passare
+una giornata.
+
+## Il telefono
+
+`scenes/ui/Phone.tscn`: il telefono in basso a sinistra. Scivola su quando
+arriva un messaggio, si apre con la **freccia su**, e da lì si può chiamare
+Brian per i semi senza tornare al PC in cantina.
+
+Come tutto il resto è disegnato a mano: quando arriverà la pixel art il
+`_draw()` diventa una texture e nient'altro cambia.
+
+### Perché non bastavano i messaggini dell'HUD
+
+L'HUD ha già i suoi (`GameState.notify()`): durano due secondi e mezzo e
+servono per le cose che si leggono con la coda dell'occhio — "+40 G RACCOLTI".
+Due cose non ci stanno dentro:
+
+1. **Vengono da qualcuno.** "I semi sono finiti" lo dice il personale, "sono
+   arrivato" lo dice Brian. Un messaggino senza mittente è il gioco che parla;
+   un messaggio sul telefono è una persona che scrive, ed è la differenza fra un
+   promemoria e un pezzo di mondo.
+2. **Vanno ritrovate.** Il messaggino sparisce dopo due secondi e mezzo.
+   L'ultimo messaggio arrivato resta invece dentro al telefono e si rilegge
+   aprendolo.
+
+Resta separato anche dal riquadro a tutto schermo di `phone_notice.gd`: quello
+ferma tutto per le cose che non si possono perdere — la fine del prologo — e si
+chiude con un bottone. Questo scivola su, si legge e se ne va da solo, senza
+togliere il controllo di mano. Tre canali, tre pesi diversi.
+
+### I tre stati
+
+| | |
+|---|---|
+| chiuso | fuori resta solo la **linguetta** col triangolino, che pulsa di verde finché c'è un messaggio non letto |
+| messaggio | scivola su fin dove finisce il testo, si legge, e dopo 5,5 s torna giù da solo |
+| aperto | tutto fuori: il messaggio in cima, e sotto il menù |
+
+Chiuso **non sparisce mai del tutto**: la linguetta è l'unica cosa che si vede
+del telefono per la maggior parte della partita, ed è anche l'unico posto in cui
+si può dire "c'è qualcosa per te". Una scorciatoia che non si vede da nessuna
+parte non la trova nessuno.
+
+### Chi scrive, e quando
+
+| Mittente | Quando |
+|---|---|
+| PERSONALE | i semi sono finiti e ci sono vasi fermi (`Staff.seedless_alert()`) |
+| BRIAN | ha mandato la posizione ed è sul posto ad aspettare |
+
+I mittenti sono quelli che c'erano già (`MSG_STAFF_SPEAKER`,
+`MSG_COUSIN_SPEAKER`): chi scrive è la stessa persona, che il messaggio arrivi
+qui o nel riquadro a tutto schermo.
+
+L'avviso dei semi parte **una volta sola** per ogni secca, e il permesso torna
+da solo appena arrivano altri semi. Il flag sta nel salvataggio
+(`Staff.SEEDLESS_FLAG`), non in memoria: senza, riaprire il gioco a magazzino
+vuoto lo farebbe ripartire da capo ogni volta. E se i semi sono finiti mentre il
+gioco era **chiuso**, a dirlo è già il resoconto del rientro (`AWAY_IDLE`),
+quindi `Offline` segna il flag e il telefono non ripete un attimo dopo una
+notizia appena letta.
+
+C'è anche un caso in cui NON si avvisa: semi a zero ma vasi tutti pieni. Non c'è
+niente da segnalare, il lavoro sta andando avanti.
+
+### Chiamare Brian da qui
+
+Il menù ha per ora una voce sola, ed è la stessa cosa che fa il bottone nella
+scheda GROW del PC. **Non è un doppione per sbaglio**: i semi finiscono mentre
+si è in giro per la città, e prima l'unico modo di chiederne altri era tornare
+in cantina ad aprire il PC — cioè attraversare la mappa per premere un bottone.
+
+Come nel PC è **un bottone solo che cambia faccia** invece di tre che si
+accendono a turno: `CHIAMA BRIAN`, `CI PENSA LUI` mentre si aspetta, `TI
+ASPETTA` quando è sul posto, spento quando non c'è niente da fare.
+
+Quelle tre scritte hanno un **tetto di lunghezza vero** (`Strings.PHONE_MENU_CHARS`,
+tredici caratteri): lo schermo del telefono è largo 112 px e il bottone taglia
+quello che avanza. È già successo — "BRIAN CI PENS" — e adesso c'è un controllo
+automatico che lo verifica, perché a leggerle nella tabella sembrano tutte corte
+uguali.
+
+### Uno per scena, il testo no
+
+Il telefono è un nodo di scena: sta in `City.tscn`, e nelle stanze lo costruisce
+`room.gd` da codice (stessa ragione dell'atmosfera — `Room.tscn` è la scena base
+delle altre tre e aggiungerci un nodo sposterebbe i loro indici).
+
+Quello che c'è **scritto dentro** invece vive su `GameState.last_text`, non nel
+telefono: un messaggio arrivato in cantina si rilegge uscendo di casa. Non
+finisce nel salvataggio — è quello che è appena successo, non un pezzo di
+partita.
+
 ## HUD
 
 `scenes/ui/HUD.tscn`: una riga sola in alto a destra, e i messaggini che
@@ -500,7 +798,7 @@ scorrono sotto. Sta sia in strada sia **dentro agli edifici** — è figlio di
 una per una.
 
 ```
-4.200 $  ·  GIORNO 3  12:41  ·  75 g  ·  SORVEGLIATO
+4.200 $  ·  GIORNO 3  12:41  ·  PIOGGIA  ·  75 g  ·  SORVEGLIATO
 ```
 
 ### Perché una riga e non un pannello
@@ -516,8 +814,8 @@ l'**ombra dura** sotto a ogni scritta, non una cassa dietro.
 
 ### I segmenti compaiono quando servono
 
-La scorta quando ce n'è, l'attenzione quando è salita sopra 10, il posto dove
-aspetta Brian finché aspetta. A inizio partita la riga è due voci e si allunga
+La scorta quando ce n'è, l'attenzione quando è salita sopra 10, il tempo che fa
+quando non è sereno, il posto dove aspetta Brian finché aspetta. A inizio partita la riga è due voci e si allunga
 man mano che la partita cresce. Il punto di separazione va messo solo *fra* due
 segmenti accesi: quello davanti al primo resterebbe appeso nel vuoto, ed è
 l'unico pezzo di logica che c'è nel disegno della riga.
@@ -581,8 +879,15 @@ all'arrivo se lo ricordano `_talking_to` / `_entering` e lo esegue
 ## Stanze
 
 `scenes/rooms/Room.tscn` è la stanza base; `Entrance`, `Kitchen` e `Basement`
-sono **scene ereditate** che cambiano solo `room_name`, `background_color` e
-`exits`. La logica sta tutta in `scripts/rooms/room.gd`, una volta sola.
+sono **scene ereditate** che cambiano solo `room_name`, `background_color`,
+`exits`, e i due campi della luce — `daylight` e `window_rect`. La logica sta
+tutta in `scripts/rooms/room.gd`, una volta sola.
+
+`window_rect` dice dove sta la finestra **come si vede a schermo**, non sul PNG:
+il `Backdrop` ritaglia l'immagine (`keep_aspect_covered`), quindi va misurato su
+uno screenshot e non sul file. Un rettangolo vuoto vuol dire nessuna finestra.
+`daylight = false` è la cantina, che sottoterra non ha né ora né tempo. Cosa ne
+segue sta in "Luce, ore e meteo" → "Dentro casa".
 
 Sopra a `Background` (il colore pieno di ripiego) c'è `Backdrop`, un
 `TextureRect` in `keep_aspect_covered`: gli si assegna il PNG del fondale nella
@@ -744,8 +1049,21 @@ Il giro è:
    arriva la notifica con il posto: `BRIAN: MAIN STREET BY THE LAUNDROMAT`;
 3. Brian compare lì, col rombo verde sopra la testa come ogni venditore, e ci
    si parla per comprare;
-4. finiti i suoi **sei semi** (`SEEDS_PER_RUN`) se ne va, e se ne può chiedere
-   un altro carico.
+4. finiti i semi che aveva addosso se ne va, e se ne può chiedere un altro
+   carico.
+
+Quanti ne porta non è fisso: `SEEDS_PER_RUN` è un intervallo, **da 6 a 12**,
+tirato quando si chiede e scritto nell'appuntamento, così il numero non cambia
+sotto ai piedi se nel frattempo si salva e si riapre. Brian non è un magazzino —
+quanti ne riesce a far uscire dalla clinica cambia da una volta all'altra — e
+non saperlo prima di arrivare è quello che rende l'appuntamento un fatto invece
+di un ritiro. Il minimo è quello che c'era prima, quindi una chiamata non è mai
+peggio di com'era; il massimo è il doppio.
+
+Va letto insieme a `Staff.POTS_PER_GROWER` (sei): un coltivatore consuma un seme
+per vaso a ogni ciclo, quindi una consegna copre da uno a due cicli di
+seminterrato pieno. È il numero che decide **ogni quanto si deve uscire di
+casa**, ed è lì che questo gioco vuole tenere il giocatore.
 
 Un venditore fermo a un indirizzo sarebbe stato un distributore automatico: sai
 dov'è, ci vai quando serve, e la cosa smette di esistere come scelta.
@@ -773,12 +1091,62 @@ l'orologio gira.
 Dove Brian può dare appuntamento lo decide `CityMap.meet_spots()`, che i posti
 li **ricava dal reticolo** invece di elencarli: percorre i marciapiedi entro uno
 o due isolati da casa (`MEET_MIN_DISTANCE` 220 px, `MEET_MAX_DISTANCE` 900 px) e
-tiene quelli buoni. Al momento sono ventisei, con undici nomi diversi.
+tiene quelli buoni. Al momento sono ventisei.
 
-Il nome del posto (`CityMap.place_name()`) è la strada più l'insegna del punto
-di riferimento più vicino, anche quello ricavato: una coppia di coordinate non
-direbbe niente a nessuno. Ed è senza punteggiatura di proposito — solo lettere e
-spazi si possono scrivere anche col font del gioco.
+#### Come si dice dove ci si vede
+
+Il nome del posto (`CityMap.place_name()`) è la strada più un riferimento: una
+coppia di coordinate non direbbe niente a nessuno. È senza punteggiatura di
+proposito — solo lettere e spazi si possono scrivere anche col font del gioco —
+e resta in inglese come le insegne degli edifici, perché è una cittadina
+americana inventata.
+
+La prima versione diceva strada + **insegna più vicina entro 320 px**, e
+sbagliava in due modi che si vedevano solo giocando:
+
+1. **L'insegna poteva stare su un'altra strada.** Un appuntamento a (736, -64),
+   su MILL ROAD, veniva annunciato `MILL ROAD BY THE LAUNDROMAT` perché la
+   lavanderia era a 314 px in linea d'aria — ma la lavanderia sta su MAIN
+   STREET, tre isolati più in basso. Chi ci andava si trovava davanti alla
+   lavanderia con Brian fuori inquadratura, e non aveva **nessun motivo di
+   sospettare di essere nel posto sbagliato**: il gioco gli aveva detto proprio
+   quello. È il difetto peggiore di tutti — non sembra un difetto.
+2. **Lo stesso nome copriva posti diversi.** Ventisei posti finivano in undici
+   nomi, e uno solo ne copriva sette, distanti fra loro fino a 286 px.
+
+Adesso un'insegna si usa solo se è vicina davvero (`MEET_SIGN_RANGE`, 150 px),
+se sta **sulla stessa strada** del punto, e se non è un'insegna che in città
+esiste in più copie — `MOTEL`, `HOUSE` e `WAREHOUSE` sono anche nomi generati
+dai quartieri, e manderebbero alla copia sbagliata. Quando non c'è un'insegna
+che serva si dà l'incrocio **col verso**: `MILL ROAD NORTH OF MAIN STREET`. In
+una città a reticolo è un indirizzo vero e c'è sempre; il verso non è un vezzo,
+perché fra due incroci ci sono settecento pixel e senza sapere da che parte si è
+metà delle volte si cammina nella direzione sbagliata.
+
+Un controllo automatico verifica adesso che ogni nome dica il vero: che cominci
+con la strada su cui si è davvero, e che se nomina un'insegna quell'insegna sia
+vicina, sulla stessa strada, e unica in città.
+
+#### La freccia
+
+Il nome onesto risolve metà del problema: dice il quartiere, non l'indirizzo.
+Fra due incroci ci stanno due schermi, e più appuntamenti diversi continuano a
+chiamarsi nello stesso modo — è una conseguenza del reticolo, non un difetto da
+sistemare a parole.
+
+Il resto lo fa `scripts/systems/spot_pointer.gd`: finché Brian aspetta e il
+punto è **fuori dallo schermo**, una freccia verde scorre lungo il bordo
+indicando da che parte sta, più grande e più piena man mano che ci si avvicina.
+Appena il punto entra in vista la freccia sparisce, perché lì c'è già il rombo
+verde sopra la testa di Brian e due indicatori per la stessa cosa sono uno di
+troppo.
+
+Sta su una tela sua (`SpotLayer`, fra il meteo e l'HUD), quindi disegna in
+coordinate schermo e la tinta della notte non la tocca: è un segnale al
+giocatore, non un oggetto della città, e deve restare dello stesso verde alle
+due di notte sotto la pioggia. Il margine in alto è più grande degli altri per
+non finire sopra alla riga dell'HUD, e si toglie di mezzo davanti alle finestre
+modali, come l'HUD.
 
 C'è un numero che sembra arbitrario e non lo è, `MEET_CLEARANCE` (28 px): non
 basta che un punto sia fuori dai muri, perché la griglia dei percorsi si tiene
@@ -793,7 +1161,8 @@ il controllo automatico, non l'occhio.
 Il posto dell'appuntamento resta scritto **nell'HUD** finché Brian aspetta. Il
 messaggino che lo annuncia se ne va dopo due secondi e mezzo, e senza quella
 riga l'unico modo di ripescare l'indirizzo sarebbe tornare in cantina a riaprire
-il PC, cioè attraversare la città al contrario.
+il PC, cioè attraversare la città al contrario. La riga dice dove, la freccia
+dice da che parte.
 
 ### La crescita non è simulata
 
@@ -850,6 +1219,32 @@ Due strade, con un compromesso vero in mezzo:
   alla volta, ognuno con la sua domanda giornaliera, e ogni grammo che passa di
   mano alza `heat`.
 
+#### Dove si vende conta
+
+In **HILLSIDE**, il quartiere delle ville, la stessa roba si paga il **10% in
+più** (`Economy.DISTRICT_PRICE`): lassù nessuno sta a contare i centesimi.
+
+È la prima ragione per **attraversare la città invece di vendere sotto casa**.
+Fino a qui un cliente valeva l'altro, e una mappa larga cinquemila pixel era
+solo una distanza da percorrere; adesso la distanza si paga.
+
+Due dettagli che non sono dimenticanze:
+
+- **Il personale non prende la maggiorazione.** Un dealer assunto non ha una
+  posizione sulla mappa: vende "da qualche parte", quindi al prezzo base.
+  Andarci di persona è l'unica cosa che quel dieci per cento lo porta a casa.
+- **Il cliente lo dice.** Quando il quartiere paga di più, nel dialogo compare
+  una riga in più. Senza, l'aumento resterebbe un numero che cambia senza che
+  si capisca perché — e nessuno andrebbe mai apposta in collina.
+
+La tabella sta in `Economy` e non in `CityMap` perché è bilanciamento e non
+geografia; che i nomi dei quartieri combacino fra le due lo verifica un
+controllo automatico, altrimenti un nome scritto male passerebbe in silenzio
+come "nessun aumento".
+
+Più avanti qui ci andrà il rovescio della medaglia: in collina la polizia è più
+attenta, e quel dieci per cento si pagherà in attenzione. Per ora no.
+
 `heat` va da 0 a 100, scende di 9 ogni notte e per ora **non fa ancora niente**:
 la si vede nell'HUD e nel PC, e le pattuglie la commentano. È il gancio pronto
 per le retate.
@@ -862,6 +1257,32 @@ La domanda di un cliente invece **non** è salvata: si ricava da id e giorno con
 un hash (`Economy.street_demand()`), così il salvataggio non si gonfia di una
 riga per ogni NPC e la domanda resta identica se si ricarica la partita. Di
 salvato c'è solo quanto ha già comprato oggi (`SaveData.npc_state`).
+
+### La bolletta della luce
+
+Il seminterrato consuma. Ogni **30 giorni di gioco** (`Economy.BILL_DAYS`)
+arriva la bolletta: **100 $** di quota fissa più **10 $ per ogni lampada**
+accesa. A sei lampade sono 160 $ al mese.
+
+Si paga per le lampade e non per i vasi, perché un vaso al buio non consuma
+niente — ed è anche il motivo per cui comprare la sesta lampada è una scelta e
+non un acquisto ovvio: accorcia la crescita e allunga la bolletta.
+
+È una spesa con un **tempo diverso** da quello delle paghe, ed è per questo che
+esiste: le paghe mordono ogni notte, la bolletta si vede arrivare da lontano e
+si prepara. Un gestionale ha bisogno di tutti e due i ritmi.
+
+Nel salvataggio c'è `power_billed_day`, il giorno dell'ultima bolletta, e non un
+conto alla rovescia: un traguardo si ritrova intatto ricaricando, un contatore
+va tenuto in vita da qualcuno. Il conto riparte da quando la bolletta è
+**scaduta** e non da oggi, quindi attraversando più mesi in un colpo solo — il
+recupero del tempo a gioco chiuso — non se ne salta e non se ne accavalla
+nessuna.
+
+Se la cassa non basta si paga quello che c'è, come per le paghe del personale, e
+arriva un messaggio sul telefono. Restare al buio è la conseguenza naturale da
+scrivere quando ci sarà qualcosa da spegnere; per ora un buco che si allarga in
+silenzio sarebbe peggio di un conto pagato a metà.
 
 ## Il negozio online
 
@@ -907,10 +1328,18 @@ solo sui valori della varietà.
 
 ### Le lampade nel seminterrato
 
-`scenes/components/GrowLamp.tscn` è il segnaposto disegnato a mano: tre lampade
-appese sopra ai vasi in `Basement.tscn`, una per set acquistabile. La prima si
-accende col primo acquisto, la seconda col secondo e così via, così la cantina si
-riempie man mano invece di passare da buia a illuminata in un colpo solo.
+`scenes/components/GrowLamp.tscn` è il segnaposto disegnato a mano: **sei**
+lampade appese sopra ai vasi in `Basement.tscn`, una per vaso. La prima si
+accende col primo acquisto, la seconda col secondo e così via, così la cantina
+si riempie man mano invece di passare da buia a illuminata in un colpo solo.
+
+Le tre della fila davanti (`Lamp3`..`Lamp5`) pendono più in basso e più a
+destra di quelle di fondo, seguendo la prospettiva isometrica del tavolo: in
+quella vista una lampada più vicina si disegna più giù, e i coni si
+sovrappongono come si sovrappongono davvero. Stanno dopo le altre nell'albero,
+quindi passano davanti — che è quello che devono fare.
+
+Ognuna aggiunge 10 $ alla bolletta del mese: vedi "La bolletta della luce".
 
 Spenta resta comunque disegnata, in grigio: è il modo in cui un gestionale fa
 vedere al giocatore la roba che non ha ancora comprato. Le lampade stanno dopo i
@@ -952,16 +1381,55 @@ e in cantina, e non sparisce se nel frattempo si cambia stanza. Si apre con
 
 Sbloccato dalla fine del prologo. Due ruoli, che sono i due lati del gioco:
 
-| Ruolo | Assunzione | Paga | Cosa fa |
+| Ruolo | Assunzione | Come si paga | Cosa fa |
 |---|---|---|---|
-| GROWER | 420 $ | 81 $/giorno | pianta, annaffia e raccoglie; segue due vasi a testa |
-| DEALER | 560 $ | 108 $/giorno | piazza la merce, 2 g per ora di gioco |
+| GROWER | 420 $ | 81 $/giorno | pianta, annaffia e raccoglie; segue **sei vasi**, cioè tutto il seminterrato |
+| DEALER | 560 $ | **5% di quello che piazza** | piazza la merce, 2 g per ora di gioco |
 
-Tre per ruolo al massimo: il personale è un moltiplicatore, non un sostituto del
-giocatore. Le paghe si scalano a mezzanotte (`Staff.pay_wages()`, agganciata a
-`day_started`); se la cassa non basta se ne va uno, e per primo quello che costa
-di più — lasciare il giocatore in rosso con l'organico intatto vorrebbe dire un
-buco che si allarga da solo ogni notte, senza niente che lo fermi.
+### Due modi di pagare, e sono due mestieri diversi
+
+Il **coltivatore** prende una paga fissa: il suo lavoro non produce soldi da
+solo, produce piante. Pagarlo a percentuale vorrebbe dire legarlo a una vendita
+che non fa lui, e lasciarlo a bocca asciutta per i tre giorni in cui una pianta
+cresce.
+
+Il **dealer** non prende paga: trattiene una quota di quello che piazza, scalata
+sul posto al momento della vendita e non a mezzanotte come le paghe. È il modo
+in cui si paga davvero chi vende, e in partita cambia più di quanto sembri —
+**un dealer fermo non costa niente**, mentre un coltivatore senza semi costa
+uguale ogni notte. Il costo di assunzione resta per tutti e due: è il rischio
+che ci si prende in anticipo.
+
+La quota **non dipende da quanti sono**: la merce piazzata è la stessa, divisa
+fra loro. Assumerne un altro aumenta quanto si riesce a piazzare in un'ora, non
+la percentuale. Per ora è fissa in `Staff.ROLES["dealer"]["cut"]`; sta nella
+tabella dei ruoli e non in una costante a parte proprio perché un domani dovrà
+cambiare (reputazione, trattative, un dealer migliore di un altro).
+
+### Quanti se ne possono avere
+
+I dealer sono al massimo tre: il personale è un moltiplicatore, non un
+sostituto del giocatore.
+
+Per i coltivatori il tetto **non è scritto da nessuna parte**: lo dice il posto
+che c'è. Un coltivatore segue `POTS_PER_GROWER` vasi (sei), e in cantina i vasi
+sono al massimo sei, quindi finché la coltivazione sta lì sotto ne basta **uno**
+— e il PC lo dice (`NON SERVE NESSUN ALTRO`) invece di lasciare che il giocatore
+spenda quattrocentoventi dollari per uno che sta a guardare. `Staff.max_for()`
+lo ricava dai vasi sbloccati, quindi quando ci sarà una seconda proprietà il
+tetto salirà da solo senza che nessuno debba ricordarsene.
+
+### Le paghe, e chi se ne va
+
+Si scalano a mezzanotte (`Staff.pay_wages()`, agganciata a `day_started`); se la
+cassa non basta se ne va uno, e per primo quello che costa di più — lasciare il
+giocatore in rosso con l'organico intatto vorrebbe dire un buco che si allarga
+da solo ogni notte, senza niente che lo fermi.
+
+I dealer non entrano mai in questo conto e **non se ne vanno mai per soldi**:
+uno che si tiene una quota di quello che vende non ha niente da riscuotere nelle
+notti in cui non ha venduto niente. A restare senza lavoro sono i coltivatori,
+che è anche il verso giusto — sono loro il costo fisso che affonda una partita.
 
 ### Ingrosso o strada
 
@@ -983,6 +1451,13 @@ idempotente: chiamarla a ogni frame o una volta ogni tanto dà lo stesso risulta
 — ed è quello che il test verifica, avanzando venti mezz'ore invece di dieci ore
 in un colpo solo.
 
+Il resoconto di `work()` tiene **tre** numeri sui soldi e servono tutti e tre:
+`gross` è quello che la merce ha fatto, `commission` la quota trattenuta dai
+dealer, `revenue` quello che è arrivato davvero in cassa. Il messaggino in
+partita mostra `revenue`, perché deve dire quello che la cassa ha visto; il
+resoconto di quando si rientra mostra il conto per esteso, perché "piazzato per
+294 e in cassa 280" senza la riga di mezzo si legge come un errore.
+
 Due dettagli che vengono da lì:
 
 - **Le ore avanzate non si perdono.** I grammi sono interi, quindi
@@ -996,6 +1471,119 @@ C'è anche una soglia, `MIN_BATCH_GRAMS`: sotto ai cinque grammi il dealer non
 esce. Non è bilanciamento, è rumore — senza, il primo grammo intero verrebbe
 piazzato appena maturato, cioè un messaggino ogni sette secondi reali da lì alla
 fine della partita.
+
+`work()` restituisce anche `idle`: quanti vasi seguiti dal personale sono fermi
+perché **i semi sono finiti**. A gioco aperto non serve dirlo, il vaso vuoto si
+vede; a gioco chiuso è l'unica spiegazione del perché la produzione si è
+fermata. Vedi "Il tempo a gioco chiuso".
+
+## Il tempo a gioco chiuso
+
+Chiudere il gioco non mette in pausa il mondo: riaprendolo, il personale ha
+lavorato, le piante sono cresciute e le mezzanotti passate hanno fatto il loro
+mestiere.
+
+**Non c'è niente di simulato**, ed è il punto. Coltivazione, lavoro del
+personale e appuntamento con Brian erano già funzioni del tempo: nessuno tiene
+un conto frame per frame, si guarda che ore sono e si fa quello che nel
+frattempo andava fatto. L'unica cosa che si ferma chiudendo il gioco è
+**l'orologio**. `scripts/systems/offline.gd` lo sposta avanti e lascia lavorare
+i sistemi che c'erano già — per questo costa un file solo.
+
+Il recupero parte da `GameState.load_slot()`, **prima** di `game_started`: chi
+si aggancia a quel segnale costruisce la scena dallo stato, e lo stato deve
+essere già quello recuperato, o la mappa nascerebbe all'ora di ieri sera e
+salterebbe avanti un attimo dopo.
+
+### Perché a passi e non in un salto
+
+Portare l'orologio da 8:00 a 56:00 in un colpo e chiamare `Staff.work()` una
+volta sbaglierebbe in due modi:
+
+1. Un coltivatore raccoglie e ripianta **una volta per chiamata**. In due giorni
+   di gioco un vaso completa un ciclo e mezzo: con una chiamata sola se ne
+   perderebbe metà, e chi lascia il gioco aperto raccoglierebbe più di chi lo
+   chiude per lo stesso tempo.
+2. I dealer venderebbero tutto il magazzino al prezzo di **oggi**, mentre il
+   prezzo cambia a ogni mezzanotte. Due giorni di merce piazzata al prezzo di un
+   giorno solo è una scommessa che il giocatore non ha fatto.
+
+Quindi si avanza a mezz'ore di gioco, spezzando il passo esatto sulla mezzanotte
+perché paghe, prezzo del giorno e meteo cadano al momento giusto. Sono un
+centinaio di giri per il recupero più lungo possibile: non si sente. Il controllo
+automatico verifica proprio questo — che in quarantotto ore i vasi vengano
+**ripiantati** e non seminati una volta sola.
+
+### Il tetto è in ore di gioco, non in ore vere
+
+È la decisione che conta. L'orologio della partita corre **duecentoquaranta
+volte** più veloce del nostro: a `GAME_MINUTES_PER_SECOND` = 4 una giornata di
+gioco dura sei minuti veri. Stare via due ore vere vorrebbe dire venti giorni di
+gioco — più di quanto duri una partita intera fin qui. Contarli tutti non
+sarebbe generoso: sarebbe dire al giocatore che il modo migliore di giocare è
+non aprire il gioco.
+
+`Offline.MAX_GAME_HOURS` vale **48**, cioè due giornate. Ci si arriva stando via
+dodici minuti veri; oltre, si trova sempre quello — tornare dopo una settimana
+dà quanto tornare dopo un quarto d'ora. È l'unico numero da girare per rendere
+il ritorno più o meno ricco, e sta in ore di gioco perché quella è l'unità in
+cui si ragiona di bilanciamento (cicli, paghe, prezzo del giorno) ed è l'unica
+che resta giusta se un domani si cambia il ritmo dell'orologio.
+
+Sotto al minuto non succede niente: chi riapre il gioco subito dopo averlo
+chiuso non deve beccarsi un riquadro a tutto schermo per venti secondi.
+Un salvataggio nel **futuro** — orologio di sistema spostato indietro, file
+copiato da un'altra macchina — dà zero e non un numero negativo, o l'orologio
+della partita camminerebbe all'indietro.
+
+### Cosa NON succede a gioco chiuso
+
+Lavora solo il personale. Il giocatore no: non annaffia i vasi che i coltivatori
+non seguono, non vende in strada a mano, e soprattutto **non compra semi** —
+quelli si prendono solo da Brian, di persona. Finiti i semi i vasi restano vuoti
+e la produzione si ferma da sola.
+
+È questo, più del tetto, a tenere il conto onesto: **non serve un moltiplicatore
+che dimezzi la resa offline**, perché a gioco chiuso manca già metà del gioco.
+Un coltivatore segue due vasi, gli altri restano a secco, e la sete si porta via
+un pezzo di raccolto esattamente come a gioco aperto (mai sotto a
+`Grow.MIN_QUALITY`: una notte via non azzera niente).
+
+Anche l'appuntamento con Brian scorre. Chiedere i semi e chiudere il gioco non è
+un modo di mettere in pausa Brian: se la finestra scade, se ne va. Non costa
+niente — i semi si pagano al momento — ma il resoconto lo dice, ed era l'unica
+cosa che rendeva la scadenza un problema: uscire di casa, non trovare nessuno e
+non sapere perché.
+
+### Il resoconto
+
+Rientrando arriva un messaggio sul telefono (`MENTRE ERI VIA`). Le prime due
+righe ci sono sempre e servono a spiegare il salto dell'orologio — senza, si
+riaprirebbe il gioco al giorno 5 ricordandosi di averlo chiuso al giorno 3:
+
+```
+Sei stato via 45m.
+GIORNO 3 21:24  ->  GIORNO 5 21:24
+Si recuperano al massimo 48 ore di gioco.
+
+Raccolto: 40 g
+Piazzato: 35 g per 294 $
+Quota dei dealer: -15 $
+Paghe: -162 $
+Vasi da annaffiare: 1
+```
+
+Le altre righe compaiono solo quando hanno qualcosa da dire, come i segmenti
+dell'HUD. Sono scritte come **etichetta: valore** e non come frasi ("2 vasi sono
+rimasti a secco") apposta: così non c'è nessun singolare da sbagliare quando il
+numero è 1, in nessuna delle tre lingue.
+
+Il corpo del riquadro usa il font di **sistema** (solo chi parla e il bottone
+usano `alphabet.fnt`), quindi lì le cifre si possono scrivere.
+
+Subito dopo il resoconto la partita **si salva**: il recupero è già stato speso,
+e chiudere il gioco senza salvare farebbe sparire un raccolto che il giocatore
+aveva già letto.
 
 ## Le tre lingue
 
@@ -1095,6 +1683,55 @@ indistinguibile da uno lento.
 rovina la resa, le vendite, i clienti di strada, l'ampliamento del seminterrato,
 il giro completo di salvataggio e ricaricamento, e la mezzanotte.
 
+Del **telefono** controlla la cosa che può sbagliare in silenzio: quando parte
+l'avviso dei semi. Che non parta coi semi in mano, che non parta a vasi tutti
+pieni, che parta una volta sola e non a ogni giro, che non riparta ricaricando
+la partita, e che riparta invece dopo che i semi sono arrivati e finiti di
+nuovo. Più il tetto di lunghezza delle voci del menù, che finisce dentro a
+`Strings.problems()` insieme alle altre regole del testo.
+
+Controlla anche che **in collina si paghi di più**: che i nomi dei quartieri
+maggiorati esistano davvero sulla mappa, che l'aumento sia quello della tabella,
+che un quartiere sconosciuto non regali niente, e che la stessa vendita fatta
+lassù incassi più che sotto casa. E la **bolletta della luce**: che non arrivi
+prima della scadenza né due volte nello stesso mese, che valga la quota fissa
+più le lampade, che a cassa vuota si paghi quel che c'è senza andare sotto zero,
+e che attraversando sessanta giorni arrivino due bollette — non una e non tre.
+
+Del personale controlla che i due ruoli si paghino nei due modi giusti: che il
+dealer non abbia paga e non entri nel conto delle mezzanotti, che si tenga la
+percentuale della tabella e che quella percentuale non cambi assumendone un
+altro, che a cassa vuota se ne vada il coltivatore e **non** il dealer (che non
+aveva niente da riscuotere), e che un coltivatore copra tutti i vasi che ci sono
+e non due.
+
+Controlla anche **come si chiamano i posti d'incontro**: che il nome cominci con
+la strada su cui si è davvero, e che quando nomina un'insegna quell'insegna sia
+entro `MEET_SIGN_RANGE`, sulla stessa strada, e non una di quelle che in città
+esistono in più copie. È il controllo che blocca il difetto raccontato in
+"Comprare i semi": un nome che manda dall'altra parte non si vede leggendo il
+codice, si vede solo arrivando sul posto e non trovando nessuno.
+
+Controlla anche il **tempo passato a gioco chiuso**: che riaprire subito non
+faccia scattare niente, che un salvataggio nel futuro non regali tempo, che due
+minuti veri diventino otto ore di gioco, che il tetto tenga (una settimana vale
+quanto un quarto d'ora), che il personale pianti, raccolga, venda e si prenda le
+paghe, che senza semi non si pianti niente e i semi non compaiano da soli, che
+l'appuntamento con Brian scada, e che i vasi lasciati soli restino a secco senza
+però scendere sotto alla resa minima. Gira senza aspettare: i secondi veri sono
+un parametro di `Offline.catch_up()`, non l'orologio del sistema.
+
+Controlla anche la **luce** e il **meteo**, che sono funzioni pure dell'ora e
+del giorno e quindi si provano senza scena e senza aspettare: che il colore non
+salti a mezzanotte, che la notte non diventi mai illeggibile, che l'ombra giri
+da una parte all'altra col sole e si accorci a mezzogiorno, che col cielo
+coperto sbiadisca restando però attaccata al terreno, e che il giro di
+`emissive()` — diviso per la luce, poi moltiplicato dal `CanvasModulate` —
+restituisca esattamente il colore di partenza. Del meteo controlla che il tiro
+del giorno nuovo non esca mai dalla tabella nemmeno partendo da una chiave
+sconosciuta, e soprattutto **che pesi**: che sotto la pioggia una giornata
+incassi meno di una di sole e lasci meno tracce.
+
 Controlla anche i **percorsi**: che dentro a un edificio non si cammini, che da
 casa si arrivi alla porta di ognuno dei centosessanta, che nessun percorso
 attraversi un muro, che un edificio grosso venga aggirato invece che attraversato
@@ -1138,7 +1775,9 @@ lancia più nessuno.
   di movimento — con una città larga qualche migliaio di pixel, una camera ferma
   la renderebbe inservibile.
 - **Rotellina**: zoom a scatti pixel-perfect (scale nette 1x → 8x, un passo per intero).
-- **Esc**: torna al menu principale.
+- **Freccia su**: apre e chiude il telefono (vedi "Il telefono"). Si può anche
+  cliccare la linguetta in basso a sinistra.
+- **Esc**: chiude il telefono se è aperto, altrimenti torna al menu principale.
 
 ## Perché lo zoom va a scatti interi
 

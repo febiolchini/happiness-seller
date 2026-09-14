@@ -60,10 +60,23 @@ const WAIT_HOURS := Vector2(2.0, 4.0)
 ## attraversare la mappa più volte.
 const MEET_HOURS := 10.0
 
-## Quanti semi porta a ogni consegna. Il limite è quello che tiene in piedi il
-## meccanismo: senza, una chiamata sola basterebbe per sempre e chiamare Brian
-## diventerebbe qualcosa che si fa una volta e poi si dimentica.
-const SEEDS_PER_RUN := 6
+## Quanti semi riesce a portare, da un minimo a un massimo.
+##
+## Il limite è quello che tiene in piedi il meccanismo: senza, una chiamata sola
+## basterebbe per sempre e chiamare Brian diventerebbe qualcosa che si fa una
+## volta e poi si dimentica.
+##
+## **Non è un numero fisso** perché Brian non è un magazzino: quanti ne riesce a
+## far uscire dalla clinica cambia da una volta all'altra, e non saperlo prima
+## di arrivare è quello che rende l'appuntamento un fatto invece di un ritiro.
+## Il minimo resta quello di prima, quindi una chiamata non è mai peggio di
+## com'era; il massimo è il doppio.
+##
+## Va letto insieme a `Staff.POTS_PER_GROWER` (sei): un coltivatore consuma un
+## seme per vaso a ogni ciclo, quindi una consegna copre da uno a due cicli di
+## seminterrato pieno. È il numero che decide **ogni quanto si deve uscire di
+## casa**, ed è lì che questo gioco vuole tenere il giocatore.
+const SEEDS_PER_RUN := Vector2i(6, 12)
 
 # --- Lettura dello stato ---------------------------------------------------
 
@@ -121,7 +134,10 @@ static func ask(data: SaveData, now: float) -> bool:
 		"spot_x": 0.0,
 		"spot_y": 0.0,
 		"place": "",
-		"seeds": SEEDS_PER_RUN,
+		# Quanti ne porta si decide adesso e resta scritto nell'appuntamento: il
+		# giocatore lo scopre arrivando, ma il numero non cambia sotto ai piedi
+		# se nel frattempo salva, chiude e riapre.
+		"seeds": randi_range(SEEDS_PER_RUN.x, SEEDS_PER_RUN.y),
 	}
 	return true
 

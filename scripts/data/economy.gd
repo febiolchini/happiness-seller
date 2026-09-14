@@ -116,6 +116,10 @@ static func roll_new_day(data: SaveData) -> void:
 	var base := float(base_price(DEFAULT_STRAIN))
 	data.market_price = int(roundf(base * randf_range(1.0 - PRICE_SWING, 1.0 + PRICE_SWING)))
 	data.heat = maxf(0.0, data.heat - HEAT_DECAY_PER_DAY)
+	# Il tempo di domani si tira qui insieme al prezzo, e per lo stesso motivo:
+	# sono le due cose che rendono domani diverso da oggi, e il giocatore le
+	# scopre insieme aprendo gli occhi il mattino dopo.
+	data.weather = Weather.roll(data.weather)
 
 # --- Prezzi correnti -------------------------------------------------------
 
@@ -124,9 +128,37 @@ static func roll_new_day(data: SaveData) -> void:
 static func wholesale_price(data: SaveData) -> int:
 	return maxi(1, data.market_price)
 
+## Quanto si paga la merce in un quartiere, rispetto alla strada qualunque.
+##
+## In collina la stessa roba si paga il dieci per cento in più: lassù nessuno
+## sta a contare i centesimi. È la prima ragione per **attraversare la città
+## invece di vendere sotto casa** — finora un cliente valeva l'altro, e la mappa
+## larga cinquemila pixel era solo una distanza da percorrere.
+##
+## Le chiavi sono i nomi dei quartieri in `CityMap.DISTRICTS`. Il conto sta qui e
+## non lì perché è bilanciamento e non geografia, ed è `Economy` il posto in cui
+## si girano i numeri; che le due tabelle siano d'accordo lo verifica un
+## controllo automatico, altrimenti un nome scritto male passerebbe come "nessun
+## aumento" senza dire niente a nessuno.
+##
+## Più avanti qui ci andrà anche il rovescio della medaglia: in collina la
+## polizia è più attenta, e quel dieci per cento si pagherà in attenzione.
+const DISTRICT_PRICE := {
+	"HILLSIDE": 1.10,
+}
+
+## Il moltiplicatore di un quartiere, 1.0 se non ne ha uno suo.
+static func district_price(district: String) -> float:
+	return float(DISTRICT_PRICE.get(district, 1.0))
+
 ## Prezzo al dettaglio: si vende a mano, in strada, e si prende di più.
-static func retail_price(data: SaveData) -> int:
-	return maxi(1, int(roundf(float(wholesale_price(data)) * RETAIL_MULTIPLIER)))
+##
+## `district` è il quartiere in cui sta avvenendo la vendita — vuoto vuol dire
+## "da nessuna parte in particolare", e si paga il prezzo base. Vedi
+## `DISTRICT_PRICE`.
+static func retail_price(data: SaveData, district := "") -> int:
+	var price := float(wholesale_price(data)) * RETAIL_MULTIPLIER * district_price(district)
+	return maxi(1, int(roundf(price)))
 
 # --- Semi ------------------------------------------------------------------
 
@@ -167,12 +199,18 @@ static func sell_wholesale(data: SaveData, grams: int) -> int:
 	return sell(data, grams, wholesale_price(data))
 
 ## Vendita a un cliente in strada: paga meglio, ma lascia tracce.
+##
+## `district` è dove sta il cliente: lo passa chi vende, perché è l'unico a
+## saperlo. Il personale non lo passa — un dealer assunto non ha una posizione
+## sulla mappa, quindi prende il prezzo base. È una differenza voluta: andare di
+## persona in collina è l'unica cosa che quel dieci per cento lo porta a casa.
+##
 ## Restituisce l'incasso; 0 se il cliente per oggi è a posto o la scorta è finita.
-static func sell_street(data: SaveData, npc_id: String, grams: int) -> int:
+static func sell_street(data: SaveData, npc_id: String, grams: int, district := "") -> int:
 	var sold := mini(mini(grams, street_demand_left(data, npc_id)), stock(data))
 	if sold <= 0:
 		return 0
-	var revenue := sell(data, sold, retail_price(data), street_heat(data))
+	var revenue := sell(data, sold, retail_price(data, district), street_heat(data))
 	if revenue > 0:
 		_mark_street_sale(data, npc_id, sold)
 	return revenue
@@ -180,9 +218,17 @@ static func sell_street(data: SaveData, npc_id: String, grams: int) -> int:
 ## Quanto vuole comprare oggi un cliente. Non è salvato: si ricava da id e
 ## giorno, così il salvataggio non si gonfia di una riga per ogni NPC e la
 ## domanda resta identica se si ricarica la partita.
-static func street_demand(npc_id: String, day: int) -> int:
+##
+## Il tempo che fa è l'unica cosa che la sposta, e la sposta di parecchio: sotto
+## la pioggia un cliente prende un terzo di quello che prenderebbe con il sole.
+## È quello che dà un motivo per guardare fuori dalla finestra prima di uscire
+## con la merce addosso — e per usare il PC nei giorni brutti.
+static func street_demand(npc_id: String, day: int, weather_id := Weather.DEFAULT) -> int:
 	var spread := STREET_DEMAND.y - STREET_DEMAND.x + 1
-	return STREET_DEMAND.x + absi(hash("%s|%d" % [npc_id, day])) % spread
+	var base := STREET_DEMAND.x + absi(hash("%s|%d" % [npc_id, day])) % spread
+	# Almeno un grammo: un tempo così brutto da azzerare la domanda di tutti
+	# renderebbe la giornata un muro invece di una giornata storta.
+	return maxi(1, int(roundf(float(base) * Weather.demand_mod(weather_id))))
 
 ## Quanto gli resta da comprare oggi, tolto quello che ha già preso.
 static func street_demand_left(data: SaveData, npc_id: String) -> int:
@@ -190,7 +236,7 @@ static func street_demand_left(data: SaveData, npc_id: String) -> int:
 	var bought := 0
 	if int(state.get("day", -1)) == data.day:
 		bought = int(state.get("bought", 0))
-	return maxi(0, street_demand(npc_id, data.day) - bought)
+	return maxi(0, street_demand(npc_id, data.day, Weather.of(data)) - bought)
 
 static func _mark_street_sale(data: SaveData, npc_id: String, grams: int) -> void:
 	var state: Dictionary = data.npc_state.get(npc_id, {})
@@ -201,11 +247,68 @@ static func _mark_street_sale(data: SaveData, npc_id: String, grams: int) -> voi
 
 # --- Attenzione ------------------------------------------------------------
 
+# --- Bollette --------------------------------------------------------------
+
+## Ogni quanti giorni di gioco arriva la bolletta della luce.
+##
+## Trenta giorni sono un mese, che al ritmo attuale dell'orologio sono circa tre
+## ore vere di gioco: è una spesa che si vede arrivare da lontano e si prepara,
+## al contrario delle paghe che mordono ogni notte. Sono due tempi diversi
+## apposta — un gestionale ha bisogno di tutti e due.
+const BILL_DAYS := 30
+## Quota fissa: il contatore c'è anche a cantina spenta.
+const POWER_BASE := 100
+## Quanto costa tenere accesa una lampada in più per un mese.
+const POWER_PER_LAMP := 10
+
+## Quanto verrà la prossima bolletta.
+##
+## Si paga per le lampade **accese**, non per i vasi: un vaso al buio non
+## consuma niente. È anche il motivo per cui comprare la sesta lampada è una
+## scelta e non un acquisto ovvio — accorcia la crescita e allunga la bolletta.
+static func power_bill(data: SaveData) -> int:
+	if data == null:
+		return POWER_BASE
+	return POWER_BASE + POWER_PER_LAMP * Shop.owned(data, "lamps")
+
+## Fra quanti giorni di gioco arriva.
+static func days_to_bill(data: SaveData) -> int:
+	if data == null:
+		return BILL_DAYS
+	return maxi(0, BILL_DAYS - (data.day - data.power_billed_day))
+
+## Scala la bolletta se è il giorno. Restituisce quanto è stato pagato e quanto
+## era dovuto: chi chiama decide se e come dirlo.
+##
+## Si paga quel che c'è, come le paghe del personale: restare senza corrente è
+## una conseguenza che va scritta quando ci sarà qualcosa da spegnere, e per ora
+## un buco che si allarga in silenzio sarebbe peggio di un conto pagato a metà.
+static func charge_power(data: SaveData) -> Dictionary:
+	var result := {"due": 0, "paid": 0}
+	if data == null or data.day - data.power_billed_day < BILL_DAYS:
+		return result
+	# Il giorno da cui riparte il conto è quello in cui sarebbe SCADUTA la
+	# bolletta, non oggi: attraversando più mesi in un colpo solo (il recupero
+	# del tempo a gioco chiuso) non se ne salta nessuno e non se ne accavallano.
+	data.power_billed_day += BILL_DAYS
+	var due := power_bill(data)
+	var paid := mini(due, data.cash)
+	data.cash -= paid
+	result["due"] = due
+	result["paid"] = paid
+	return result
+
+# --- Attenzione ------------------------------------------------------------
+
 ## Attenzione per grammo venduto in strada, col filtro a carbone del negozio
 ## già scontato. Passa da qui chiunque venda al dettaglio — il giocatore in
 ## prima persona e i dealer assunti — così l'acquisto vale per tutti e due.
+## Ci rientra anche il tempo che fa: sotto la pioggia la gente cammina a testa
+## bassa e le pattuglie restano in macchina, quindi si vende meno ma quel poco
+## si vende più tranquilli. È il contrappeso che rende una giornata brutta una
+## scelta e non solo un danno.
 static func street_heat(data: SaveData) -> float:
-	return HEAT_PER_STREET_GRAM * Shop.heat_factor(data)
+	return HEAT_PER_STREET_GRAM * Shop.heat_factor(data) * Weather.heat_mod(Weather.of(data))
 
 static func add_heat(data: SaveData, amount: float) -> void:
 	data.heat = clampf(data.heat + amount, 0.0, HEAT_MAX)

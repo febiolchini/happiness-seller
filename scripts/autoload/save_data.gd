@@ -88,6 +88,13 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 ## arrotonderebbe un `ready_at` di 26.5 perdendo la mezz'ora.
 @export var seed_deal: Dictionary = {}
 
+# --- Bollette --------------------------------------------------------------
+## Giorno in cui è stata pagata l'ultima bolletta della luce. La prossima scade
+## `Economy.BILL_DAYS` giorni dopo. Si salva il giorno e non un conto alla
+## rovescia per lo stesso motivo di tutto il resto: un traguardo si ritrova
+## intatto ricaricando, un contatore va tenuto in vita da qualcuno.
+@export var power_billed_day := 1
+
 # --- Attenzione della polizia ---------------------------------------------
 ## 0-100. Sale vendendo in strada, scende ogni notte. Vedi `Economy`.
 @export var heat := 0.0
@@ -109,6 +116,11 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 @export var npc_state: Dictionary = {}
 
 # --- Mondo e giocatore -----------------------------------------------------
+## Che tempo fa oggi. Lo tira `Economy.roll_new_day()` a ogni mezzanotte, come
+## il prezzo: è salvato e non ricalcolato, altrimenti un ritocco alla tabella
+## del meteo cambierebbe il tempo di tutte le partite già salvate, e "il giorno
+## che pioveva" diventerebbe un altro giorno. Le chiavi sono in `Weather.TYPES`.
+@export var weather := Weather.DEFAULT
 @export var day := 1
 ## Ora del giorno in formato 0.0 - 24.0.
 @export var time_of_day := 8.0
@@ -215,10 +227,12 @@ func to_dict() -> Dictionary:
 		"wholesale_share": wholesale_share,
 		"staff_checked_at": staff_checked_at,
 		"seed_deal": seed_deal,
+		"power_billed_day": power_billed_day,
 		"heat": heat,
 		"properties": properties,
 		"reputation": reputation,
 		"npc_state": npc_state,
+		"weather": weather,
 		"day": day,
 		"time_of_day": time_of_day,
 		# Il JSON non conosce Vector2: lo salviamo come coppia di numeri.
@@ -258,10 +272,16 @@ static func from_dict(raw: Dictionary) -> SaveData:
 	# `staff_checked_at` di 26.5 tornerebbe intero perdendo la mezz'ora.
 	data.staff_checked_at = float(source.get("staff_checked_at", 0.0))
 	data.seed_deal = _deal_from_dict(source.get("seed_deal", {}))
+	# Un salvataggio di prima delle bollette parte dal giorno in cui si trova,
+	# non dal giorno 1: altrimenti si beccherebbe un mese arretrato di colpo.
+	data.power_billed_day = int(source.get("power_billed_day", source.get("day", 1)))
 	data.heat = float(source.get("heat", 0.0))
 	data.properties = _restore_ints(source.get("properties", {}))
 	data.reputation = _restore_ints(source.get("reputation", {}))
 	data.npc_state = _restore_ints(source.get("npc_state", {}))
+	# Un salvataggio di prima del meteo non ha il campo: parte da sereno invece
+	# che da una stringa vuota, che non sarebbe un tempo.
+	data.weather = str(source.get("weather", Weather.DEFAULT))
 	data.day = int(source.get("day", 1))
 	data.time_of_day = float(source.get("time_of_day", 8.0))
 	data.current_room = str(source.get("current_room", ""))

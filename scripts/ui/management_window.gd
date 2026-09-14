@@ -280,8 +280,15 @@ func _build_grow() -> void:
 	# La resa mostrata e' quella che darebbe una pianta seminata ADESSO, con
 	# l'attrezzatura che si ha adesso: scrivere il valore di listino dopo aver
 	# venduto un toolkit al giocatore vorrebbe dire dargli un numero falso.
+	#
+	# La lampada e' un effetto per vaso (vedi `Shop.grow_mods()`), quindi
+	# l'anteprima usa il PRIMO VASO LIBERO: e' quello in cui finirebbe
+	# davvero il prossimo seme piantato a mano. A cantina piena non c'e' niente
+	# da anticipare — non si puo' piantare comunque — e allora si mostra il
+	# valore di listino, senza inventare un bonus che potrebbe non esserci.
 	var mods := Shop.grow_mods(
-		GameState.current, float(strain["grow_hours"]), int(strain["grams"]))
+		GameState.current, float(strain["grow_hours"]), int(strain["grams"]),
+		_first_empty_plot())
 	_add_note(tr("PC_YIELD_NOTE") % [
 		int(mods["grams"]), UiFormat.duration(float(mods["hours"]))])
 
@@ -290,6 +297,16 @@ func _build_grow() -> void:
 ## Sta nella scheda GROW e non in una sua perché è lì che ci si accorge di
 ## essere a secco — davanti ai vasi vuoti — ed è lì che deve esserci il modo di
 ## rimediare, senza cambiare scheda per cercarlo.
+## Indice del primo vaso vuoto, -1 se non ce n'e'. Vedi la nota su `_build_grow()`.
+func _first_empty_plot() -> int:
+	var data := GameState.current
+	if data == null:
+		return -1
+	for i in data.plots.size():
+		if Grow.is_empty(data.plots[i]):
+			return i
+	return -1
+
 func _build_seeds() -> void:
 	var seeds := func(d: SaveData) -> String: return str(Economy.seeds_owned(d))
 	_add_field("PC_SEEDS", seeds)
@@ -499,13 +516,13 @@ func _build_staff() -> void:
 		var role: String = role_id
 		var head_count := func(d: SaveData) -> String:
 			return tr("PC_STAFF_COUNT") % [
-				Staff.count(d, role), Staff.MAX_PER_ROLE, UiFormat.money(Staff.wage(role))]
+				Staff.count(d, role), Staff.max_for(d, role), Staff.pay_label(role)]
 		# Etichetta col font di sistema: il conteggio contiene cifre e
 		# `alphabet.fnt` ha solo lettere.
 		_add_field(Staff.role_name(role), head_count, Callable(), false)
 
 		var hire_text := func(d: SaveData) -> String:
-			if Staff.count(d, role) >= Staff.MAX_PER_ROLE:
+			if Staff.count(d, role) >= Staff.max_for(d, role):
 				return tr("PC_NO_ROOM_STAFF")
 			return tr("PC_HIRE") % UiFormat.money(Staff.hire_cost(role))
 		var hire_enabled := func(d: SaveData) -> bool: return Staff.can_hire(d, role)

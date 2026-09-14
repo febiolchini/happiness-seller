@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/city.gd" id="1_city"]
 [ext_resource type="Script" path="res://scripts/systems/camera_zoom.gd" id="3_zoom"]
@@ -6,6 +6,11 @@
 [ext_resource type="PackedScene" path="res://scenes/characters/Player.tscn" id="6_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="7_hud"]
 [ext_resource type="PackedScene" path="res://scenes/ui/DialogueBox.tscn" id="8_dialogue"]
+[ext_resource type="Script" path="res://scripts/systems/atmosphere.gd" id="9_atmosphere"]
+[ext_resource type="Script" path="res://scripts/systems/ground_weather.gd" id="10_ground_weather"]
+[ext_resource type="Script" path="res://scripts/systems/weather_view.gd" id="11_weather_view"]
+[ext_resource type="Script" path="res://scripts/systems/spot_pointer.gd" id="12_spot"]
+[ext_resource type="PackedScene" path="res://scenes/ui/Phone.tscn" id="13_phone"]
 
 [node name="City" type="Node2D"]
 y_sort_enabled = true
@@ -23,8 +28,15 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.113725, 0.121569, 0.129412, 1)
 
+[node name="Atmosphere" type="CanvasModulate" parent="."]
+script = ExtResource("9_atmosphere")
+
 [node name="Ground" type="Node2D" parent="."]
 script = ExtResource("4_ground")
+
+[node name="GroundWeather" type="Node2D" parent="."]
+position = Vector2(0, 1)
+script = ExtResource("10_ground_weather")
 
 [node name="Effects" type="Node2D" parent="."]
 
@@ -46,6 +58,20 @@ position = Vector2(320, 264)
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(320, 240)
 script = ExtResource("3_zoom")
+
+[node name="WeatherLayer" type="CanvasLayer" parent="."]
+layer = 2
+
+[node name="WeatherView" type="Node2D" parent="WeatherLayer"]
+script = ExtResource("11_weather_view")
+
+[node name="SpotLayer" type="CanvasLayer" parent="."]
+layer = 3
+
+[node name="SpotPointer" type="Node2D" parent="SpotLayer"]
+script = ExtResource("12_spot")
+
+[node name="Phone" parent="." instance=ExtResource("13_phone")]
 
 [node name="HUD" parent="." instance=ExtResource("7_hud")]
 

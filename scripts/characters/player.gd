@@ -42,8 +42,32 @@ const GROUP := "player"
 
 func _ready() -> void:
 	add_to_group(GROUP)
+	# Fermo, il protagonista non si ridisegna: senza questo la sua ombra
+	# resterebbe indietro mentre quella di tutto il resto gira col sole.
+	add_to_group(Daylight.LIGHT_GROUP)
 	_target = global_position
 	_sprite_rest_y = _sprite.offset.y
+
+## Chiamata da `atmosphere.gd` quando la luce è cambiata abbastanza da vedersi.
+func on_light_changed() -> void:
+	queue_redraw()
+
+## L'ombra ai piedi del protagonista.
+##
+## È disegnata qui e non messa come nodo nella scena perché deve girare col
+## sole: un `Polygon2D` figlio avrebbe una forma sola e andrebbe comunque
+## spostato da uno script. Sotto allo sprite, sopra al terreno.
+##
+## Fino ad ora il protagonista era l'unica cosa della città senza ombra, e si
+## vedeva: camminava un centimetro sopra l'asfalto.
+func _draw() -> void:
+	var info := Daylight.shadow(GameState.current)
+	var slide: Vector2 = (info["direction"] as Vector2) * minf(float(info["length"]) * 9.0, 20.0)
+	var points := PackedVector2Array()
+	for i in range(17):
+		var a := TAU * float(i) / 16.0
+		points.append(slide + Vector2(cos(a) * 9.0, sin(a) * 3.6))
+	draw_colored_polygon(points, Color(0, 0, 0, 0.14 + float(info["alpha"]) * 0.45))
 
 ## Ordina di raggiungere un punto della mappa in linea retta (coordinate
 ## globali). È il caso semplice: per andare da una parte all'altra della città

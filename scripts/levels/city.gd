@@ -19,6 +19,15 @@ extends Node2D
 ## cammina: quello che succede all'arrivo se lo ricorda `_talking_to` /
 ## `_entering` e lo esegue `_on_player_arrived()`.
 ##
+## ## L'ora e il tempo che fa
+##
+## La luce non è un effetto appiccicato sopra alla mappa: `Atmosphere` tinge
+## tutta la tela del mondo col colore dell'ora (`daylight.gd`), i lampioni e le
+## finestre si accendono da soli quando quel colore scende, le ombre girano col
+## sole. Le nuvole e le pozze stanno per terra (`GroundWeather`), la pioggia
+## davanti a tutto su una tela sua (`WeatherLayer`). Nessuno di questi nodi sa
+## niente degli altri: guardano tutti l'orologio della partita.
+##
 ## Esc = menu principale, tasto destro trascinando = pan, rotellina = zoom.
 
 const TILE_SIZE := 32
@@ -29,6 +38,7 @@ const ENTERABLE := preload("res://scripts/components/enterable_building.gd")
 const NPC := preload("res://scenes/characters/Npc.tscn")
 const CAR := preload("res://scenes/components/Car.tscn")
 const FOUNTAIN := preload("res://scenes/components/Fountain.tscn")
+const STREET_LAMP := preload("res://scenes/components/StreetLamp.tscn")
 
 ## Quanto lontano dalla facciata si ferma il protagonista.
 const APPROACH := 26.0
@@ -44,6 +54,7 @@ const APPROACH := 26.0
 @onready var _traffic: Node2D = $Traffic
 @onready var _camera: Camera2D = $Camera2D
 @onready var _hud: CanvasLayer = $HUD
+@onready var _phone: Control = $Phone/Screen
 @onready var _dialogue: CanvasLayer = $DialogueBox
 
 ## Il reticolo su cui si cammina. Costruito una volta dalla stessa pianta che
@@ -63,6 +74,9 @@ func _ready() -> void:
 	# Da sfondo di un menu la mappa non deve toccare la partita in corso,
 	# e nemmeno mostrare l'HUD dietro ai bottoni.
 	_hud.enabled = interactive
+	# Dietro ai bottoni del menu principale non ci va nemmeno la linguetta del
+	# telefono: lì la mappa è carta da parati, non una partita.
+	_phone.enabled = interactive
 	if not interactive:
 		return
 
@@ -113,6 +127,14 @@ func _build_city() -> void:
 		var fountain := FOUNTAIN.instantiate()
 		fountain.position = point
 		_props.add_child(fountain)
+	# I lampioni stanno fra i `Props` e non fra il terreno: hanno un'altezza,
+	# quindi vanno Y-sortati come gli edifici, o il protagonista passerebbe
+	# davanti al palo anche camminandoci dietro.
+	for entry in CityMap.street_lamps():
+		var lamp := STREET_LAMP.instantiate()
+		lamp.position = entry["pos"]
+		lamp.reach = entry["reach"]
+		_props.add_child(lamp)
 	for entry in NpcRoster.NPCS:
 		var npc := NPC.instantiate()
 		_npcs.add_child(npc)

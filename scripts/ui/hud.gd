@@ -31,6 +31,7 @@ const INFO_SIZE := 11
 const MONEY_COLOR := Color(0.90, 0.95, 0.66)
 const INFO_COLOR := Color(0.74, 0.77, 0.82)
 const STOCK_COLOR := Color(0.62, 0.85, 0.55)
+const WEATHER_COLOR := Color(0.62, 0.74, 0.88)
 const HEAT_COLOR := Color(0.95, 0.62, 0.35)
 const SPOT_COLOR := Color(0.55, 0.85, 0.45)
 const DOT_COLOR := Color(0.45, 0.47, 0.52)
@@ -71,6 +72,16 @@ var _segments := [
 		"color": INFO_COLOR,
 		"text": func(data: SaveData) -> String:
 			return "%s %d  %s" % [tr("HUD_DAY"), data.day, UiFormat.clock(data.time_of_day)],
+	},
+	# Che tempo fa, ma solo quando c'è qualcosa da dire: col sereno la riga non
+	# si allunga. Stessa regola della scorta e dell'attenzione — e il tempo, qui,
+	# ha da dire qualcosa: sotto la pioggia si vende meno in strada e ci si fa
+	# notare meno (vedi `Weather`).
+	{
+		"size": INFO_SIZE,
+		"color": WEATHER_COLOR,
+		"text": func(data: SaveData) -> String: return Weather.display_name(Weather.of(data)),
+		"show": func(data: SaveData) -> bool: return Weather.of(data) != Weather.DEFAULT,
 	},
 	{
 		"size": INFO_SIZE,

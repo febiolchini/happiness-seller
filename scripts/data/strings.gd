@@ -81,6 +81,18 @@ const TEXT := {
 	# --- HUD ---------------------------------------------------------------
 	"HUD_DAY": ["DAY", "GIORNO", "DIA"],
 
+	# --- Che tempo fa ------------------------------------------------------
+	# Non sono marcate PIXEL: l'HUD scrive col font di sistema, perché deve
+	# mostrare cifre (i soldi, l'orario) che `alphabet.fnt` non ha. Restano
+	# comunque di sole lettere, così se un giorno finissero su un cartello o in
+	# una schermata scritta col font del gioco non ci sarebbe niente da rifare.
+	"WEATHER_CLEAR": ["CLEAR", "SERENO", "DESPEJADO"],
+	"WEATHER_CLOUDS": ["CLOUDY", "NUVOLOSO", "NUBLADO"],
+	"WEATHER_OVERCAST": ["OVERCAST", "COPERTO", "CUBIERTO"],
+	"WEATHER_RAIN": ["RAIN", "PIOGGIA", "LLUVIA"],
+	"WEATHER_STORM": ["STORM", "TEMPORALE", "TORMENTA"],
+	"WEATHER_FOG": ["FOG", "NEBBIA", "NIEBLA"],
+
 	# --- Stanze (PIXEL) ----------------------------------------------------
 	"ROOM_ENTRANCE": ["ENTRANCE", "INGRESSO", "ENTRADA"],
 	"ROOM_KITCHEN": ["KITCHEN", "CUCINA", "COCINA"],
@@ -209,9 +221,11 @@ const TEXT := {
 	# --- Il PC: scheda STAFF -----------------------------------------------
 	## %s paga giornaliera
 	"PC_WAGES_VALUE": ["%s / day", "%s / giorno", "%s / dia"],
-	## %d quanti, %d massimo, %s paga
-	"PC_STAFF_COUNT": [
-		"%d / %d   (%s / day)", "%d / %d   (%s / giorno)", "%d / %d   (%s / dia)",
+	## %d quanti, %d massimo, %s quanto costa (gia' scritto: vedi Staff.pay_label)
+	"PC_STAFF_COUNT": ["%d / %d   (%s)", "%d / %d   (%s)", "%d / %d   (%s)"],
+	## %d percentuale trattenuta sulle vendite
+	"PC_STAFF_PAY_CUT": [
+		"%d%% of sales", "%d%% sulle vendite", "%d%% de las ventas",
 	],
 	## %d quanti, %s paga totale
 	"PC_STAFF_SUMMARY": [
@@ -263,9 +277,9 @@ const TEXT := {
 	],
 	"SHOP_LAMPS": ["RED GROW LAMPS", "LAMPADE ROSSE", "LAMPARAS ROJAS"],
 	"SHOP_LAMPS_NOTE": [
-		"Red lamps over the pots: each set cuts 8% off the growing time. Applies to plants put in from now on.",
-		"Lampade rosse sopra ai vasi: ogni set taglia l'8% del tempo di crescita. Vale per le piante messe da qui in avanti.",
-		"Lamparas rojas sobre las macetas: cada juego recorta un 8% del tiempo de cultivo. Vale para las plantas que siembres de ahora en adelante.",
+		"Red lamps over the pots, one per pot: each cuts 8% off the growing time, and adds 10 $ to the monthly power bill. Applies to plants put in from now on.",
+		"Lampade rosse sopra ai vasi, una per vaso: ognuna taglia l'8% del tempo di crescita e aggiunge 10 $ alla bolletta del mese. Vale per le piante messe da qui in avanti.",
+		"Lamparas rojas sobre las macetas, una por maceta: cada una recorta un 8% del tiempo de cultivo y suma 10 $ a la factura del mes. Vale para las plantas que siembres de ahora en adelante.",
 	],
 	"SHOP_FILTER": ["CARBON FILTER", "FILTRO A CARBONE", "FILTRO DE CARBON"],
 	"SHOP_FILTER_NOTE": [
@@ -277,15 +291,15 @@ const TEXT := {
 	# --- Personale: nomi (PIXEL) e spiegazioni -----------------------------
 	"STAFF_GROWER": ["GROWER", "COLTIVATORE", "CULTIVADOR"],
 	"STAFF_GROWER_NOTE": [
-		"Works the basement: plants whatever seeds he finds, waters, harvests. Two pots each.",
-		"Sta in cantina: pianta i semi che trova, annaffia e raccoglie. Segue due vasi a testa.",
-		"Trabaja en el sotano: siembra las semillas que encuentra, riega y cosecha. Dos macetas cada uno.",
+		"Works the basement: plants whatever seeds he finds, waters, harvests. One of them covers the whole cellar, and gets paid whether there are seeds or not.",
+		"Sta in cantina: pianta i semi che trova, annaffia e raccoglie. Uno copre tutto il seminterrato, e la paga la prende che ci siano semi o no.",
+		"Trabaja en el sotano: siembra las semillas que encuentra, riega y cosecha. Uno cubre todo el sotano, y cobra haya semillas o no.",
 	],
 	"STAFF_DEALER": ["DEALER", "SPACCIATORE", "VENDEDOR"],
 	"STAFF_DEALER_NOTE": [
-		"Moves the product in the split set below. What goes to the street pays more and raises attention.",
-		"Piazza la merce nella proporzione decisa qui sotto. Quello che va in strada rende di più e alza l'attenzione.",
-		"Mueve la mercancia en la proporcion de abajo. Lo que va a la calle paga mas y levanta atencion.",
+		"Moves the product in the split set below. No wage: he keeps a cut of whatever he sells, so an idle dealer costs nothing. What goes to the street pays more and raises attention.",
+		"Piazza la merce nella proporzione decisa qui sotto. Niente paga: si tiene una quota di quello che vende, quindi fermo non costa niente. Quello che va in strada rende di più e alza l'attenzione.",
+		"Mueve la mercancia en la proporcion de abajo. Sin sueldo: se queda una parte de lo que vende, asi que parado no cuesta nada. Lo que va a la calle paga mas y levanta atencion.",
 	],
 
 	# --- Messaggini dell'HUD -----------------------------------------------
@@ -331,6 +345,35 @@ const TEXT := {
 	"NOTE_LET_GO": ["LET GO  %s", "MANDATO VIA  %s", "DESPEDIDO  %s"],
 	## %s quanto è stato pagato
 	"NOTE_WAGES": ["WAGES  -%s", "PAGHE  -%s", "SUELDOS  -%s"],
+	"NOTE_POWER_BILL": ["POWER BILL  -%s", "BOLLETTA  -%s", "LUZ  -%s"],
+
+	# --- Il telefono (PIXEL le voci del menu) ------------------------------
+	# I mittenti sono quelli che ci sono gia': `MSG_STAFF_SPEAKER` e
+	# `MSG_COUSIN_SPEAKER`. Chi scrive e' la stessa persona, che il messaggio
+	# arrivi qui o nel riquadro a tutto schermo.
+	#
+	# I corpi usano il font di SISTEMA, quindi ci possono stare le cifre; le
+	# voci del menu usano quello del gioco, quindi solo lettere e spazio.
+	## Le tre facce della voce del menu. Lo schermo del telefono e' largo poco
+	## piu' di cento pixel, quindi qui c'e' un tetto vero: oltre i
+	## `Strings.PHONE_MENU_CHARS` caratteri il testo viene tagliato a meta'
+	## parola, ed e' successo davvero ("BRIAN CI PENS"). Un controllo automatico
+	## lo verifica, perche' a leggerle qui sembrano tutte corte uguali.
+	"PHONE_CALL_BRIAN": ["CALL BRIAN", "CHIAMA BRIAN", "LLAMA A BRIAN"],
+	"PHONE_WAITING": ["HE IS ON IT", "CI PENSA LUI", "EL SE ENCARGA"],
+	"PHONE_BRIAN_HERE": ["HE IS WAITING", "TI ASPETTA", "TE ESPERA"],
+	"PHONE_SEEDS_OUT": [
+		"Out of seeds down here. The pots stay empty until you bring more.",
+		"Semi finiti, qui sotto. I vasi restano vuoti finche' non ne porti altri.",
+		"Sin semillas aqui abajo. Las macetas siguen vacias hasta que traigas mas.",
+	],
+	## %s posto. Il posto va a capo da solo: e' lungo (MILL ROAD NORTH OF MAIN
+	## STREET) e attaccato alla frase la mangerebbe tutta.
+	"PHONE_BRIAN_READY": [
+		"Got them. Waiting for you at:\n%s",
+		"Li ho presi. Ti aspetto qui:\n%s",
+		"Los tengo. Te espero aqui:\n%s",
+	],
 
 	# --- Messaggi sul telefono ---------------------------------------------
 	"MSG_COUSIN_SPEAKER": ["BRIAN", "BRIAN", "BRIAN"],
@@ -340,6 +383,13 @@ const TEXT := {
 		"Veo que te estas esforzando, primo. Si el negocio sigue creciendo asi, dentro de poco te conviene contratar a alguien que te eche una mano.\n\nMira el PC: ahora hay un sitio para contratar.",
 	],
 	"MSG_STAFF_SPEAKER": ["STAFF", "PERSONALE", "PERSONAL"],
+	"MSG_POWER_SPEAKER": ["POWER COMPANY", "SOCIETA ELETTRICA", "COMPANIA DE LUZ"],
+	## %s quanto era dovuto, %s quanto e' stato pagato
+	"MSG_POWER_SHORT": [
+		"The bill came to %s and only %s went through. Those lamps eat power whether the pots are full or not.",
+		"La bolletta era di %s e ne sono passati solo %s. Quelle lampade consumano che i vasi siano pieni o vuoti.",
+		"La factura era de %s y solo han pasado %s. Esas lamparas consumen esten las macetas llenas o vacias.",
+	],
 	## %s ruolo
 	"MSG_STAFF_QUIT": [
 		"%s walked out: there was not enough in the till to cover the wages.",
@@ -348,6 +398,67 @@ const TEXT := {
 	],
 	"MSG_OK": ["OK", "OK", "OK"],
 
+	# --- Il resoconto di quando si rientra ---------------------------------
+	# Il corpo del messaggio del telefono usa il font di SISTEMA (solo chi parla
+	# e il bottone usano quello del gioco), quindi qui le cifre si possono
+	# scrivere. Vedi `phone_notice.gd`.
+	#
+	# Sono scritte come "etichetta: valore" e non come frasi ("2 vasi sono
+	# rimasti a secco") apposta: cosi' non c'e' nessun singolare da sbagliare
+	# quando il numero e' 1, in nessuna delle tre lingue, e il riquadro si legge
+	# come quello che e' — un rendiconto.
+	"MSG_AWAY_SPEAKER": ["WHILE YOU WERE OUT", "MENTRE ERI VIA", "MIENTRAS NO ESTABAS"],
+	"AWAY_HEADER": [
+		"You were away %s.",
+		"Sei stato via %s.",
+		"Has estado fuera %s.",
+	],
+	"AWAY_CAPPED": [
+		"At most %d game hours are caught up.",
+		"Si recuperano al massimo %d ore di gioco.",
+		"Se recuperan como maximo %d horas de juego.",
+	],
+	"AWAY_HARVEST": ["Harvested: %d g", "Raccolto: %d g", "Cosechado: %d g"],
+	"AWAY_SOLD": ["Moved: %d g for %s", "Piazzato: %d g per %s", "Colocado: %d g por %s"],
+	"AWAY_CUT": ["Dealer cut: -%s", "Quota dei dealer: -%s", "Parte de los vendedores: -%s"],
+	"AWAY_WAGES": ["Wages: -%s", "Paghe: -%s", "Sueldos: -%s"],
+	"AWAY_POWER": ["Power bill: -%s", "Bolletta della luce: -%s", "Factura de la luz: -%s"],
+	"AWAY_QUIT": [
+		"%s walked out: there was no money to pay the wages.",
+		"%s se n'è andato: non c'erano i soldi per pagarlo.",
+		"%s se fue: no habia dinero para pagarle.",
+	],
+	"AWAY_IDLE": [
+		"The seeds ran out: the free pots stayed empty. Only you can get more, from Brian.",
+		"I semi sono finiti: i vasi liberi sono rimasti vuoti. Altri li puoi prendere solo tu, da Brian.",
+		"Se acabaron las semillas: las macetas libres se quedaron vacias. Mas solo las puedes conseguir tu, de Brian.",
+	],
+	"AWAY_THIRSTY": [
+		"Pots that need water: %d",
+		"Vasi da annaffiare: %d",
+		"Macetas que necesitan agua: %d",
+	],
+	"AWAY_DEAL_READY": [
+		"Brian sent the spot: %s.",
+		"Brian ha mandato la posizione: %s.",
+		"Brian ha mandado el sitio: %s.",
+	],
+	"AWAY_DEAL_GONE": [
+		"Brian got tired of waiting and left.",
+		"Brian si è stancato di aspettare e se n'è andato.",
+		"Brian se canso de esperar y se fue.",
+	],
+	"AWAY_NO_STAFF": [
+		"Nobody works for you yet: only the clock moved.",
+		"Non hai ancora nessuno che lavori per te: è passato solo il tempo.",
+		"Todavia no tienes a nadie trabajando: solo ha pasado el tiempo.",
+	],
+	"AWAY_QUIET": [
+		"Nothing worth telling happened down there.",
+		"Di sotto non è successo niente che valga la pena raccontare.",
+		"Abajo no ha pasado nada que merezca la pena contar.",
+	],
+
 	# --- Brian all'appuntamento --------------------------------------------
 	"NPC_SEEDS_EMPTY": [
 		"That was the last of it. Give me a couple of hours and ask again.",
@@ -355,10 +466,16 @@ const TEXT := {
 		"Ese era el ultimo. Dame un par de horas y vuelve a pedirmelo.",
 	],
 	## %d prezzo, %d quanti ne ha portati, %d quanti ne hai, %d soldi
+	## %d prezzo, %d quanti ne ha portati, %d quanti ne ha il giocatore, %d cassa
+	##
+	## Le due cifre in fondo sono scritte come "etichetta: valore" e non dentro a
+	## una frase, per lo stesso motivo del resoconto di quando si rientra: il
+	## giocatore puo' averne uno solo, o nessuno, e "hai 1 semi" non si puo'
+	## scrivere in nessuna delle tre lingue senza un "(s)" appiccicato.
 	"NPC_SEEDS_BODY": [
-		"Straight out of the clinic stock, cousin. %d $ a seed, and you never got them from me.\n\nI brought %d. You have %d seed(s), %d $.",
-		"Presi dritti dal magazzino della clinica, cugino. %d $ al seme, e non te li ho dati io.\n\nNe ho portati %d. Tu hai %d seme/i, %d $.",
-		"Sacados del almacen de la clinica, primo. %d $ la semilla, y yo no te los he dado.\n\nHe traido %d. Tu tienes %d semilla(s), %d $.",
+		"Straight out of the clinic stock, cousin. %d $ a seed, and you never got them from me.\n\nI brought %d.  Seeds on you: %d.  Cash: %d $.",
+		"Presi dritti dal magazzino della clinica, cugino. %d $ al seme, e non te li ho dati io.\n\nNe ho portati %d.  Semi che hai: %d.  Cassa: %d $.",
+		"Sacados del almacen de la clinica, primo. %d $ la semilla, y yo no te los he dado.\n\nHe traido %d.  Semillas que llevas: %d.  Dinero: %d $.",
 	],
 	## %d quanti, %d costo
 	"NPC_SEEDS_BUY": ["BUY %d  -  %d $", "PRENDINE %d  -  %d $", "COMPRAR %d  -  %d $"],
@@ -388,6 +505,11 @@ const TEXT := {
 		"Hoy me llevo %d g, %d $ el gramo.\n\nTu llevas encima %d g.",
 	],
 	## %d grammi, %d incasso
+	"NPC_BUYER_UPTOWN": [
+		"Up here nobody counts the pennies. It is worth the walk.",
+		"Quassù nessuno sta a contare i centesimi. La strada la vale.",
+		"Aqui arriba nadie cuenta los centimos. Vale la caminata.",
+	],
 	"NPC_BUYER_SELL": ["SELL %d G  -  %d $", "VENDI %d G  -  %d $", "VENDER %d G  -  %d $"],
 	"NPC_BUYER_NOT_NOW": ["NOT NOW", "NON ADESSO", "AHORA NO"],
 
@@ -669,6 +791,15 @@ const TEXT := {
 
 # --- Controlli sulla tabella ------------------------------------------------
 
+## Quanto lunghe possono essere le voci del menu del telefono.
+##
+## Non e' una regola di stile: lo schermo del telefono e' largo 112 px e il
+## bottone taglia quello che avanza. Tredici caratteri col font del gioco a
+## corpo 12 sono quello che ci sta. Vedi `PHONE_CALL_BRIAN`.
+const PHONE_MENU_CHARS := 13
+## Le voci che devono stare in quella larghezza.
+const PHONE_MENU_KEYS := ["PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE"]
+
 ## Caratteri che il font del gioco sa disegnare: lettere e spazio, nient'altro.
 ## Vedi la regola 2 in cima al file.
 const PIXEL_FONT_CHARS := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz "
@@ -687,7 +818,9 @@ const PIXEL_KEYS := [
 	"PC_ATTENTION", "PC_GRAMS_HARVESTED", "PC_GRAMS_SOLD", "PC_TOTAL_EARNED",
 	"PC_STAFF", "PC_WAGES", "PC_SALES_SPLIT", "PC_WHOLESALE_TODAY",
 	"PC_STREET_PRICE", "PC_STOCK_VALUE",
-	"MSG_COUSIN_SPEAKER", "MSG_STAFF_SPEAKER", "MSG_OK",
+	"MSG_COUSIN_SPEAKER", "MSG_STAFF_SPEAKER", "MSG_AWAY_SPEAKER", "MSG_POWER_SPEAKER",
+	"MSG_OK",
+	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE",
 ]
 
 static func locale_name(locale: String) -> String:
@@ -717,4 +850,15 @@ static func problems() -> Array:
 	for key in PIXEL_KEYS:
 		if not TEXT.has(key):
 			found.append("%s e' segnata PIXEL ma non esiste" % key)
+	# Le voci del menu del telefono hanno anche un tetto di lunghezza: oltre
+	# quello il bottone le taglia a meta' parola. Vedi `PHONE_MENU_CHARS`.
+	for key in PHONE_MENU_KEYS:
+		if not TEXT.has(key):
+			found.append("%s e' una voce del telefono ma non esiste" % key)
+			continue
+		for i in (TEXT[key] as Array).size():
+			var line := str(TEXT[key][i])
+			if line.length() > PHONE_MENU_CHARS:
+				found.append("%s (%s) e' lunga %d: sullo schermo del telefono ce ne stanno %d" % [
+					key, LOCALES[i], line.length(), PHONE_MENU_CHARS])
 	return found

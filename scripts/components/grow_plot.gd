@@ -110,9 +110,10 @@ func _plant(plot: Dictionary, now: float) -> void:
 	data.add_item(item, -1)
 	var strain := Economy.strain(Economy.DEFAULT_STRAIN)
 	# L'attrezzatura comprata dal negozio si fotografa adesso e resta attaccata a
-	# questa pianta: vedi `Shop.grow_mods()`.
+	# questa pianta: vedi `Shop.grow_mods()`. `index` e' il vaso vero, quindi la
+	# lampada conta se e solo se e' LA SUA lampada a essere accesa.
 	Grow.plant(plot, Economy.DEFAULT_STRAIN, now,
-		Shop.grow_mods(data, float(strain["grow_hours"]), int(strain["grams"])))
+		Shop.grow_mods(data, float(strain["grow_hours"]), int(strain["grams"]), index))
 	GameState.notify(tr("NOTE_PLANTED"))
 
 func _harvest(plot: Dictionary, now: float) -> void:

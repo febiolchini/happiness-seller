@@ -11,6 +11,7 @@ exits = {
 "ROOM_EXIT": "res://scenes/levels/City.tscn"
 }
 background_color = Color(0.129412, 0.109804, 0.101961, 1)
+window_rect = Rect2(49, 4, 44, 146)
 
 [node name="Backdrop" parent="." index="1"]
 texture = ExtResource("2_bg")

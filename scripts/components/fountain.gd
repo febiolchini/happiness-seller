@@ -23,11 +23,25 @@ func _process(delta: float) -> void:
 	_time += delta
 	queue_redraw()
 
+## Il colore dell'acqua adesso: la sua tinta, mescolata a quella del cielo.
+##
+## Serve perché l'acqua è l'unica superficie della città che **riflette**
+## invece di limitarsi a essere illuminata. La tinta dell'aria
+## (`atmosphere.gd`) scurisce tutto allo stesso modo, compresa la vasca: se
+## l'acqua non prendesse per conto suo l'arancione del tramonto e il blu della
+## notte, al calare del sole diventerebbe semplicemente una macchia scura come
+## il resto, e la fontana smetterebbe di essere il punto di riferimento del
+## parco proprio nell'ora in cui si guarda di più.
+func _water_now() -> Color:
+	var sky := Daylight.air(Daylight.hour_of(GameState.current))
+	return water_color.lerp(sky, 0.45)
+
 func _draw() -> void:
+	var water := _water_now()
 	# Vasca: due ellissi, una più scura sotto, per dare lo spessore del bordo.
 	draw_colored_polygon(_ellipse(Vector2(0, 2), Vector2(radius, radius * 0.42)), basin_color.darkened(0.35))
 	draw_colored_polygon(_ellipse(Vector2(0, -4), Vector2(radius, radius * 0.42)), basin_color)
-	draw_colored_polygon(_ellipse(Vector2(0, -4), Vector2(radius - 7.0, radius * 0.30)), water_color)
+	draw_colored_polygon(_ellipse(Vector2(0, -4), Vector2(radius - 7.0, radius * 0.30)), water)
 
 	# Colonna centrale.
 	draw_rect(Rect2(-5, -30, 10, 26), basin_color, true)
@@ -37,7 +51,7 @@ func _draw() -> void:
 	# Riflessi sull'acqua, sfasati fra loro così non pulsano all'unisono.
 	for i in 3:
 		var phase := _time * 1.4 + float(i) * 2.1
-		var shine := water_color.lightened(0.35)
+		var shine := water.lightened(0.35)
 		shine.a = 0.35 + 0.25 * sin(phase)
 		var offset := Vector2(cos(phase * 0.7) * radius * 0.45, -4 + sin(phase) * radius * 0.12)
 		draw_colored_polygon(_ellipse(offset, Vector2(9, 3)), shine)
@@ -46,7 +60,7 @@ func _draw() -> void:
 ## vasca. L'altezza oscilla piano, così la fontana non sembra un fermo immagine.
 func _draw_jets() -> void:
 	var pulse := 1.0 + 0.12 * sin(_time * 2.2)
-	var jet := water_color.lightened(0.45)
+	var jet := _water_now().lightened(0.45)
 	jet.a = 0.8
 	for i in JETS:
 		var angle := TAU * float(i) / float(JETS) + _time * 0.25
