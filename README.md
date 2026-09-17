@@ -2331,12 +2331,50 @@ e in cantina, e non sparisce se nel frattempo si cambia stanza. Si apre con
 
 ## Il personale
 
-Sbloccato dalla fine del prologo. Due ruoli, che sono i due lati del gioco:
+Sbloccato dalla fine del prologo. Tre ruoli:
 
 | Ruolo | Assunzione | Come si paga | Cosa fa |
 |---|---|---|---|
 | GROWER | 420 $ | 81 $/giorno | pianta, annaffia e raccoglie; segue **sei vasi**, cioè tutto il seminterrato |
 | DEALER | 560 $ | **5% di quello che piazza** | piazza la merce, 2 g per ora di gioco |
+| DRIVER | 380 $ | 54 $/giorno | porta il furgone dal grossista: coi semi ordinabili **dal PC** invece che andandoci |
+
+### Quanti se ne possono avere
+
+| Ruolo | Tetto |
+|---|---|
+| GROWER | i vasi **aperti** dei posti aperti, diviso `POTS_PER_GROWER` |
+| DEALER | `MAX_DEALERS` (3) più `DEALERS_PER_PROPERTY` (2) **per ogni proprietà** |
+| DRIVER | uno, e solo col furgone in casa |
+
+Il tetto dei dealer non è un numero fisso ma una conseguenza di quanto si è
+grossi, e quello che dice quanto si è grossi sono le proprietà: col garage si
+passa da tre a cinque, e ogni proprietà che si aggiungerà ne porterà altri due
+senza che nessuno debba tornare a cambiare un numero. Il conto lo tiene già
+`SaveData.property_count()`.
+
+L'autista **non compare** finché non c'è il furgone: `Staff.roles_for()` salta i
+ruoli col tetto a zero, perché una riga "0 su 0" con due bottoni spenti non dice
+"non ancora", dice "rotto". È la stessa regola della ripartizione delle vendite
+e dei posti dei coltivatori.
+
+### L'autista, e perché esiste
+
+Il grossista dei semi sta in DOWNTOWN, e fino a lì ci si va **a piedi**: è due
+ore di viaggio per il furgone e una bella camminata per il protagonista. La
+prima volta che si compra una cassa di semi Brian scrive che c'è un modo di non
+rifare quella strada — un autista sul furgone — e da quel momento il ruolo si
+può assumere.
+
+Assunto, nella scheda GROW del PC compare `MANDA L'AUTISTA`, che apre lo
+**stesso** sportello del grossista che sta sull'edificio: stessi tagli, stessi
+sconti, stesse due ore. Non è una seconda interfaccia con gli stessi numeri
+dentro, è la stessa scena caricata da un altro posto — due copie vorrebbero dire
+due posti in cui aggiustare uno sconto.
+
+Quello che l'autista **non** fa è ordinare da solo: la scorta di semi resta una
+decisione del giocatore, e un autista che ricompra quando finiscono toglierebbe
+di mezzo l'unica cosa per cui la scorta conta qualcosa.
 
 ### Due modi di pagare, e sono due mestieri diversi
 

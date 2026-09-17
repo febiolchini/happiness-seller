@@ -909,6 +909,37 @@ func _test_staff_growing() -> void:
 	_check_eq(Staff.max_for(data, "grower"), 1, "con sei vasi basta un coltivatore")
 	_check(not Staff.can_hire(data, "grower"), "e un secondo non si puo' assumere")
 	_check(Staff.max_for(data, "dealer") > 1, "i dealer invece si sommano")
+
+	# --- L'autista: c'e' solo col furgone, ed e' uno ------------------------
+	# Il ruolo non deve comparire prima del furgone: senza mezzo da guidare
+	# sarebbe una riga spenta che sembra rotta invece che "non ancora".
+	_check_eq(Staff.max_for(data, "driver"), 0, "senza furgone non c'e' nessun autista")
+	_check(
+		not Staff.roles_for(data).has("driver"),
+		"e il ruolo non compare nemmeno nella lista")
+	data.cash = Shop.price("van")
+	Shop.buy(data, "van")
+	_check_eq(Staff.max_for(data, "driver"), 1, "col furgone si puo' assumere un autista")
+	_check(Staff.roles_for(data).has("driver"), "e il ruolo compare")
+	data.cash = Staff.hire_cost("driver")
+	_check(Staff.hire(data, "driver", now), "assunto")
+	_check(Staff.has_driver(data), "e da li' i semi si ordinano dal PC")
+	_check(not Staff.can_hire(data, "driver"), "ma il secondo no: il furgone e' uno")
+
+	# --- I dealer crescono con le proprieta' --------------------------------
+	# Il tetto non e' un numero fisso ma una conseguenza di quanto si e' grossi.
+	# Scritto a mano resterebbe a tre il giorno che si compra la seconda
+	# proprieta', e nessuno se ne accorgerebbe se non contando gli assunti.
+	var senza := _fresh()
+	_check_eq(Staff.max_for(senza, "dealer"), Staff.MAX_DEALERS,
+		"con la sola casa i dealer sono %d" % Staff.MAX_DEALERS)
+	senza.properties["Garage"] = {"livello": 1}
+	_check_eq(Staff.max_for(senza, "dealer"), Staff.MAX_DEALERS + Staff.DEALERS_PER_PROPERTY,
+		"con la prima proprieta' diventano %d" % (Staff.MAX_DEALERS + Staff.DEALERS_PER_PROPERTY))
+	senza.properties["Chissa"] = {"livello": 1}
+	_check_eq(Staff.max_for(senza, "dealer"),
+		Staff.MAX_DEALERS + 2 * Staff.DEALERS_PER_PROPERTY,
+		"e ogni proprieta' nuova ne porta altri %d" % Staff.DEALERS_PER_PROPERTY)
 	data.cash = 0
 
 	# Ha i semi: pianta da solo. I vasi che segue sono tutti quelli che ci sono.
@@ -2412,6 +2443,19 @@ func _test_seed_run() -> void:
 		"e i semi entrano in inventario")
 	_check(not SeedRun.is_running(data), "il viaggio e' chiuso")
 	_check_eq(SeedRun.tick(data, now + 99.0), 0, "e non si scarica due volte")
+
+	# --- Il consiglio dell'autista ------------------------------------------
+	# Arriva al primo ordine e una volta sola. Un consiglio che si ripete a ogni
+	# cassa di semi non e' un consiglio, e' un promemoria che non si spegne.
+	_check(
+		bool(data.get_flag(SeedRun.BOUGHT_FLAG, false)),
+		"il primo ordine resta segnato")
+	_check(
+		not SeedRun.check_driver_hint(_fresh()),
+		"senza mai aver comprato semi Brian non consiglia niente")
+	var hinted := SaveData.from_dict(data.to_dict())
+	_check(SeedRun.check_driver_hint(hinted), "comprati i semi, Brian consiglia l'autista")
+	_check(not SeedRun.check_driver_hint(hinted), "ma una volta sola")
 
 	# --- Un furgone solo, un viaggio alla volta -----------------------------
 	# E' la regola che tiene insieme le due cose: lo stesso mezzo porta la merce

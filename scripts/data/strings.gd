@@ -387,11 +387,25 @@ const TEXT := {
 		"Pianta i semi che trova, annaffia e raccoglie. Sta in un posto solo e segue i vasi di quello, e la paga la prende che ci siano semi o no.",
 		"Siembra las semillas que encuentra, riega y cosecha. Esta en un solo sitio y atiende sus macetas, y cobra haya semillas o no.",
 	],
+	"STAFF_DRIVER": ["DRIVER", "AUTISTA", "CHOFER"],
+	"STAFF_DRIVER_NOTE": [
+		"Takes the van to the supplier for you: with him on the payroll you order the seeds from the PC instead of walking downtown. One van, one driver, and he gets paid whether he drives or not.",
+		"Porta lui il furgone dal grossista: assunto, i semi si ordinano dal PC invece di farsi la strada fino in centro. Un furgone, un autista, e la paga la prende che guidi o no.",
+		"Lleva el la furgoneta al mayorista: contratado, las semillas se piden desde el PC en vez de cruzar la ciudad. Una furgoneta, un chofer, y cobra conduzca o no.",
+	],
 	"STAFF_DEALER": ["DEALER", "SPACCIATORE", "VENDEDOR"],
 	"STAFF_DEALER_NOTE": [
 		"Works the street, and only with what you leave him. No wage: he keeps a cut of whatever he sells, so an idle dealer costs nothing. The street pays well and raises attention.",
 		"Batte la strada, e solo con quello che gli lasci. Niente paga: si tiene una quota di quello che vende, quindi fermo non costa niente. La strada rende bene e alza l'attenzione.",
 		"Trabaja la calle, y solo con lo que le dejas. Sin sueldo: se queda una parte de lo que vende, asi que parado no cuesta nada. La calle paga bien y levanta atencion.",
+	],
+
+	## Il bottone che apre il grossista dal PC: c'e' solo con l'autista assunto.
+	"PC_SEND_DRIVER": ["SEND THE DRIVER", "MANDA L'AUTISTA", "MANDA AL CHOFER"],
+	"PC_DRIVER_NOTE": [
+		"The driver does the run. Order from here and the van goes: same crates, same two hours.",
+		"Il viaggio lo fa l'autista. Ordini da qui e il furgone parte: stesse casse, stesse due ore.",
+		"El viaje lo hace el chofer. Pides desde aqui y la furgoneta sale: mismas cajas, mismas dos horas.",
 	],
 
 	# --- Messaggini dell'HUD -----------------------------------------------
@@ -563,9 +577,9 @@ const TEXT := {
 
 	"GUIDE_STAFF": ["HIRING", "IL PERSONALE", "EL PERSONAL"],
 	"GUIDE_STAFF_BODY": [
-		"At a thousand dollars the STAFF tab opens on the PC.\n\nA grower covers 6 pots: plants, waters and cuts for you, and keeps working while the game is closed. A dealer moves the product on the street and keeps a cut of it.\n\nWages run every day whether there is work or not. Hiring before you have the pots to fill is just an expense.",
-		"Ai mille dollari si apre la scheda PERSONALE nel PC.\n\nUn coltivatore segue 6 vasi: pianta, annaffia e raccoglie al posto tuo, e continua a lavorare anche a gioco chiuso. Un dealer piazza la merce in strada e se ne tiene una quota.\n\nLe paghe corrono ogni giorno, che ci sia lavoro o no. Assumere prima di avere i vasi da riempire è solo una spesa.",
-		"A los mil dólares se abre la pestaña PERSONAL en el PC.\n\nUn cultivador lleva 6 macetas: planta, riega y corta por ti, y sigue trabajando con el juego cerrado. Un camello coloca la mercancía en la calle y se queda una parte.\n\nLos sueldos corren cada día, haya trabajo o no. Contratar antes de tener macetas que llenar es solo un gasto.",
+		"At a thousand dollars the STAFF tab opens on the PC.\n\nA grower covers 6 pots: plants, waters and cuts for you, and keeps working while the game is closed. A dealer moves the product on the street and keeps a cut of it. A driver takes the van to the seed supplier, so you order the crates from the PC instead of walking downtown. You can keep 3 dealers, and 2 more for every property you buy.\n\nWages run every day whether there is work or not. Hiring before you have the pots to fill is just an expense.",
+		"Ai mille dollari si apre la scheda PERSONALE nel PC.\n\nUn coltivatore segue 6 vasi: pianta, annaffia e raccoglie al posto tuo, e continua a lavorare anche a gioco chiuso. Un dealer piazza la merce in strada e se ne tiene una quota. Un autista porta il furgone dal grossista dei semi, così le casse le ordini dal PC invece di farti la strada fino in centro. I dealer che puoi tenere sono 3, più 2 per ogni proprietà che compri.\n\nLe paghe corrono ogni giorno, che ci sia lavoro o no. Assumere prima di avere i vasi da riempire è solo una spesa.",
+		"A los mil dólares se abre la pestaña PERSONAL en el PC.\n\nUn cultivador lleva 6 macetas: planta, riega y corta por ti, y sigue trabajando con el juego cerrado. Un camello coloca la mercancía en la calle y se queda una parte. Un chofer lleva la furgoneta al mayorista de semillas, así pides las cajas desde el PC en vez de cruzar la ciudad. Puedes tener 3 camellos, y 2 más por cada propiedad que compres.\n\nLos sueldos corren cada día, haya trabajo o no. Contratar antes de tener macetas que llenar es solo un gasto.",
 	],
 
 	"GUIDE_WHOLESALE": ["WHOLESALE", "L'INGROSSO", "EL MAYOREO"],
@@ -657,6 +671,14 @@ Te hara falta para seguir el ritmo",
 		"You are putting the work in cousin\nYou should get someone to help\nCheck the PC you can hire now",
 		"Vedo che ti stai impegnando cugino\nTi conviene assumere qualcuno\nGuarda il PC ora si puo assumere",
 		"Veo que te esfuerzas primo\nTe conviene contratar a alguien\nMira el PC ya puedes contratar",
+	],
+	## Arriva la prima volta che si comprano i semi dal grossista, quando il
+	## viaggio fino in centro lo si e' appena fatto a piedi: e' il momento in cui
+	## il consiglio si capisce da solo.
+	"MSG_DRIVER_BODY": [
+		"You went down there\nyourself cousin\nIf the trip wears you out\nput a driver on that van\nHe picks up the seeds\nyou order from home",
+		"Ci sei andato di persona\ncugino\nSe il viaggio ti pesa\nmettici un autista\nVa lui a prendere i semi\ne tu li ordini da casa",
+		"Fuiste tu mismo primo\nSi el viaje te pesa\nponle un chofer\na la furgoneta\nEl va a por las semillas\ny tu las pides desde casa",
 	],
 	"MSG_STAFF_SPEAKER": ["STAFF", "PERSONALE", "PERSONAL"],
 	"MSG_POWER_SPEAKER": ["POWER COMPANY", "SOCIETA ELETTRICA", "COMPANIA DE LUZ"],
@@ -1109,7 +1131,7 @@ const PIXEL_KEYS := [
 	# I corpi delle vignette: si leggono col font del gioco, non con quello di
 	# sistema come gli avvisi. Vedi `phone.gd`.
 	"MSG_INTRO_BODY", "MSG_KILO_BODY", "MSG_EXPAND_BODY", "MSG_COUSIN_BODY",
-	"MSG_SEED_WHOLESALE_BODY", "SW_TITLE",
+	"MSG_SEED_WHOLESALE_BODY", "MSG_DRIVER_BODY", "SW_TITLE",
 	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE", "CHAT_TITLE",
 	# Della guida solo la voce in rubrica: dentro si legge col font di
 	# sistema, e le cifre servono.

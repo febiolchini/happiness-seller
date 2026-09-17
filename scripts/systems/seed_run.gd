@@ -36,6 +36,17 @@ extends RefCounted
 ## non c'è nessuno che vada a ritirare.
 const UNLOCK_FLAG := "seed_wholesale_unlocked"
 
+## Ricorda che dal grossista ci si e' andati almeno una volta, e che il consiglio
+## di prendere un autista e' gia' arrivato.
+##
+## Sono due flag e non uno perche' dicono due cose diverse: la prima e' una cosa
+## che il giocatore ha fatto, la seconda una cosa che il gioco gli ha detto. Il
+## consiglio parte al primo ordine, ma il posto in cui si mandano i messaggi e'
+## `GameState._check_milestones()`, non qui — questo file non sa niente di
+## telefoni e di traduzioni, e non deve cominciare adesso.
+const BOUGHT_FLAG := "seed_wholesale_bought"
+const DRIVER_HINT_FLAG := "seed_driver_hinted"
+
 ## Quanto ci mette il furgone, andata e ritorno. Due ore di gioco.
 const TRIP_HOURS := 2.0
 
@@ -67,6 +78,19 @@ static func check_unlock(data: SaveData) -> bool:
 	if not Delivery.has_van(data):
 		return false
 	data.set_flag(UNLOCK_FLAG, true)
+	return true
+
+## Il consiglio dell'autista: vero **solo il giro in cui scatta**, come
+## `check_unlock()`, cosi' chi chiama manda il messaggio una volta sola.
+##
+## Arriva al primo ordine e non al primo rientro: quello che stanca e' la strada
+## fino in centro, e quella e' gia' stata fatta nel momento in cui si ordina.
+static func check_driver_hint(data: SaveData) -> bool:
+	if data == null or not bool(data.get_flag(BOUGHT_FLAG, false)):
+		return false
+	if bool(data.get_flag(DRIVER_HINT_FLAG, false)):
+		return false
+	data.set_flag(DRIVER_HINT_FLAG, true)
 	return true
 
 # --- Il viaggio -------------------------------------------------------------
@@ -112,6 +136,8 @@ static func order(data: SaveData, pack: Dictionary, now: float,
 		return 0
 	var seeds := int(pack["seeds"])
 	data.cash -= pack_price(pack, strain_id)
+	# Il primo ordine e' un traguardo: da li' Brian consiglia l'autista.
+	data.set_flag(BOUGHT_FLAG, true)
 	data.seed_run = {
 		"seeds": seeds,
 		"strain": strain_id,

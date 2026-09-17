@@ -302,6 +302,13 @@ func _check_milestones() -> void:
 	if SeedRun.check_unlock(current):
 		contact_message(Chat.BRIAN, "MSG_SEED_WHOLESALE_BODY")
 		save_game()
+	# Fatto il primo giro di persona, Brian dice che c'è un modo di non farlo
+	# più: l'autista. È il consiglio giusto nel momento giusto — arriva quando
+	# si è appena camminato fino in centro, non prima, quando sarebbe stato un
+	# ruolo in più in una lista di ruoli.
+	if SeedRun.check_driver_hint(current):
+		contact_message(Chat.BRIAN, "MSG_DRIVER_BODY")
+		save_game()
 
 ## Il messaggio d'apertura: da dove viene la casa, e cosa ci si fa.
 ##

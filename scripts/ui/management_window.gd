@@ -39,6 +39,9 @@ extends CanvasLayer
 ## dell'agenzia.
 
 const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
+## Lo sportello del grossista dei semi. È lo stesso file che apre l'edificio in
+## città: vedi `_send_driver()`.
+const SEED_WINDOW := "res://scenes/ui/SeedWholesaleWindow.tscn"
 
 const REFRESH_INTERVAL := 0.2
 ## I colori dei dati vengono da `UiTheme` come tutto il resto. Restano degli
@@ -444,6 +447,22 @@ func _build_seeds() -> void:
 	var data := GameState.current
 	if data == null:
 		return
+
+	# L'autista: c'è solo se è stato assunto, e allora i semi si ordinano da
+	# qui. Senza di lui la riga non compare affatto — un bottone spento che
+	# dice "assumi un autista" sarebbe pubblicità, e il consiglio lo dà già
+	# Brian al momento giusto (`MSG_DRIVER_BODY`).
+	if Staff.has_driver(data) and SeedRun.is_unlocked(data):
+		var driver_text := func(d: SaveData) -> String:
+			var now := GameState.total_hours()
+			if SeedRun.is_running(d):
+				return tr("SW_ON_THE_WAY") % UiFormat.duration(SeedRun.hours_left(d, now))
+			return tr("PC_SEND_DRIVER")
+		var driver_enabled := func(d: SaveData) -> bool:
+			return not SeedRun.is_running(d) and not Delivery.is_running(d)
+		_add_action(driver_text, driver_enabled, _send_driver)
+		_add_note(tr("PC_DRIVER_NOTE"))
+
 	if SeedDeal.is_ready(data):
 		_add_note(tr("PC_BRIAN_NOTE_READY") % [
 			SeedDeal.seeds_left(data), SeedDeal.place(data),
@@ -452,6 +471,19 @@ func _build_seeds() -> void:
 		_add_note(tr("PC_BRIAN_NOTE_WAITING"))
 	elif Economy.seeds_owned(data) <= 0:
 		_add_note(tr("PC_BRIAN_NOTE_EMPTY"))
+
+## Il grossista aperto dal PC, che è tutto quello che l'autista fa: lo stesso
+## sportello che sta sull'edificio in DOWNTOWN, ma senza doverci andare.
+##
+## Si riusa la finestra invece di rifare qui i tagli e i prezzi: sono gli stessi
+## ordini, e averne due copie vorrebbe dire due posti in cui aggiustare uno
+## sconto. La finestra sta su una tela più alta di questa (layer 6 contro 4),
+## quindi si apre sopra e il PC resta dietro dov'era.
+func _send_driver() -> void:
+	var scena: PackedScene = load(SEED_WINDOW)
+	if scena == null:
+		return
+	add_child(scena.instantiate())
 
 func _ask_brian() -> void:
 	if SeedDeal.ask(GameState.current, GameState.total_hours()):
@@ -704,7 +736,7 @@ func _build_staff() -> void:
 	_add_field("PC_WAGES", wages, wages_color)
 	_add_separator()
 
-	for role_id in Staff.ORDER:
+	for role_id in Staff.roles_for(GameState.current):
 		var role: String = role_id
 		var head_count := func(d: SaveData) -> String:
 			return tr("PC_STAFF_COUNT") % [

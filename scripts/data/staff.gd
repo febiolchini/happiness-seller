@@ -54,13 +54,48 @@ const ROLES := {
 		"cut": 0.05,
 		"note": "STAFF_DEALER_NOTE",
 	},
+	# L'autista: paga fissa come il coltivatore, e per lo stesso motivo — il suo
+	# lavoro non produce soldi, produce viaggi risparmiati. Costa meno degli
+	# altri due perche' quello che fa e' comodita', non produzione: chi lo
+	# assume compra il non doversi fare la strada fino in centro ogni volta che
+	# finiscono i semi.
+	"driver": {
+		"name": "STAFF_DRIVER",
+		"hire": 380,
+		"wage": 54,
+		"cut": 0.0,
+		"note": "STAFF_DRIVER_NOTE",
+	},
 }
 
-const ORDER := ["grower", "dealer"]
+const ORDER := ["grower", "dealer", "driver"]
 
-## Quanti dealer si possono avere. Un tetto basso di proposito: il personale è
-## un moltiplicatore, non un sostituto del giocatore.
+## Quanti dealer si possono avere con la sola casa. Un tetto basso di proposito:
+## il personale è un moltiplicatore, non un sostituto del giocatore.
 const MAX_DEALERS := 3
+## Quanti se ne aggiungono per ogni proprietà comprata.
+##
+## Il tetto non è una proprietà della città ma di quanto si è grossi, e quello
+## che dice di quanto si è grossi sono le proprietà: col garage si passa da tre
+## a cinque, e ogni proprietà che si aggiungerà ne porta altri due senza che
+## nessuno debba tornare qui a cambiare un numero. Il conto delle proprietà lo
+## tiene già `SaveData.property_count()`.
+const DEALERS_PER_PROPERTY := 2
+
+## Quanti dealer si possono avere adesso.
+static func max_dealers(data: SaveData) -> int:
+	if data == null:
+		return MAX_DEALERS
+	return MAX_DEALERS + DEALERS_PER_PROPERTY * data.property_count()
+
+## Quanti autisti: uno, e solo col furgone in casa.
+##
+## Uno perche' i furgoni sono uno: un secondo autista non avrebbe niente da
+## guidare. Zero senza furgone, e non e' un caso limite — e' il modo in cui il
+## ruolo resta nascosto finche' non ha senso, visto che `roles_for()` salta i
+## ruoli che non si possono assumere.
+static func max_drivers(data: SaveData) -> int:
+	return 1 if data != null and Delivery.has_van(data) else 0
 
 ## Vasi che un coltivatore riesce a seguire.
 ##
@@ -95,6 +130,25 @@ static func total(data: SaveData) -> int:
 		sum += count(data, role)
 	return sum
 
+## I ruoli che ha senso mostrare adesso, nell'ordine.
+##
+## Salta quelli che non si possono avere: l'autista senza furgone sarebbe una
+## riga "0 su 0" con due bottoni spenti, che non dice al giocatore "non ancora",
+## dice "rotto". E' la stessa regola della ripartizione delle vendite e dei
+## posti dei coltivatori nel PC — una sezione compare quando c'e' davvero
+## qualcosa da decidere.
+static func roles_for(data: SaveData) -> Array:
+	var list: Array = []
+	for role in ORDER:
+		if max_for(data, role) > 0:
+			list.append(role)
+	return list
+
+## C'è un autista in organico? Da questo dipende se i semi si possono ordinare
+## dal PC invece che andando di persona dal grossista.
+static func has_driver(data: SaveData) -> bool:
+	return count(data, "driver") > 0
+
 static func hire_cost(role: String) -> int:
 	return int(ROLES.get(role, {}).get("hire", 0))
 
@@ -113,8 +167,12 @@ static func cut(role: String) -> float:
 ## domani una seconda proprietà), e un tetto fisso resterebbe indietro senza che
 ## nessuno se ne accorga.
 static func max_for(data: SaveData, role: String) -> int:
+	if role == "dealer":
+		return max_dealers(data)
+	if role == "driver":
+		return max_drivers(data)
 	if role != "grower":
-		return MAX_DEALERS
+		return max_dealers(data)
 	if data == null:
 		return maxi(1, ceili(float(Economy.MAX_PLOTS) / float(POTS_PER_GROWER)))
 	# Somma delle capienze dei posti aperti, e non un conto sul totale dei vasi:
@@ -412,8 +470,9 @@ static func release_reserved(data: SaveData, grams: int) -> void:
 ## I dealer non hanno paga, quindi non entrano mai in questo conto e non se ne
 ## vanno mai per soldi: uno che si tiene una quota di quello che vende non ha
 ## niente da riscuotere nelle notti in cui non ha venduto niente. A restare
-## senza lavoro sono i coltivatori, che è anche il verso giusto — sono loro il
-## costo fisso che affonda una partita.
+## senza lavoro sono quelli a paga fissa, e se ne va per primo chi costa di più
+## — il coltivatore prima dell'autista — che è anche il verso giusto: è il costo
+## fisso più alto quello che affonda una partita.
 static func pay_wages(data: SaveData) -> Dictionary:
 	var due := daily_wages(data)
 	if due <= 0:
