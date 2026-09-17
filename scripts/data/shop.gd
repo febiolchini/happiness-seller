@@ -39,9 +39,20 @@ const ITEMS := {
 	"lamps": {
 		"name": "SHOP_LAMPS",
 		"price": 315,
-		# Una per vaso, e i vasi in cantina sono sei. Il tetto è quello del
-		# seminterrato: quando ci sarà più posto salirà insieme a quello.
-		"max": 6,
+		# Una per vaso, su TUTTI i vasi: cantina e garage.
+		#
+		# Prima il tetto erano i sei della cantina, per una ragione di disegno —
+		# in cantina non c'e' finestra e le lampade sono il sole che manca,
+		# mentre il garage la luce ce l'ha, quindi quello che offriva era il
+		# POSTO (dodici vasi contro sei) e non la velocita'. Federico ha chiesto
+		# di poterle comprare anche per il garage, e la differenza fra i due
+		# posti resta comunque nel numero di vasi e nel prezzo del garage.
+		#
+		# Il tetto e' il numero massimo di vasi del gioco, e non un numero a
+		# parte: una lampada per vaso, ovunque sia il vaso. La bolletta cresce
+		# per ognuna (`Economy.power_bill()`), quindi riempire il garage di
+		# lampade resta una spesa fissa che va coperta.
+		"max": Economy.MAX_PLOTS,
 		"note": "SHOP_LAMPS_NOTE",
 	},
 	"filter": {
@@ -50,12 +61,22 @@ const ITEMS := {
 		"max": 1,
 		"note": "SHOP_FILTER_NOTE",
 	},
+	# Il furgone: senza, l'ingrosso non si può fare. Sta nel negozio come tutto
+	# il resto che si compra una volta e resta, ma il bottone compare anche
+	# nella scheda MARKET — è lì che ci si accorge di averne bisogno. Vedi
+	# `Delivery`.
+	"van": {
+		"name": "SHOP_VAN",
+		"price": 5000,
+		"max": 1,
+		"note": "SHOP_VAN_NOTE",
+	},
 }
 
 ## Ordine a scaffale. Un dizionario in GDScript conserva l'ordine di scrittura,
 ## ma appoggiarcisi vuol dire che riordinare il catalogo diventa una modifica
 ## rischiosa: meglio dirlo qui, esplicito.
-const ORDER := ["toolkit", "lamps", "filter"]
+const ORDER := ["toolkit", "lamps", "filter", "van"]
 
 # --- Effetti (le manopole vere) --------------------------------------------
 
@@ -115,6 +136,11 @@ static func buy(data: SaveData, id: String) -> bool:
 		return false
 	data.cash -= price(id)
 	data.upgrades[id] = owned(data, id) + 1
+	# Il furgone arriva col pieno fatto: far comprare un mezzo da cinquemila
+	# dollari e poi dire "adesso però mettici la benzina" è un secondo bottone
+	# per la stessa decisione.
+	if id == "van":
+		data.van_fuel = Delivery.TANK_RUNS
 	return true
 
 # --- Cosa cambia in partita ------------------------------------------------

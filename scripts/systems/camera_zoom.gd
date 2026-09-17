@@ -11,16 +11,18 @@ extends Camera2D
 ##
 ## Per questo lo zoom non è continuo ma scatta tra scale nette intere.
 
-## Scale nette selezionabili: 1 = un pixel sprite per pixel schermo (vista più
-## larga sulla città), 8 = massimo avvicinamento.
+## Scale nette selezionabili: 1 = un pixel sprite per pixel schermo, 8 =
+## massimo avvicinamento. Sotto l'1 si allarga oltre il pixel-perfect, fino a
+## inquadrare praticamente tutta la città.
 ##
-## Devono essere INTERI >= 1, non ci sono vie di mezzo: a 1.5 un pixel dello
-## sprite ne coprirebbe a volte 1 e a volte 2, e sotto a 1 lo sprite verrebbe
-## rimpicciolito buttando via dettaglio. Per questo i passi intermedi possibili
-## sono solo quelli interi, e sono tutti già elencati qui.
-@export var net_scales: Array[int] = [1, 2, 3, 4, 5, 6, 7, 8]
+## Da 1 in su devono restare INTERI: a 1.5 un pixel dello sprite ne coprirebbe
+## a volte 1 e a volte 2, e l'immagine "balla". Sotto l'1 quella garanzia si
+## perde comunque (lo sprite viene rimpicciolito), quindi lì è solo una
+## questione di leggibilità: bastano pochi scalini per non rendere la mappa
+## illeggibile prima di arrivare alla vista d'insieme.
+@export var net_scales: Array[float] = [0.15, 0.25, 0.4, 0.6, 1, 2, 3, 4, 5, 6, 7, 8]
 ## Livello iniziale (indice in net_scales): 2x è la vista di default.
-@export var default_level := 1
+@export var default_level := 5
 ## Disattiva zoom, pan e cursore custom: usata quando la mappa è solo sfondo
 ## decorativo (es. dietro al menu principale) e non deve reagire al mouse.
 @export var interactive := true
@@ -118,6 +120,14 @@ func _update_cursor() -> void:
 		cursor = HAND_CLICK
 	Input.set_custom_mouse_cursor(cursor, Input.CURSOR_ARROW, HAND_HOTSPOT)
 
+## Porta lo zoom a un livello preciso, indice in `net_scales`.
+##
+## Serve agli strumenti che devono inquadrare da soli (`flats_shot.gd`): una
+## foto va composta, e la rotellina del mouse non si gira da uno script.
+func set_level(livello: int) -> void:
+	_level = clampi(livello, 0, net_scales.size() - 1)
+	_apply()
+
 func _step(direction: int) -> void:
 	var next := clampi(_level + direction, 0, net_scales.size() - 1)
 	if next != _level:
@@ -131,7 +141,7 @@ func _apply() -> void:
 	var stretch: float = float(get_window().size.y) / design_height
 	if stretch <= 0.0:
 		stretch = 1.0
-	var level: float = float(net_scales[_level]) / stretch
+	var level: float = net_scales[_level] / stretch
 	zoom = Vector2(level, level)
 	_snap()
 
@@ -149,5 +159,7 @@ func _validate_net_scales() -> void:
 		net_scales = [1]
 		return
 	for scale in net_scales:
-		if scale < 1:
-			push_warning("Scala netta %d < 1: gli sprite verrebbero rimpiccioliti e perderebbero dettaglio." % scale)
+		if scale <= 0.0:
+			push_warning("Scala netta %f <= 0: livello di zoom inutilizzabile." % scale)
+		elif scale >= 1.0 and not is_equal_approx(scale, roundf(scale)):
+			push_warning("Scala netta %f fra 1 e 8 dovrebbe essere intera, altrimenti l'immagine 'balla'." % scale)

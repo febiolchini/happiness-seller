@@ -41,9 +41,50 @@ const READY_GLOW := Color(1.0, 0.878, 0.353)
 const LABEL := Color(0.878, 0.898, 0.851, 0.85)
 const BAR_BG := Color(0, 0, 0, 0.45)
 const LABEL_SIZE := 8
+## Sotto a questa larghezza la scritta di stato si mostra **solo passandoci
+## sopra col mouse**.
+##
+## In cantina i vasi sono a sessantatre pixel di passo e la riga sotto a ognuno
+## ci sta comoda. Sui banconi del garage sono sei per tavolo, a meno di trenta
+## pixel l'uno dall'altro, e sei scritte lunghe quanto "FIORITURA" diventano una
+## striscia di lettere attaccate che non si legge e copre le piante.
+##
+## Quello che serve a colpo d'occhio resta comunque disegnato: la pianta cresce,
+## la barra si riempie, quella pronta pulsa d'oro e quella assetata ha la
+## goccia. La parola serve a chi si sta gia' occupando di QUEL vaso, e chi se ne
+## sta occupando ci ha il mouse sopra. L'elenco per esteso, con lo stato di
+## tutti, e' nella scheda GROW del PC.
+const CAPTION_MIN_WIDTH := 56.0
+## Quanto e' alta l'area che risponde al click, contata dal fondo della cornice.
+##
+## La cornice di un vaso e' alta quaranta e passa pixel perche' li' dentro ci
+## cresce la pianta, ma la pianta e' **disegno**: quello che si clicca e' il
+## vaso, che sta nei venti pixel in fondo. Prendere tutta la cornice vuol dire
+## prendere anche l'aria sopra al vaso — e quell'aria, sui banconi del garage,
+## sta esattamente sopra al vaso della fila dietro.
+##
+## Senza questo taglio i sei vasi della fila dietro erano **tutti e sei
+## inservibili**: cliccandoli in mezzo rispondeva quello davanti, che li' non ha
+## niente di disegnato ma ha la cornice. Non dava nessun errore e non si vedeva
+## guardando la stanza — l'ha trovato una prova che chiede a ogni vaso chi
+## risponde al click sul proprio disegno.
+##
+## Ventisei e non venti: ci sta il vaso piu' il gambo che ne esce, cioe' tutto
+## quello che una persona mira. Vale anche in cantina, dove i vasi non si
+## coprono fra loro e il bersaglio resta comunque largo.
+const HIT_HEIGHT := 26.0
 
 var _elapsed := 0.0
 var _blink := 0.0
+
+## L'area che risponde al mouse: solo il vaso, non l'aria sopra dove cresce la
+## pianta. Vedi `HIT_HEIGHT`.
+##
+## Vale per il click e per l'hover insieme, che e' quello che si vuole: passando
+## sopra alla pianta di un vaso e accendendo il riquadro di quello dietro si
+## leggerebbe come un errore di disegno.
+func _has_point(point: Vector2) -> bool:
+	return Rect2(0.0, size.y - HIT_HEIGHT, size.x, HIT_HEIGHT).has_point(point)
 
 func _ready() -> void:
 	flat = true
@@ -122,6 +163,9 @@ func _harvest(plot: Dictionary, now: float) -> void:
 		return
 	var data := GameState.current
 	data.add_item(Economy.PRODUCT, grams)
+	# La quota per l'ingrosso si mette da parte adesso, sul raccolto: e' del
+	# raccolto che si decide cosa non vendere in strada. Vedi `Staff.reserved()`.
+	Staff.reserve_harvest(data, grams)
 	data.bump_stat(Economy.STAT_GRAMS_HARVESTED, grams)
 	data.bump_stat(Economy.STAT_PLANTS_GROWN)
 	GameState.notify(tr("NOTE_HARVESTED") % grams)
@@ -142,7 +186,8 @@ func _draw() -> void:
 	_draw_pot(body)
 
 	if Grow.is_empty(plot):
-		_draw_caption(body, tr("GROW_EMPTY"), LABEL)
+		if _captions_fit():
+			_draw_caption(body, tr("GROW_EMPTY"), LABEL)
 		return
 
 	var progress := clampf(Grow.progress(plot, now), 0.0, 1.0)
@@ -151,12 +196,20 @@ func _draw() -> void:
 	_draw_progress_bar(body, progress, ready)
 
 	if ready:
-		_draw_caption(body, "%s  %d G" % [tr("GROW_READY"), Grow.yield_grams(plot)], READY_GLOW)
+		if _captions_fit():
+			_draw_caption(body, "%s  %d G" % [tr("GROW_READY"), Grow.yield_grams(plot)], READY_GLOW)
+		# La pulsazione resta comunque: e' quella che fa alzare gli occhi, e
+		# senza scritta diventa l'unico segnale che quel vaso e' da tagliare.
 		_draw_pulse(body, READY_GLOW)
-	else:
+	elif _captions_fit():
 		_draw_caption(body, Grow.stage_name(plot, now), LABEL)
 	if Grow.is_thirsty(plot, now):
 		_draw_droplet(body)
+
+## C'e' posto per la scritta di stato? Sempre, tranne sui vasi stretti, dove
+## compare solo col mouse sopra. Vedi `CAPTION_MIN_WIDTH`.
+func _captions_fit() -> bool:
+	return size.x >= CAPTION_MIN_WIDTH or is_hovered()
 
 func _draw_pot(body: Rect2) -> void:
 	var bottom := body.end.y - 2.0

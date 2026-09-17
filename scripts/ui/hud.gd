@@ -1,22 +1,52 @@
 extends CanvasLayer
 
-## HUD: una riga sola in alto a destra, e i messaggini che scorrono sotto.
+## HUD: quello che sta addosso alla città mentre si gioca.
 ##
-## ## Perché una riga e non un pannello
+## Poca roba, e è il punto: la **sveglia** in alto a destra
+## (`digital_clock.gd`), il **tasto a tre righe** in alto a sinistra
+## (`hud_menu.gd`) con dentro i soldi e la scorta, e sotto alla sveglia una riga
+## che compare solo quando c'è qualcosa da dire. Più i messaggini che scorrono.
+##
+## ## Perché non è un pannello
 ##
 ## Prima era un riquadro con bordo e sfondo, con i valori impilati dentro. Un
 ## pannello in un angolo è una finestra piccola: ruba spazio anche quando non ha
 ## niente da dire, e in un gioco dove si guarda la strada e si clicca sulle
 ## cose, il bordo continua a segnare un rettangolo che non è parte del mondo.
 ##
-## Adesso è una riga sola, senza sfondo: i soldi in evidenza, il resto più
-## piccolo e più spento, separato da punti. A tenerla leggibile sopra a
-## qualunque fondale è l'ombra dura sotto a ogni scritta, non una cassa dietro.
+## Niente fondo, quindi: a tenere le scritte leggibili sopra a qualunque
+## fondale è l'ombra dura sotto a ognuna. Per un giro c'è stata una pastiglia di
+## carta chiara dietro, per farla intonare col gestionale, e non reggeva — sopra
+## alla città diventava un rettangolo bianco piantato in un angolo, cioè
+## esattamente il pannello che queste righe spiegano di aver tolto.
 ##
-## I segmenti **compaiono solo quando hanno qualcosa da dire** — la scorta
-## quando ce n'è, l'attenzione quando è salita, il posto dove aspetta Brian
-## finché aspetta — così a inizio partita la riga è due voci e si allunga man
-## mano che la partita cresce.
+## **La sveglia è l'eccezione, ed è voluta.** È un oggetto disegnato e non una
+## cassa dietro a del testo: in un gestionale dove il tempo è la risorsa — le
+## piante crescono a ore di gioco, Brian aspetta a ore di gioco, le paghe
+## scattano a mezzanotte — l'orologio merita di essere una cosa che si guarda,
+## non due numeri in mezzo ad altri numeri.
+##
+## ## Cosa NON sta più a schermo
+##
+## - **L'ora e il giorno**, che erano un segmento come gli altri: adesso sono
+##   dentro alla sveglia, che è tutto quello che quella sveglia fa.
+## - **L'attenzione della polizia.** Era l'unica voce che non fosse un numero ma
+##   uno *stato* scritto a parole ("SORVEGLIATO"), e in un angolo pieno di cifre
+##   si leggeva come un allarme acceso a metà partita e poi mai più guardato. Il
+##   dato non è sparito: sta nella scheda OVERVIEW del PC (`PC_ATTENTION`),
+##   che è il posto in cui uno va a guardare come sta andando.
+## - **Il tempo che fa.** Scriverlo era l'unica voce che raccontasse una cosa
+##   **già a schermo**: se piove, piove addosso alla città (`weather_view.gd`),
+##   e la parola "PIOGGIA" in un angolo non aggiungeva niente a quello che si
+##   sta già guardando. Cosa cambi il tempo — si vende meno in strada, ci si fa
+##   notare meno — lo spiega la guida, che è il posto delle regole.
+## - **I soldi e la scorta**, che sono finiti dentro al menu. Non sono spariti
+##   come gli altri due: sono a un click, e chi li vuole davanti tiene il menu
+##   aperto. Il perché sta in `hud_menu.gd`.
+##
+## Quello che resta nella riga **compare solo quando ha qualcosa da dire**: per
+## ora solo il posto dove aspetta Brian, e solo finché aspetta. Quasi sempre
+## sotto alla sveglia non c'è niente, ed è la condizione giusta per un HUD.
 ##
 ## Come prima, legge lo stato invece di aspettare segnali: qualsiasi codice che
 ## faccia `GameState.current.cash += 100` resta comunque mostrato giusto.
@@ -26,13 +56,12 @@ extends CanvasLayer
 const MAX_TOASTS := 4
 const TOAST_LIFE := 2.6
 
-const MONEY_SIZE := 16
 const INFO_SIZE := 11
-const MONEY_COLOR := Color(0.90, 0.95, 0.66)
-const INFO_COLOR := Color(0.74, 0.77, 0.82)
-const STOCK_COLOR := Color(0.62, 0.85, 0.55)
-const WEATHER_COLOR := Color(0.62, 0.74, 0.88)
-const HEAT_COLOR := Color(0.95, 0.62, 0.35)
+
+## I colori NON vengono da `UiTheme`, ed è l'unica interfaccia del gioco per cui
+## vale: quella tavolozza è fatta per il nero su bianco di una finestra, mentre
+## qui si scrive sopra alla città, e sopra a un fondale scuro serve il contrario
+## — tinte chiare che si staccano dall'asfalto.
 const SPOT_COLOR := Color(0.55, 0.85, 0.45)
 const DOT_COLOR := Color(0.45, 0.47, 0.52)
 const DOT := "·"
@@ -55,59 +84,30 @@ const MODAL_GROUP := "modal"
 		if not value:
 			visible = false
 
-## I segmenti della riga, da sinistra a destra. Per aggiungerne uno (proprietà,
-## debiti, reputazione...) basta infilare una voce qui: Label, punto di
-## separazione e aggiornamento a schermo vengono da soli.
+## Le voci della riga sotto alla sveglia, da sinistra a destra. Per aggiungerne
+## una basta infilarla qui: Label, punto di separazione e aggiornamento a
+## schermo vengono da soli.
 ##
 ## `text` riceve la partita corrente e restituisce la stringa già formattata.
-## `show` è opzionale: quando c'è, il segmento compare solo se restituisce true.
+## `show` è opzionale: quando c'è, la voce compare solo se restituisce true.
+##
+## **Qui ci va solo roba che serve mentre si cammina.** Tutto quello che si
+## guarda per decidere — i soldi, la scorta — sta dietro al menu o dentro al
+## PC: la differenza è fra un'informazione che si legge muovendosi e una che si
+## legge fermi.
 var _segments := [
-	{
-		"size": MONEY_SIZE,
-		"color": MONEY_COLOR,
-		"text": func(data: SaveData) -> String: return UiFormat.money(data.cash),
-	},
-	{
-		"size": INFO_SIZE,
-		"color": INFO_COLOR,
-		"text": func(data: SaveData) -> String:
-			return "%s %d  %s" % [tr("HUD_DAY"), data.day, UiFormat.clock(data.time_of_day)],
-	},
-	# Che tempo fa, ma solo quando c'è qualcosa da dire: col sereno la riga non
-	# si allunga. Stessa regola della scorta e dell'attenzione — e il tempo, qui,
-	# ha da dire qualcosa: sotto la pioggia si vende meno in strada e ci si fa
-	# notare meno (vedi `Weather`).
-	{
-		"size": INFO_SIZE,
-		"color": WEATHER_COLOR,
-		"text": func(data: SaveData) -> String: return Weather.display_name(Weather.of(data)),
-		"show": func(data: SaveData) -> bool: return Weather.of(data) != Weather.DEFAULT,
-	},
-	{
-		"size": INFO_SIZE,
-		"color": STOCK_COLOR,
-		"text": func(data: SaveData) -> String: return "%d g" % Economy.stock(data),
-		"show": func(data: SaveData) -> bool: return Economy.stock(data) > 0,
-	},
-	{
-		"size": INFO_SIZE,
-		"color": HEAT_COLOR,
-		"text": func(data: SaveData) -> String: return Economy.heat_label(data.heat),
-		"show": func(data: SaveData) -> bool: return data.heat >= 10.0,
-	},
 	# Dove aspetta Brian, finché aspetta. Il messaggino che annuncia
-	# l'appuntamento se ne va dopo due secondi e mezzo, e senza questo segmento
-	# l'unico modo di ripescare il posto sarebbe tornare in cantina a riaprire
-	# il PC — cioè attraversare la città al contrario.
+	# l'appuntamento se ne va dopo due secondi e mezzo, e senza questa voce
+	# l'unico modo di ripescare il posto sarebbe riaprire il telefono — che si
+	# può fare, ma è un gesto in più per una cosa che serve mentre si cammina.
 	{
-		"size": INFO_SIZE,
 		"color": SPOT_COLOR,
 		"text": func(data: SaveData) -> String: return SeedDeal.place(data),
 		"show": func(data: SaveData) -> bool: return SeedDeal.is_ready(data),
 	},
 ]
 
-@onready var _bar: HBoxContainer = $Root/TopBar
+@onready var _bar: HBoxContainer = $Root/Corner/Info
 @onready var _toasts: VBoxContainer = $Root/Toasts
 
 var _labels: Array[Label] = []
@@ -121,12 +121,13 @@ func _ready() -> void:
 	for i in _segments.size():
 		var segment: Dictionary = _segments[i]
 		_dots.append(_make_dot() if i > 0 else null)
-		_labels.append(_make_label(int(segment["size"]), segment["color"]))
+		_labels.append(_make_label(INFO_SIZE, segment["color"]))
 		_shown.append("")
 	if enabled:
 		GameState.notice.connect(_show_toast)
-	# Cambiando lingua le stringhe composte qui dentro ("GIORNO 3  08:40") vanno
-	# rifatte: sono state scritte da noi, quindi Godot non le ritraduce.
+	# Cambiando lingua le stringhe composte qui dentro vanno rifatte: le abbiamo
+	# scritte noi, quindi Godot non le ritraduce da solo come fa col testo messo
+	# nel `.tscn`.
 	GameSettings.locale_changed.connect(_on_locale_changed)
 	_refresh()
 
@@ -177,25 +178,15 @@ func _on_locale_changed(_locale: String) -> void:
 # --- Costruzione della riga -------------------------------------------------
 
 func _make_label(size: int, color: Color) -> Label:
-	var label := Label.new()
+	var label := UiTheme.label("", size, color, UiTheme.W_MEDIUM)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", size)
-	label.add_theme_color_override("font_color", color)
-	# L'ombra dura è quello che sostituisce il pannello: sotto la riga può
-	# passarci un muro chiaro, l'asfalto o il cielo, e senza uno stacco netto
-	# la scritta ci si perde dentro.
 	_add_shadow(label)
-	# Le cifre hanno bisogno del font di sistema: `alphabet.fnt` ha solo lettere
-	# e spazio, e con quello soldi e orario sparirebbero.
 	_bar.add_child(label)
 	return label
 
 func _make_dot() -> Label:
-	var dot := Label.new()
-	dot.text = DOT
+	var dot := UiTheme.label(DOT, INFO_SIZE, DOT_COLOR, UiTheme.W_BOLD)
 	dot.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	dot.add_theme_font_size_override("font_size", INFO_SIZE)
-	dot.add_theme_color_override("font_color", DOT_COLOR)
 	# Il punto non è testo di gioco: se un giorno finisse in traduzione
 	# diventerebbe una parola.
 	dot.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -203,11 +194,13 @@ func _make_dot() -> Label:
 	_bar.add_child(dot)
 	return dot
 
+## L'ombra dura è quello che sostituisce il pannello: sotto la riga può
+## passarci un muro chiaro, l'asfalto o il cielo, e senza uno stacco netto la
+## scritta ci si perde dentro.
 static func _add_shadow(label: Label) -> void:
 	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
 	label.add_theme_constant_override("shadow_offset_x", 1)
 	label.add_theme_constant_override("shadow_offset_y", 1)
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 # --- Messaggini ------------------------------------------------------------
 
@@ -225,11 +218,8 @@ func _show_toast(text: String) -> void:
 		_toasts.remove_child(oldest)
 		oldest.queue_free()
 
-	var label := Label.new()
-	label.text = text
+	var label := UiTheme.label(text, 12, Color(1, 0.95, 0.78), UiTheme.W_MEDIUM)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", Color(1, 0.95, 0.78))
 	_add_shadow(label)
 	# Il messaggio arriva già tradotto da chi lo manda, e contiene numeri:
 	# ritradurlo non troverebbe niente, ma tanto vale non provarci.

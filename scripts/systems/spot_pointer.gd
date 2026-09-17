@@ -29,12 +29,25 @@ extends Node2D
 
 ## Quanto sta dentro al bordo dello schermo.
 ##
-## In alto di più: lassù c'è la riga dell'HUD, e una freccia che le finisce
-## sopra si legge come un pezzo dell'HUD invece che come un'indicazione sul
-## mondo. È lo stesso motivo per cui l'HUD stesso si toglie di mezzo davanti
-## alle finestre modali.
+## In alto di più: lassù c'è l'HUD, e una freccia che gli finisce sopra si legge
+## come un pezzo dell'HUD invece che come un'indicazione sul mondo. È lo stesso
+## motivo per cui l'HUD stesso si toglie di mezzo davanti alle finestre modali.
 const MARGIN := 20.0
 const MARGIN_TOP := 34.0
+
+## L'ingombro dell'angolo in alto a destra: sveglia, soldi e riga delle voci.
+##
+## Il margine in alto da solo non basta più. Bastava quando l'HUD era una riga
+## alta ventotto pixel; adesso è un blocco di un centinaio, e sul bordo destro
+## una freccia fra i 34 e i 110 ci finisce dentro. Invece di spingere giù la
+## cornice **intera** — che vorrebbe dire perdere ottanta pixel di bordo anche a
+## sinistra, dove non c'è niente — si scansa solo quell'angolo.
+##
+## È scritto qui e non chiesto all'HUD apposta: l'HUD sta su un'altra tela e non
+## è detto che esista (nei menu è spento), e una freccia che va a interrogare un
+## nodo che potrebbe non esserci per sapere dove mettersi è un guaio in cambio di
+## due numeri che cambiano una volta ogni due anni.
+const HUD_CORNER := Vector2(150.0, 112.0)
 ## Mezza larghezza e lunghezza della punta.
 const SIZE := Vector2(7.0, 11.0)
 ## Oltre questa distanza la freccia è al minimo, addosso al punto è al massimo:
@@ -77,7 +90,7 @@ func _draw() -> void:
 		return
 	direction = direction.normalized()
 
-	var at := _edge_point(centre, direction, frame)
+	var at := _clear_hud(_edge_point(centre, direction, frame), view)
 	# Più si è vicini, più la freccia è grande e piena: è il "quanto manca",
 	# senza scrivere un numero che in questo gioco non avrebbe unità.
 	var closeness := 1.0 - clampf(centre.distance_to(on_screen) / FAR, 0.0, 1.0)
@@ -120,6 +133,13 @@ func _draw_arrow(at: Vector2, direction: Vector2, scale: float, alpha: float) ->
 	var color := Npc.MARKER_SELLER
 	color.a = alpha
 	draw_colored_polygon(points, color)
+
+## Sposta la freccia sotto all'angolo dell'HUD se è finita lì dentro. Vedi
+## `HUD_CORNER`.
+func _clear_hud(at: Vector2, view: Vector2) -> Vector2:
+	if at.x < view.x - HUD_CORNER.x or at.y > HUD_CORNER.y:
+		return at
+	return Vector2(at.x, HUD_CORNER.y)
 
 func _modal_open() -> bool:
 	return not get_tree().get_nodes_in_group(MODAL_GROUP).is_empty()

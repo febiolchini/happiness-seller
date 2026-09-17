@@ -208,28 +208,6 @@ static func lamp_strength(data: SaveData) -> float:
 		fade = maxf(fade, 0.7)
 	return fade
 
-## Che quota di finestre è accesa a quest'ora, 0-1.
-##
-## La curva è quella di un palazzo vero e non una sinusoide: si accendono presto
-## la mattina, si spengono quasi tutte di giorno, sono al massimo dopo cena e
-## calano piano fino alle ore piccole. È quello che rende una fila di edifici
-## una città abitata invece di una fila di scatole con dei buchi gialli.
-static func window_lit_ratio(hour: float) -> float:
-	const CURVE := [
-		[0.0, 0.10], [3.0, 0.04], [5.5, 0.10], [7.0, 0.34], [8.5, 0.16],
-		[11.0, 0.06], [16.5, 0.10], [18.5, 0.45], [21.0, 0.62], [23.0, 0.38],
-		[24.0, 0.10],
-	]
-	var wrapped := fposmod(hour, 24.0)
-	for i in range(CURVE.size() - 1):
-		var from: Array = CURVE[i]
-		var to: Array = CURVE[i + 1]
-		if wrapped >= float(from[0]) and wrapped <= float(to[0]):
-			var span := float(to[0]) - float(from[0])
-			var t := 0.0 if span <= 0.0 else (wrapped - float(from[0])) / span
-			return lerpf(float(from[1]), float(to[1]), t)
-	return 0.10
-
 # --- Disegnare cose accese --------------------------------------------------
 
 ## Il colore da passare a `draw_*` perché una cosa ACCESA resti accesa dentro al

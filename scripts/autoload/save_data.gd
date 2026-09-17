@@ -70,9 +70,24 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 # --- Personale -------------------------------------------------------------
 ## Organico assunto: "ruolo" -> quanti. I ruoli sono in `Staff.ROLES`.
 @export var staff: Dictionary = {}
-## Quota di merce che i dealer piazzano all'ingrosso, 0-100. Il resto va in
-## strada, che paga di più e alza l'attenzione.
+## Dove lavorano i coltivatori: "chiave del posto" -> quanti. Le chiavi sono in
+## `GrowSites.SITES`, e la somma non puo' superare i coltivatori assunti.
+##
+## Sta a parte da `staff` e non dentro, perche' sono due domande diverse: quanti
+## ne paghi e dove li mandi. I dealer non compaiono qui — la strada e' una sola.
+@export var grower_sites: Dictionary = {}
+## Quota del raccolto messa da parte per l'ingrosso, 0-100. Il resto è quello
+## che i dealer possono piazzare in strada. Vedi `Staff.wholesale_share()`.
 @export var wholesale_share := 100
+## Grammi della scorta messi da parte per l'ingrosso: i dealer non li toccano,
+## li muove solo il giocatore col furgone.
+##
+## È un numero e non una percentuale ricalcolata al volo, e deve esserlo: una
+## quota ricalcolata sulla scorta si ridurrebbe a ogni vendita dei dealer — il
+## 30% di quel che resta, poi il 30% di quel che resta ancora — e la riserva si
+## svuoterebbe da sola fino a zero. Cresce a ogni raccolto e cala solo quando
+## parte un carico. Vedi `Staff.reserved()`.
+@export var wholesale_reserve := 0
 ## Fin dove è già stato contato il lavoro del personale, in ore di gioco
 ## assolute. Come i vasi, il lavoro non è simulato: si guarda che ore sono
 ## adesso e si fa quello che nel frattempo andava fatto (vedi `Staff.work()`).
@@ -87,6 +102,45 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 ## espliciti (`_deal_from_dict()`) e non passa da `_restore_ints()`, che
 ## arrotonderebbe un `ready_at` di 26.5 perdendo la mezz'ora.
 @export var seed_deal: Dictionary = {}
+
+# --- Ingrosso --------------------------------------------------------------
+## Il viaggio del furgone in corso, vuoto quando è fermo. I campi sono
+## documentati in `Delivery`, che è anche l'unico posto da cui va toccato.
+##
+## Come i vasi e l'appuntamento con Brian, dentro ci sono ore di gioco: è
+## salvato con i cast espliciti (`_run_from_dict()`) e non passa da
+## `_restore_ints()`, che arrotonderebbe un `back_at` di 26.5 perdendo la
+## mezz'ora.
+@export var van_run: Dictionary = {}
+## Consegne che restano nel serbatoio. Si riempie comprando il furgone e
+## facendo il pieno: vedi `Delivery.TANK_RUNS`.
+@export var van_fuel := 0
+
+## Il viaggio dal grossista dei semi, vuoto quando il furgone è fermo. Stesso
+## mezzo e stessa forma di `van_run`, altro carico: i campi li documenta
+## `SeedRun`, che è l'unico posto da cui va toccato.
+##
+## È un campo a parte e non lo stesso `van_run` perché i due viaggi portano cose
+## diverse e finiscono in modo diverso — uno torna con i soldi, l'altro con i
+## semi. Che non possano essere in corso tutti e due insieme è una regola del
+## gioco (`SeedRun.can_order()`), non un vincolo della struttura dati.
+@export var seed_run: Dictionary = {}
+
+# --- Messaggi --------------------------------------------------------------
+## La cronologia della chat del telefono: i messaggi dei traguardi, quelli che
+## il giocatore deve poter rileggere a distanza di giorni.
+##
+## **Dentro ci sono chiavi di traduzione, non frasi.** Una riga e'
+## `{"contact": "brian", "key": "MSG_KILO_BODY", "arg": "", "at": 53.5}`: il
+## testo lo tira fuori `Chat.body()` al momento di mostrarlo. Salvare la frase
+## gia' scritta vorrebbe dire che una partita cominciata in italiano resta in
+## italiano anche cambiando lingua dalle impostazioni, e la cronologia sarebbe
+## l'unico posto del gioco a farlo.
+##
+## Quello che NON ci finisce e' il giro della richiesta di semi: quello si
+## ricava dall'appuntamento (`Chat.live()`), e per questo si cancella da solo.
+## Vedi `Chat`, che e' anche l'unico posto da cui questo array va toccato.
+@export var chat_log: Array = []
 
 # --- Bollette --------------------------------------------------------------
 ## Giorno in cui è stata pagata l'ultima bolletta della luce. La prossima scade
@@ -224,9 +278,15 @@ func to_dict() -> Dictionary:
 		"plot_slots": plot_slots,
 		"upgrades": upgrades,
 		"staff": staff,
+		"grower_sites": grower_sites,
 		"wholesale_share": wholesale_share,
+		"wholesale_reserve": wholesale_reserve,
 		"staff_checked_at": staff_checked_at,
 		"seed_deal": seed_deal,
+		"van_run": van_run,
+		"van_fuel": van_fuel,
+		"seed_run": seed_run,
+		"chat_log": chat_log,
 		"power_billed_day": power_billed_day,
 		"heat": heat,
 		"properties": properties,
@@ -267,13 +327,19 @@ static func from_dict(raw: Dictionary) -> SaveData:
 	data.plot_slots = int(source.get("plot_slots", 3))
 	data.upgrades = _restore_ints(source.get("upgrades", {}))
 	data.staff = _restore_ints(source.get("staff", {}))
+	data.grower_sites = _restore_ints(source.get("grower_sites", {}))
 	data.wholesale_share = clampi(int(source.get("wholesale_share", 100)), 0, 100)
+	data.wholesale_reserve = maxi(0, int(source.get("wholesale_reserve", 0)))
 	# Ore di gioco, quindi float esplicito e non `_restore_ints()`: un
 	# `staff_checked_at` di 26.5 tornerebbe intero perdendo la mezz'ora.
 	data.staff_checked_at = float(source.get("staff_checked_at", 0.0))
 	data.seed_deal = _deal_from_dict(source.get("seed_deal", {}))
 	# Un salvataggio di prima delle bollette parte dal giorno in cui si trova,
 	# non dal giorno 1: altrimenti si beccherebbe un mese arretrato di colpo.
+	data.van_run = _run_from_dict(source.get("van_run", {}))
+	data.van_fuel = int(source.get("van_fuel", 0))
+	data.seed_run = _seed_run_from_dict(source.get("seed_run", {}))
+	data.chat_log = _chat_from_array(source.get("chat_log", []))
 	data.power_billed_day = int(source.get("power_billed_day", source.get("day", 1)))
 	data.heat = float(source.get("heat", 0.0))
 	data.properties = _restore_ints(source.get("properties", {}))
@@ -330,6 +396,59 @@ static func _plots_from_array(raw: Variant) -> Array:
 		result.append(restored)
 	return result
 
+## Ricostruisce il viaggio del furgone coi cast espliciti, per lo stesso motivo
+## dei vasi: le ore di gioco devono restare float, i grammi e i soldi interi.
+static func _run_from_dict(raw: Variant) -> Dictionary:
+	if typeof(raw) != TYPE_DICTIONARY or (raw as Dictionary).is_empty():
+		return {}
+	var run: Dictionary = raw
+	return {
+		"grams": int(run.get("grams", 0)),
+		"value": int(run.get("value", 0)),
+		"left_at": float(run.get("left_at", 0.0)),
+		"back_at": float(run.get("back_at", 0.0)),
+	}
+
+## Ricostruisce la cronologia della chat coi cast espliciti, per lo stesso
+## motivo dei vasi: `at` e' un'ora di gioco e deve restare float, altrimenti
+## `_restore_ints()` arrotonderebbe un messaggio arrivato alle 53.5 e due
+## messaggi dello stesso pomeriggio finirebbero in ordine sbagliato.
+##
+## Le righe senza chiave si buttano: una cronologia e' fatta di messaggi, e una
+## riga che non sa cosa dire non e' un messaggio.
+static func _chat_from_array(raw: Variant) -> Array:
+	var result: Array = []
+	if typeof(raw) != TYPE_ARRAY:
+		return result
+	for item in raw:
+		if typeof(item) != TYPE_DICTIONARY:
+			continue
+		var row: Dictionary = item
+		if str(row.get("key", "")).is_empty():
+			continue
+		result.append({
+			"contact": str(row.get("contact", "")),
+			"from": str(row.get("from", "them")),
+			"key": str(row.get("key", "")),
+			"arg": str(row.get("arg", "")),
+			"at": float(row.get("at", 0.0)),
+		})
+	return result
+
+## Come `_run_from_dict()`, per il viaggio dei semi: le ore restano float e i
+## semi interi. Un salvataggio di prima che il grossista esistesse non ha il
+## campo, e torna vuoto — cioè furgone fermo, che è la cosa giusta.
+static func _seed_run_from_dict(raw: Variant) -> Dictionary:
+	if typeof(raw) != TYPE_DICTIONARY or (raw as Dictionary).is_empty():
+		return {}
+	var run: Dictionary = raw
+	return {
+		"seeds": int(run.get("seeds", 0)),
+		"strain": str(run.get("strain", Economy.DEFAULT_STRAIN)),
+		"left_at": float(run.get("left_at", 0.0)),
+		"back_at": float(run.get("back_at", 0.0)),
+	}
+
 ## Ricostruisce l'appuntamento con Brian coi cast espliciti, per lo stesso
 ## motivo dei vasi: le ore di gioco e le coordinate devono restare float, i semi
 ## rimasti interi. Un salvataggio senza appuntamento, o con un dizionario vuoto,
@@ -346,6 +465,7 @@ static func _deal_from_dict(raw: Variant) -> Dictionary:
 		"spot_x": float(deal.get("spot_x", 0.0)),
 		"spot_y": float(deal.get("spot_y", 0.0)),
 		"place": str(deal.get("place", "")),
+		"warned": bool(deal.get("warned", false)),
 		"seeds": int(deal.get("seeds", 0)),
 	}
 

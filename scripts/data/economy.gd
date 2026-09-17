@@ -29,8 +29,8 @@ const SEED_PREFIX := "seed_"
 const STRAINS := {
 	"regular": {
 		"name": "REGULAR",
-		"seed_price": 40,
-		"grow_hours": 29.0,
+		"seed_price": 35,
+		"grow_hours": 20.0,
 		"grams": 20,
 		"base_price": 10,
 	},
@@ -48,11 +48,26 @@ const STARTING_CASH := 120
 const STARTING_SEEDS := 2
 ## Vasi disponibili all'inizio: "poche piante", il resto si compra.
 const START_PLOTS := 3
-## Quanti vasi ci stanno nel seminterrato. Per andare oltre servirà un'altra
-## proprietà, ed è il primo gancio per la progressione del gestionale.
-const MAX_PLOTS := 6
+## Quanti vasi ci stanno in tutto, cantina e garage insieme: sei sotto casa e
+## dodici sui due banconi del garage. La ripartizione fra i due posti la dice
+## `GrowSites`, che e' anche l'unico a sapere quale indice sta dove.
+##
+## Il numero non e' piu' "quanti ce ne stanno in cantina" ma "quanti ce ne
+## stanno in tutto", e sale comprando una proprieta': era il gancio previsto per
+## la progressione del gestionale, ed e' il garage ad averlo tirato.
+const MAX_PLOTS := 18
 ## Costo per sbloccare il vaso di indice N (0-based). I primi tre sono già lì.
-const PLOT_COSTS := [0, 0, 0, 210, 560, 1260]
+##
+## Dal settimo in poi sono i banconi del garage, e ricominciano da un gradino
+## piu' alto: ci si arriva con la cantina piena e trentacinquemila dollari di
+## proprieta' gia' spesi, quindi il problema non e' piu' racimolare duecento
+## dollari. La salita resta dolce all'inizio del bancone e ripida in fondo, cosi'
+## riempire il garage e' un traguardo lungo e non una spesa sola.
+const PLOT_COSTS := [
+	0, 0, 0, 210, 560, 1260,
+	1500, 1800, 2200, 2600, 3100, 3700,
+	4400, 5200, 6100, 7100, 8200, 9400,
+]
 
 # --- Mercato ---------------------------------------------------------------
 
@@ -194,7 +209,11 @@ static func sell(data: SaveData, grams: int, price_per_gram: int, heat_per_gram 
 	add_heat(data, float(sold) * heat_per_gram)
 	return revenue
 
-## Vendita all'ingrosso dal PC: nessuno ti vede, si guadagna meno.
+## Vendita all'ingrosso: nessuno ti vede, si guadagna meno.
+##
+## Non è più un bottone del PC: il giocatore ci arriva col furgone
+## (`Delivery`), il personale attraverso i suoi canali. Quello che resta qui è
+## il prezzo — e il fatto che il canale sia aperto o no lo dice `Delivery`.
 static func sell_wholesale(data: SaveData, grams: int) -> int:
 	return sell(data, grams, wholesale_price(data))
 
@@ -331,10 +350,19 @@ static func heat_label(heat: float) -> String:
 
 # --- Vasi ------------------------------------------------------------------
 
-## Costo del prossimo vaso, -1 se il seminterrato è pieno.
+## Costo del prossimo vaso, -1 se non ce n'e' un prossimo da comprare.
+##
+## Due motivi per non averlo: sono finiti tutti, oppure il prossimo sta in un
+## posto che non e' ancora tuo. Il secondo e' quello che tiene in piedi il
+## garage come traguardo: finita la cantina non si compra piu' niente finche'
+## non si compra il garage, e allora si riapre la fila di dodici.
 static func next_plot_cost(data: SaveData) -> int:
+	if data == null:
+		return -1
 	var index := data.plot_slots
 	if index >= MAX_PLOTS or index >= PLOT_COSTS.size():
+		return -1
+	if not GrowSites.is_open(data, GrowSites.site_of(index)):
 		return -1
 	return int(PLOT_COSTS[index])
 
@@ -345,4 +373,7 @@ static func buy_plot(data: SaveData) -> bool:
 	data.cash -= cost
 	data.plot_slots += 1
 	data.ensure_plots()
+	# Un vaso in piu' puo' voler dire un posto di lavoro in piu': se c'era un
+	# coltivatore in panchina, adesso ha dove stare. Vedi `Staff.sync_sites()`.
+	Staff.sync_sites(data)
 	return true

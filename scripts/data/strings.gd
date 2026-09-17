@@ -97,8 +97,27 @@ const TEXT := {
 	"ROOM_ENTRANCE": ["ENTRANCE", "INGRESSO", "ENTRADA"],
 	"ROOM_KITCHEN": ["KITCHEN", "CUCINA", "COCINA"],
 	"ROOM_BASEMENT": ["BASEMENT", "CANTINA", "SOTANO"],
+	"ROOM_GARAGE": ["GARAGE", "GARAGE", "GARAJE"],
 	"ROOM_GENERIC": ["ROOM", "STANZA", "CUARTO"],
 	"ROOM_EXIT": ["EXIT", "ESCI", "SALIR"],
+
+	# --- Agenzia immobiliare (PIXEL) ---------------------------------------
+	"RE_TITLE": ["PROPERTIES FOR SALE", "PROPRIETA IN VENDITA", "PROPIEDADES EN VENTA"],
+	"RE_CLOSE": ["CLOSE", "CHIUDI", "CERRAR"],
+	"RE_BUY": ["BUY", "COMPRA", "COMPRAR"],
+	"RE_OWNED": ["OWNED", "TUA", "TUYA"],
+	"RE_NO_CASH": ["NOT ENOUGH", "SOLDI CORTI", "SIN FONDOS"],
+	"RE_CASH": ["CASH", "CONTANTI", "EFECTIVO"],
+	"RE_EMPTY": ["NOTHING ON THE BOOKS", "NIENTE IN ELENCO", "NADA EN LISTA"],
+	"RE_GARAGE_NAME": ["GARAGE ON CROSS STREET", "GARAGE IN CROSS STREET", "GARAJE EN CROSS STREET"],
+	## Diceva "NIENTE FINESTRE", e il disegno dell'interno (`garageBack.png`) ne
+	## ha una rotta a sinistra piu' quelle della serranda: l'annuncio descrive un
+	## posto che si va a vedere, e le due cose devono dire la stessa roba. I due
+	## banconi sono anche quello che serve sapere, perche' e' li' che ci andranno
+	## i vasi.
+	"RE_GARAGE_DESC": ["ONE BAY  ROLLER DOOR  TWO BENCHES",
+		"UN BOX  SERRANDA  DUE BANCONI",
+		"UNA PLAZA  PERSIANA  DOS BANCOS"],
 
 	# --- Il PC: cornice e schede (PIXEL) -----------------------------------
 	"PC_TITLE": ["BUSINESS MANAGEMENT", "GESTIONE ATTIVITA", "GESTION DEL NEGOCIO"],
@@ -123,9 +142,16 @@ const TEXT := {
 	"PC_STAFF": ["STAFF", "PERSONALE", "PERSONAL"],
 	"PC_WAGES": ["WAGES", "PAGHE", "SUELDOS"],
 	"PC_SALES_SPLIT": ["SALES SPLIT", "RIPARTIZIONE VENDITE", "REPARTO DE VENTAS"],
+	"PC_RESERVED": ["SET ASIDE", "MESSI DA PARTE", "APARTADOS"],
+	"PC_GROWER_SITES": ["WHO WORKS WHERE", "CHI LAVORA DOVE", "QUIEN TRABAJA DONDE"],
+	"PC_SITE_SPARE": ["NO POSTING", "SENZA POSTO", "SIN PUESTO"],
+	"SITE_BASEMENT": ["BASEMENT", "CANTINA", "SOTANO"],
+	"SITE_GARAGE": ["GARAGE", "GARAGE", "GARAJE"],
 	"PC_WHOLESALE_TODAY": ["WHOLESALE TODAY", "INGROSSO OGGI", "MAYOREO HOY"],
 	"PC_STREET_PRICE": ["STREET PRICE", "PREZZO IN STRADA", "PRECIO EN LA CALLE"],
 	"PC_STOCK_VALUE": ["STOCK VALUE", "VALORE SCORTA", "VALOR EXISTENCIAS"],
+	"PC_VAN": ["VAN", "FURGONE", "FURGONETA"],
+	"PC_VAN_TANK": ["TANK", "SERBATOIO", "DEPOSITO"],
 	## %d numero del vaso. Font di sistema: contiene una cifra.
 	"PC_POT_N": ["POT %d", "VASO %d", "MACETA %d"],
 	## %s giorni, %s orario
@@ -154,6 +180,11 @@ const TEXT := {
 	"PC_NO_ROOM_POTS": [
 		"NO ROOM FOR MORE POTS", "NON CI STANNO ALTRI VASI", "NO CABEN MAS MACETAS",
 	],
+	"PC_POTS_NEED_ROOM": [
+		"FULL HERE  -  YOU NEED ANOTHER PLACE",
+		"QUI E' PIENO  -  SERVE UN ALTRO POSTO",
+		"AQUI ESTA LLENO  -  HACE FALTA OTRO SITIO",
+	],
 	## %d grammi, %s durata
 	"PC_YIELD_NOTE": [
 		"A plant yields about %d g in %s. Water it or the yield drops.",
@@ -171,6 +202,37 @@ const TEXT := {
 		"BRIAN IS WAITING  -  %s", "BRIAN TI ASPETTA  -  %s", "BRIAN TE ESPERA  -  %s",
 	],
 	"PC_ASK_BRIAN": ["ASK BRIAN FOR SEEDS", "CHIEDI I SEMI A BRIAN", "PEDIR SEMILLAS A BRIAN"],
+	## %d grammi che servono per sbloccare l'ingrosso
+	"PC_WHOLESALE_LOCKED": [
+		"Wholesale is not for the pocket trade. Hold %d g at once and the people who move that kind of weight will be worth talking to.",
+		"L'ingrosso non e' roba da tasche. Arriva ad avere %d g tutti insieme, e chi muove quel peso varra' la pena di essere sentito.",
+		"El mayoreo no es cosa de bolsillo. Ten %d g de golpe y valdra la pena hablar con quien mueve ese peso.",
+	],
+	## %s costo del furgone
+	"PC_BUY_VAN": ["BUY A VAN  -  %s", "COMPRA UN FURGONE  -  %s", "COMPRA UNA FURGONETA  -  %s"],
+	## %d consegne per pieno
+	"PC_VAN_NOTE": [
+		"A kilo does not travel on foot. Used, high mileage, and it does %d runs on a tank.",
+		"Un chilo non viaggia a piedi. Usato, tanti chilometri, e fa %d consegne con un pieno.",
+		"Un kilo no viaja a pie. Usada, con muchos kilometros, y hace %d viajes por deposito.",
+	],
+	## %d quanti nel serbatoio, %d quanti ce ne stanno
+	"PC_VAN_FUEL": ["%d / %d runs", "%d / %d consegne", "%d / %d viajes"],
+	## %s costo del pieno
+	"PC_REFUEL": ["FILL THE TANK  -  %s", "FAI IL PIENO  -  %s", "LLENAR EL DEPOSITO  -  %s"],
+	## %d chili, %s incasso
+	"PC_SEND_KG": ["SEND %d KG  -  %s", "MANDA %d KG  -  %s", "ENVIAR %d KG  -  %s"],
+	## %d chili a bordo, %s incasso atteso, %s tempo che resta
+	"PC_VAN_AWAY": [
+		"%d kg out  -  %s  -  back in %s",
+		"%d kg fuori  -  %s  -  torna fra %s",
+		"%d kg fuera  -  %s  -  vuelve en %s",
+	],
+	"PC_VAN_DRY": [
+		"The tank is dry. Nothing leaves the garage until you fill it.",
+		"Il serbatoio e' a secco. Dal garage non esce niente finche' non fai il pieno.",
+		"El deposito esta seco. Del garaje no sale nada hasta que lo llenes.",
+	],
 	## %d semi, %s posto, %s tempo che resta
 	"PC_BRIAN_NOTE_READY": [
 		"Brian brought %d seed(s) and is waiting at %s. He will not hang around forever: about %s left.",
@@ -189,12 +251,9 @@ const TEXT := {
 	],
 
 	# --- Il PC: scheda MARKET ----------------------------------------------
-	## %d grammi, %s incasso
-	"PC_SELL_N": ["SELL %d G  -  %s", "VENDI %d G  -  %s", "VENDER %d G  -  %s"],
-	## %s incasso
-	"PC_SELL_ALL": [
-		"SELL EVERYTHING  -  %s", "VENDI TUTTO  -  %s", "VENDER TODO  -  %s",
-	],
+	# I bottoni "vendi N grammi" e "vendi tutto" non ci sono piu': l'ingrosso
+	# adesso e' un viaggio del furgone a chili (vedi `Delivery`), e le voci
+	# stanno piu' sotto, con i carichi e il serbatoio.
 	## %d percentuale in più della strada
 	"PC_MARKET_NOTE": [
 		"Wholesale is safe and does not raise attention. Selling to people on the street pays %d%% more, but one customer at a time.",
@@ -211,11 +270,11 @@ const TEXT := {
 	"PC_SHOP_BUY_MORE": ["%s   (%d / %d)", "%s   (%d / %d)", "%s   (%d / %d)"],
 	## %s costo
 	"PC_SHOP_EXTRA_POT": ["EXTRA POT  -  %s", "UN VASO IN PIU'  -  %s", "MACETA EXTRA  -  %s"],
-	## %d quanti vasi ci stanno
+	## %d quanti vasi si possono aprire con le proprieta' che si hanno adesso
 	"PC_SHOP_POT_NOTE": [
-		"One more pot down in the basement, up to %d.",
-		"Un vaso in più giù in cantina, fino a %d.",
-		"Una maceta mas en el sotano, hasta %d.",
+		"One more pot, in the first place with room. With what you own now: up to %d.",
+		"Un vaso in più, nel primo posto che ha spazio. Con quello che possiedi adesso: fino a %d.",
+		"Una maceta mas, en el primer sitio con espacio. Con lo que tienes ahora: hasta %d.",
 	],
 
 	# --- Il PC: scheda STAFF -----------------------------------------------
@@ -241,17 +300,43 @@ const TEXT := {
 		"%d%% ingrosso  /  %d%% strada",
 		"%d%% mayoreo  /  %d%% calle",
 	],
+	## %d assegnati, %d che ne stanno, %d vasi aperti, %d vasi in tutto
+	"PC_SITE_ROW": [
+		"%d of %d   (%d/%d pots)", "%d su %d   (%d/%d vasi)", "%d de %d   (%d/%d macetas)",
+	],
+	"PC_SITE_SHUT": ["not yours", "non e' tua", "no es tuya"],
+	## %d quanti vasi ci sono in questo posto
+	"PC_SITE_POTS": ["%d pots", "%d vasi", "%d macetas"],
+	## %d coltivatori senza posto
+	"PC_SITE_IDLE": ["%d", "%d", "%d"],
+	"PC_SEND_HERE": ["SEND ONE HERE", "MANDANE UNO QUI", "MANDA UNO AQUI"],
+	"PC_TAKE_AWAY": ["TAKE ONE OFF", "TOGLINE UNO", "QUITA UNO"],
+	## %d vasi che un coltivatore riesce a seguire
+	"PC_SITES_NOTE": [
+		"A grower works one place and tends up to %d pots there, so how many a place takes depends on the pots you have OPENED there, not on the ones it could hold: the garage takes a second one from its seventh pot on. Hire another and he lands wherever there is room; move him from here. One with no posting still draws his wage every night and grows nothing.",
+		"Un coltivatore sta in un posto solo e segue fino a %d vasi, quindi quanti ne regge un posto dipende dai vasi che ci hai APERTO, non da quelli che ci starebbero: il garage ne regge un secondo dal settimo vaso in poi. Assumendone un altro finisce dove c'e' spazio, e da qui lo si sposta. Uno senza posto prende la paga ogni notte lo stesso e non coltiva niente.",
+		"Un cultivador esta en un solo sitio y atiende hasta %d macetas, asi que cuantos aguanta un sitio depende de las macetas que hayas ABIERTO alli, no de las que cabrian: el garaje aguanta un segundo desde su septima maceta. Si contratas otro va donde haya sitio, y desde aqui lo mueves. Uno sin puesto cobra igual cada noche y no cultiva nada.",
+	],
+
+	## %d grammi da parte, %d grammi liberi
+	"PC_RESERVED_VALUE": [
+		"%d g held  /  %d g to the dealers",
+		"%d g fermi  /  %d g ai dealer",
+		"%d g guardados  /  %d g a los vendedores",
+	],
 	"PC_MORE_WHOLESALE": [
-		"MORE WHOLESALE  (safer)", "PIU' INGROSSO  (piu' sicuro)", "MAS MAYOREO  (mas seguro)",
+		"HOLD MORE  (for the van)", "TIENI DA PARTE  (per il furgone)",
+		"GUARDAR MAS  (para la furgoneta)",
 	],
 	"PC_MORE_STREET": [
-		"MORE STREET  (pays better)", "PIU' STRADA  (rende di piu')", "MAS CALLE  (paga mejor)",
+		"HOLD LESS  (more to sell)", "TIENI MENO  (piu' da vendere)",
+		"GUARDAR MENOS  (mas para vender)",
 	],
 	## %d percentuale in più della strada
 	"PC_SPLIT_NOTE": [
-		"Street pays %d%% more than wholesale, but every gram that changes hands out there raises attention. The split is for the dealers you hire: what you sell yourself is still up to you. Wages come out of the till at midnight.",
-		"La strada rende il %d%% in più dell'ingrosso, ma ogni grammo che passa di mano là fuori alza l'attenzione. La ripartizione vale per i dealer che assumi: quello che vendi di persona resta affar tuo. Le paghe escono di cassa a mezzanotte.",
-		"La calle paga un %d%% mas que el mayoreo, pero cada gramo que cambia de manos ahi fuera levanta atencion. El reparto vale para los vendedores que contratas: lo que vendas tu sigue siendo cosa tuya. Los sueldos salen de la caja a medianoche.",
+		"This is how much of every harvest you hold back for the van. The dealers only work the street, and they never touch what is held: that part is yours to drive out yourself. The street pays %d%% more than wholesale, but every gram that changes hands out there raises attention.",
+		"E' quanto di ogni raccolto tieni da parte per il furgone. I dealer battono solo la strada, e quello che e' da parte non lo toccano: quella roba la porti fuori tu. La strada rende il %d%% in piu' dell'ingrosso, ma ogni grammo che passa di mano la fuori alza l'attenzione.",
+		"Es cuanto de cada cosecha guardas para la furgoneta. Los vendedores solo trabajan la calle, y lo guardado no lo tocan: eso lo sacas tu. La calle paga un %d%% mas que el mayoreo, pero cada gramo que cambia de manos ahi fuera levanta atencion.",
 	],
 
 	# --- Stadi della pianta (PIXEL, e anche font di sistema) ---------------
@@ -277,9 +362,16 @@ const TEXT := {
 	],
 	"SHOP_LAMPS": ["RED GROW LAMPS", "LAMPADE ROSSE", "LAMPARAS ROJAS"],
 	"SHOP_LAMPS_NOTE": [
-		"Red lamps over the pots, one per pot: each cuts 8% off the growing time, and adds 10 $ to the monthly power bill. Applies to plants put in from now on.",
-		"Lampade rosse sopra ai vasi, una per vaso: ognuna taglia l'8% del tempo di crescita e aggiunge 10 $ alla bolletta del mese. Vale per le piante messe da qui in avanti.",
-		"Lamparas rojas sobre las macetas, una por maceta: cada una recorta un 8% del tiempo de cultivo y suma 10 $ a la factura del mes. Vale para las plantas que siembres de ahora en adelante.",
+		"Red lamps over the pots, one per pot, anywhere you grow. Each cuts 8% off the growing time and adds 10 $ to the monthly power bill. Applies to plants put in from now on.",
+		"Lampade rosse sopra ai vasi, una per vaso, in cantina come in garage. Ognuna taglia l'8% del tempo di crescita e aggiunge 10 $ alla bolletta del mese. Vale per le piante messe da qui in avanti.",
+		"Lamparas rojas sobre las macetas, una por maceta, donde sea que cultives. Cada una recorta un 8% del tiempo de cultivo y suma 10 $ a la factura del mes. Vale para las plantas que siembres de ahora en adelante.",
+	],
+	"SHOP_VAN": ["WORK VAN", "FURGONE", "FURGONETA"],
+	## %d chili minimi, %d consegne per pieno — riempiti da `Shop.note()`
+	"SHOP_VAN_NOTE": [
+		"An old work van, the kind nobody looks at twice. Without it there is no wholesale: a kilo does not travel on foot.",
+		"Un vecchio furgone da lavoro, di quelli che nessuno guarda due volte. Senza, l'ingrosso non si fa: un chilo non viaggia a piedi.",
+		"Una furgoneta vieja de trabajo, de las que nadie mira dos veces. Sin ella no hay mayoreo: un kilo no viaja a pie.",
 	],
 	"SHOP_FILTER": ["CARBON FILTER", "FILTRO A CARBONE", "FILTRO DE CARBON"],
 	"SHOP_FILTER_NOTE": [
@@ -291,15 +383,15 @@ const TEXT := {
 	# --- Personale: nomi (PIXEL) e spiegazioni -----------------------------
 	"STAFF_GROWER": ["GROWER", "COLTIVATORE", "CULTIVADOR"],
 	"STAFF_GROWER_NOTE": [
-		"Works the basement: plants whatever seeds he finds, waters, harvests. One of them covers the whole cellar, and gets paid whether there are seeds or not.",
-		"Sta in cantina: pianta i semi che trova, annaffia e raccoglie. Uno copre tutto il seminterrato, e la paga la prende che ci siano semi o no.",
-		"Trabaja en el sotano: siembra las semillas que encuentra, riega y cosecha. Uno cubre todo el sotano, y cobra haya semillas o no.",
+		"Plants whatever seeds he finds, waters, harvests. He works one place and tends the pots there, and gets paid whether there are seeds or not.",
+		"Pianta i semi che trova, annaffia e raccoglie. Sta in un posto solo e segue i vasi di quello, e la paga la prende che ci siano semi o no.",
+		"Siembra las semillas que encuentra, riega y cosecha. Esta en un solo sitio y atiende sus macetas, y cobra haya semillas o no.",
 	],
 	"STAFF_DEALER": ["DEALER", "SPACCIATORE", "VENDEDOR"],
 	"STAFF_DEALER_NOTE": [
-		"Moves the product in the split set below. No wage: he keeps a cut of whatever he sells, so an idle dealer costs nothing. What goes to the street pays more and raises attention.",
-		"Piazza la merce nella proporzione decisa qui sotto. Niente paga: si tiene una quota di quello che vende, quindi fermo non costa niente. Quello che va in strada rende di più e alza l'attenzione.",
-		"Mueve la mercancia en la proporcion de abajo. Sin sueldo: se queda una parte de lo que vende, asi que parado no cuesta nada. Lo que va a la calle paga mas y levanta atencion.",
+		"Works the street, and only with what you leave him. No wage: he keeps a cut of whatever he sells, so an idle dealer costs nothing. The street pays well and raises attention.",
+		"Batte la strada, e solo con quello che gli lasci. Niente paga: si tiene una quota di quello che vende, quindi fermo non costa niente. La strada rende bene e alza l'attenzione.",
+		"Trabaja la calle, y solo con lo que le dejas. Sin sueldo: se queda una parte de lo que vende, asi que parado no cuesta nada. La calle paga bien y levanta atencion.",
 	],
 
 	# --- Messaggini dell'HUD -----------------------------------------------
@@ -325,6 +417,11 @@ const TEXT := {
 		"NO SEEDS  -  ASK BRIAN", "SEMI FINITI  -  CHIEDI A BRIAN", "SIN SEMILLAS  -  PIDE A BRIAN",
 	],
 	"NOTE_NO_ROOM": ["NO ROOM LEFT DOWN HERE", "QUI SOTTO NON CI STA ALTRO", "AQUI ABAJO NO CABE MAS"],
+	"NOTE_NOT_YOURS": [
+		"NOT YOURS  -  BUY IT AT THE AGENCY",
+		"NON E' TUA  -  COMPRALA IN AGENZIA",
+		"NO ES TUYA  -  COMPRALA EN LA AGENCIA",
+	],
 	"NOTE_USE_PC": [
 		"USE THE PC TO OPEN THIS POT", "APRI QUESTO VASO DAL PC", "ABRE ESTA MACETA DESDE EL PC",
 	],
@@ -346,6 +443,37 @@ const TEXT := {
 	## %s quanto è stato pagato
 	"NOTE_WAGES": ["WAGES  -%s", "PAGHE  -%s", "SUELDOS  -%s"],
 	"NOTE_POWER_BILL": ["POWER BILL  -%s", "BOLLETTA  -%s", "LUZ  -%s"],
+	## %d chili partiti
+	"NOTE_VAN_LEFT": ["%d KG ON THE ROAD", "%d KG PARTITI", "%d KG EN CAMINO"],
+	## %s incasso
+	"NOTE_VAN_BACK": ["VAN BACK  +%s", "FURGONE RIENTRATO  +%s", "FURGONETA DE VUELTA  +%s"],
+	"NOTE_REFUELLED": ["TANK FULL", "PIENO FATTO", "DEPOSITO LLENO"],
+	"NOTE_SEEDS_IN": ["SEEDS IN  +%d", "SEMI ARRIVATI  +%d", "SEMILLAS LLEGADAS  +%d"],
+
+	# --- Il grossista dei semi (PIXEL il titolo) ---------------------------
+	"SW_TITLE": ["SEED SUPPLIER", "GROSSISTA SEMI", "MAYORISTA SEMILLAS"],
+	"SW_NAME": ["CLINIC SUPPLY", "FORNITURE CLINICA", "SUMINISTROS CLINICA"],
+	"SW_PACK": ["%d SEEDS", "%d SEMI", "%d SEMILLAS"],
+	## %d = sconto in percentuale sul prezzo di Brian
+	"SW_PACK_NOTE": [
+		"%d%% off the usual price per seed.",
+		"%d%% in meno sul prezzo a seme di Brian.",
+		"%d%% menos sobre el precio por semilla.",
+	],
+	"SW_ORDER": ["ORDER", "ORDINA", "PEDIR"],
+	"SW_NO_CASH": ["NOT ENOUGH", "SOLDI CORTI", "FALTA DINERO"],
+	"SW_VAN_OUT": ["THE VAN IS OUT", "IL FURGONE E FUORI", "LA FURGONETA ESTA FUERA"],
+	## %s = quanto manca
+	"SW_ON_THE_WAY": [
+		"Van on the way back: %s left.",
+		"Furgone in arrivo: mancano %s.",
+		"Furgoneta en camino: faltan %s.",
+	],
+	"SW_NOTE": [
+		"Order and the van goes to fetch them. It takes about two hours, and it is the same van that does the wholesale runs: one job at a time.",
+		"Si ordina e il furgone va a prenderli. Ci mette un paio d'ore, ed e' lo stesso furgone dell'ingrosso: un viaggio alla volta.",
+		"Pides y la furgoneta va a por ellas. Tarda un par de horas, y es la misma furgoneta del mayoreo: un viaje cada vez.",
+	],
 
 	# --- Il telefono (PIXEL le voci del menu) ------------------------------
 	# I mittenti sono quelli che ci sono gia': `MSG_STAFF_SPEAKER` e
@@ -362,10 +490,116 @@ const TEXT := {
 	"PHONE_CALL_BRIAN": ["CALL BRIAN", "CHIAMA BRIAN", "LLAMA A BRIAN"],
 	"PHONE_WAITING": ["HE IS ON IT", "CI PENSA LUI", "EL SE ENCARGA"],
 	"PHONE_BRIAN_HERE": ["HE IS WAITING", "TI ASPETTA", "TE ESPERA"],
+	# --- La chat con Brian --------------------------------------------------
+	# Il titolo della rubrica e' PIXEL (font del gioco); i messaggi no, si
+	# leggono in nuvoletta col font di sistema come tutti gli altri corpi.
+	"CHAT_TITLE": ["MESSAGES", "MESSAGGI", "MENSAJES"],
+	## Quando con un contatto non ci si e' ancora scritti niente. Nella chat di
+	## Brian si vede solo per il primo minuto di partita, prima che arrivi il
+	## messaggio d'apertura: dopo non e' piu' vuota mai.
+	"CHAT_EMPTY": [
+		"Nothing here yet.",
+		"Qui non c'e' ancora niente.",
+		"Aqui todavia no hay nada.",
+	],
+	## La richiesta di semi, cioe' l'unica riga che il giocatore **manda**.
+	## Vedi `Chat.live()`: non e' scritta da nessuna parte, si ricava
+	## dall'appuntamento aperto.
+	"CHAT_ASK_SEEDS": [
+		"Need seeds cousin.",
+		"Servono semi cugino.",
+		"Necesito semillas primo.",
+	],
+	## La risposta, che arriva un paio di secondi dopo (`Chat.REPLY_GAP`): senza,
+	## le due righe comparirebbero insieme e non si leggerebbero come una
+	## conversazione.
+	"CHAT_BRIAN_ON_IT": [
+		"On it. I will let you know where.",
+		"Ci penso io. Ti faccio sapere dove.",
+		"Yo me encargo. Te digo donde.",
+	],
+	# --- La guida ------------------------------------------------------------
+	# Si apre dalla rubrica, sotto ai contatti, ed e' l'unica schermata del
+	# telefono su carta bianca invece che sul vetro scuro: sono appunti, non
+	# messaggi, e la differenza si vede prima di leggere.
+	#
+	# **Qui NIENTE e' PIXEL tranne la voce della rubrica.** Le sezioni si
+	# leggono col font di sistema, quindi ci vanno accenti, apostrofi, cifre e
+	# valute: sono le uniche pagine del gioco in cui si scrivono dei numeri per
+	# esteso, ed e' esattamente il motivo per cui la guida serve.
+	## La voce in fondo alla rubrica. Questa si legge col font del gioco: PIXEL.
+	"GUIDE_TITLE": ["GUIDE", "GUIDA", "GUIA"],
+	"GUIDE_ROW_NOTE": [
+		"how the whole thing works",
+		"come funziona il giro",
+		"como funciona el asunto",
+	],
+	"GUIDE_LEAD": [
+		"Brian's notes. Worth a look when you get stuck.",
+		"Gli appunti di Brian. Da guardare quando ti impantani.",
+		"Los apuntes de Brian. Para mirar cuando te atascas.",
+	],
+
+	"GUIDE_PLANTS": ["THE PLANTS", "LE PIANTE", "LAS PLANTAS"],
+	"GUIDE_PLANTS_BODY": [
+		"A seed becomes about 20 grams in some twenty game hours. That clock runs while you are out in the street, and it runs while the game is closed.\n\nWater every 12 hours. Thirst does not stop a plant, it ruins the yield: a pot left dry for days comes in at a third of what it should. It is the most expensive mistake in the game, and fixing it costs nothing.",
+		"Un seme diventa circa 20 grammi in una ventina di ore di gioco. Quell'orologio gira mentre sei in giro per il quartiere, e gira anche a gioco chiuso.\n\nAnnaffia ogni 12 ore. La sete non ferma la pianta: le rovina la resa, e un vaso lasciato a secco per giorni rende un terzo di quello che dovrebbe. È l'errore che costa di più, e rimediare non costa niente.",
+		"Una semilla se convierte en unos 20 gramos en unas veinte horas de juego. Ese reloj corre mientras estás en la calle, y corre también con el juego cerrado.\n\nRiega cada 12 horas. La sed no detiene la planta: le arruina el rendimiento, y una maceta seca durante días da un tercio de lo que debería. Es el error más caro del juego, y arreglarlo no cuesta nada.",
+	],
+
+	"GUIDE_SEEDS": ["THE SEEDS", "I SEMI", "LAS SEMILLAS"],
+	"GUIDE_SEEDS_BODY": [
+		"Seeds come from Brian, out of the clinic. You call him from this phone, he takes a couple of hours, then he waits for you somewhere in the neighbourhood: go where he says and buy before he gets tired of standing there.\n\nEvery call is 6 to 12 seeds, never the same number twice. Call him before you run out, not after: while you wait, the pots sit empty.",
+		"I semi li porta Brian, dalla clinica. Lo chiami da questo telefono, ci mette un paio d'ore e poi ti aspetta in un posto del quartiere: vai dove ti dice e compra prima che si stanchi di stare lì.\n\nOgni chiamata sono dai 6 ai 12 semi, mai lo stesso numero. Chiamalo prima che finiscano, non dopo: mentre aspetti, i vasi restano vuoti.",
+		"Las semillas las trae Brian, de la clínica. Lo llamas desde este teléfono, tarda un par de horas y luego te espera en algún sitio del barrio: ve donde te diga y compra antes de que se canse de esperar.\n\nCada llamada son de 6 a 12 semillas, nunca el mismo número. Llámalo antes de quedarte sin, no después: mientras esperas, las macetas están vacías.",
+	],
+
+	"GUIDE_FASTER": ["GOING FASTER", "ANDARE PIÙ FORTE", "IR MÁS RÁPIDO"],
+	"GUIDE_FASTER_BODY": [
+		"Three things, in this order.\n\nMORE POTS. They do not make a plant grow faster, they grow more at once. You unlock them from the PC, and the garage adds twelve on top of the six downstairs.\n\nGROW TOOLKIT. 154$ once, and every harvest comes in 15% heavier. It pays for itself in two cuts.\n\nLAMPS. 315$ each, and one lamp sits over ONE pot: it cuts 8% off that pot's time, not off everybody's. Six lamps do not make one pot six times faster, and every one of them shows up on the power bill.",
+		"Tre cose, in quest'ordine.\n\nPIÙ VASI. Non fanno crescere una pianta più in fretta, ne fanno crescere di più insieme. Si sbloccano dal PC, e il garage ne aggiunge dodici sopra ai sei di sotto.\n\nGROW TOOLKIT. 154$ una volta sola, e ogni raccolto rende il 15% in più. Si ripaga in due tagli.\n\nLAMPADE. 315$ l'una, e una lampada sta sopra a UN vaso: taglia l'8% del tempo di quel vaso, non di tutti. Sei lampade non rendono un vaso sei volte più veloce, e ognuna si vede sulla bolletta della luce.",
+		"Tres cosas, en este orden.\n\nMÁS MACETAS. No hacen crecer una planta más rápido, hacen crecer más a la vez. Se desbloquean desde el PC, y el garaje añade doce sobre las seis de abajo.\n\nGROW TOOLKIT. 154$ una sola vez, y cada cosecha rinde un 15% más. Se paga solo en dos cortes.\n\nLÁMPARAS. 315$ cada una, y una lámpara va sobre UNA maceta: le quita el 8% del tiempo a esa maceta, no a todas. Seis lámparas no hacen una maceta seis veces más rápida, y cada una se nota en la factura de la luz.",
+	],
+
+	"GUIDE_STAFF": ["HIRING", "IL PERSONALE", "EL PERSONAL"],
+	"GUIDE_STAFF_BODY": [
+		"At a thousand dollars the STAFF tab opens on the PC.\n\nA grower covers 6 pots: plants, waters and cuts for you, and keeps working while the game is closed. A dealer moves the product on the street and keeps a cut of it.\n\nWages run every day whether there is work or not. Hiring before you have the pots to fill is just an expense.",
+		"Ai mille dollari si apre la scheda PERSONALE nel PC.\n\nUn coltivatore segue 6 vasi: pianta, annaffia e raccoglie al posto tuo, e continua a lavorare anche a gioco chiuso. Un dealer piazza la merce in strada e se ne tiene una quota.\n\nLe paghe corrono ogni giorno, che ci sia lavoro o no. Assumere prima di avere i vasi da riempire è solo una spesa.",
+		"A los mil dólares se abre la pestaña PERSONAL en el PC.\n\nUn cultivador lleva 6 macetas: planta, riega y corta por ti, y sigue trabajando con el juego cerrado. Un camello coloca la mercancía en la calle y se queda una parte.\n\nLos sueldos corren cada día, haya trabajo o no. Contratar antes de tener macetas que llenar es solo un gasto.",
+	],
+
+	"GUIDE_WHOLESALE": ["WHOLESALE", "L'INGROSSO", "EL MAYOREO"],
+	"GUIDE_WHOLESALE_BODY": [
+		"The first time you put a kilo together, Brian tells you to get a van (5000$). Wholesale pays less per gram but takes the lot in one go: it is what you want once the street cannot keep up with what you grow.\n\nThe van also opens the clinic's seed supplier: whole crates instead of a handful, and no waiting on Brian.",
+		"La prima volta che metti insieme un chilo, Brian ti dice di prendere un furgone (5000$). All'ingrosso pagano meno al grammo ma prendono tutto in una volta: è quello che serve quando la strada non sta più dietro a quanto produci.\n\nCol furgone si apre anche il grossista di semi della clinica: casse intere invece di una manciata, e non devi più aspettare Brian.",
+		"La primera vez que juntas un kilo, Brian te dice que consigas una furgoneta (5000$). En el mayoreo pagan menos por gramo pero se lo llevan todo de una vez: es lo que hace falta cuando la calle ya no sigue el ritmo de lo que produces.\n\nCon la furgoneta se abre también el proveedor de semillas de la clínica: cajas enteras en vez de un puñado, y sin esperar a Brian.",
+	],
+
+	"GUIDE_HEAT": ["THE HEAT", "L'ATTENZIONE", "LA ATENCIÓN"],
+	"GUIDE_HEAT_BODY": [
+		"Selling on the street raises police attention. It comes down on its own every day, and the carbon filter (420$) makes it climb 40% slower.\n\nIn bad weather you sell less, but what you do sell draws less notice: heads down, patrols in the car.",
+		"Vendere in strada alza l'attenzione della polizia. Scende da sola ogni giorno, e il filtro a carbone (420$) la fa salire il 40% in meno.\n\nCol brutto tempo si vende meno, ma quel poco si vende più tranquilli: la gente cammina a testa bassa e le pattuglie stanno in macchina.",
+		"Vender en la calle sube la atención de la policía. Baja sola cada día, y el filtro de carbón (420$) hace que suba un 40% menos.\n\nCon mal tiempo vendes menos, pero lo poco que vendes llama menos la atención: la gente va con la cabeza baja y las patrullas se quedan en el coche.",
+	],
+
 	"PHONE_SEEDS_OUT": [
 		"Out of seeds down here. The pots stay empty until you bring more.",
 		"Semi finiti, qui sotto. I vasi restano vuoti finche' non ne porti altri.",
 		"Sin semillas aqui abajo. Las macetas siguen vacias hasta que traigas mas.",
+	],
+	## La riga del filmato della partenza del furgone. PIXEL: si legge col font
+	## del gioco. Vedi `scripts/ui/van_cutscene.gd`.
+	"CUT_VAN_OUT": [
+		"the load leaves the city",
+		"il carico lascia la citta",
+		"la carga deja la ciudad",
+	],
+
+	## L'avviso che manda quando sta per andarsene: vedi `SeedDeal.LEAVING_HOURS`.
+	"PHONE_BRIAN_LEAVING": [
+		"I cannot stand here all day cousin. Moving soon.",
+		"Non ci posso restare tutto il giorno cugino. Fra poco me ne vado.",
+		"No puedo quedarme todo el dia primo. Me voy dentro de poco.",
 	],
 	## %s posto. Il posto va a capo da solo: e' lungo (MILL ROAD NORTH OF MAIN
 	## STREET) e attaccato alla frase la mangerebbe tutta.
@@ -377,10 +611,52 @@ const TEXT := {
 
 	# --- Messaggi sul telefono ---------------------------------------------
 	"MSG_COUSIN_SPEAKER": ["BRIAN", "BRIAN", "BRIAN"],
+	## L'apertura: da dove viene la casa.
+	##
+	## PIXEL, come tutte le vignette: si legge col font del gioco, quindi solo
+	## lettere e spazio. A mandare a capo e' la riga e non la punteggiatura, e
+	## ogni riga sta sotto ai quaranta caratteri — piu' lunga va a capo da sola
+	## e il conto delle righe salta.
+	"MSG_INTRO_BODY": [
+		"The old man left you the house\nYou know what a basement is for\nIt grows slow at first do not quit\nOn your phone you have a guide and me",
+		"Il vecchio ti ha lasciato la casa\nLo sai a cosa serve un seminterrato\nAll inizio cresce piano non mollare\nNel telefono trovi una guida e me",
+		"El viejo te ha dejado la casa\nYa sabes para que sirve un sotano\nAl principio crece lento no lo dejes\nEn el telefono tienes la guia y a mi",
+	],
+	## Il chilo raggiunto. Niente cifra dentro: il font del gioco non ha i numeri,
+	## quindi il peso si dice a parole.
+	"MSG_KILO_BODY": [
+		"A kilo in one place cousin\nGet a van and go wholesale\nLess per gram but they take the lot",
+		"Un chilo tutto insieme cugino\nServe un furgone e vai all ingrosso\nPagano meno ma prendono tutto",
+		"Un kilo de golpe primo\nConsigue una furgoneta y ve al mayoreo\nPagan menos pero se lo llevan todo",
+	],
+	"MSG_EXPAND_BODY": [
+		"Look at the numbers cousin\nWalk the streets and look at the old\nplaces for sale or rent",
+		"Guarda i numeri cugino\nGira il quartiere e guarda i posti\nvecchi in vendita o in affitto",
+		"Mira los numeros primo\nDate una vuelta y mira los sitios\nviejos en venta o alquiler",
+	],
+	# Il grossista della clinica: arriva comprato il furgone, ed e' il messaggio
+	# che apre il magazzino in centro. Vedi `SeedRun`.
+	"MSG_SEED_WHOLESALE_BODY": [
+		"Saw you got a van cousin
+If my seeds are not enough I can send
+you straight to the clinic supplier
+Big batches down there
+You will need them to keep up",
+		"Ho visto che ti stai espandendo cugino
+Se i miei semi non ti bastano ti mando
+dritto dal grossista della clinica
+Li compri grandi quantita
+Ti serve per stare al passo",
+		"He visto que te expandes primo
+Si mis semillas no bastan te mando
+derecho al mayorista de la clinica
+Alli compras grandes cantidades
+Te hara falta para seguir el ritmo",
+	],
 	"MSG_COUSIN_BODY": [
-		"I see you are putting the work in, cousin. If the business keeps growing like this, soon you should get someone in to help you.\n\nCheck the PC: there is a place to hire people now.",
-		"Vedo che ti stai impegnando, cugino. Se l'attività cresce ancora, fra poco ti conviene assumere qualcuno che ti dia una mano.\n\nGuarda il PC: adesso c'è il posto per assumere.",
-		"Veo que te estas esforzando, primo. Si el negocio sigue creciendo asi, dentro de poco te conviene contratar a alguien que te eche una mano.\n\nMira el PC: ahora hay un sitio para contratar.",
+		"You are putting the work in cousin\nYou should get someone to help\nCheck the PC you can hire now",
+		"Vedo che ti stai impegnando cugino\nTi conviene assumere qualcuno\nGuarda il PC ora si puo assumere",
+		"Veo que te esfuerzas primo\nTe conviene contratar a alguien\nMira el PC ya puedes contratar",
 	],
 	"MSG_STAFF_SPEAKER": ["STAFF", "PERSONALE", "PERSONAL"],
 	"MSG_POWER_SPEAKER": ["POWER COMPANY", "SOCIETA ELETTRICA", "COMPANIA DE LUZ"],
@@ -401,7 +677,7 @@ const TEXT := {
 	# --- Il resoconto di quando si rientra ---------------------------------
 	# Il corpo del messaggio del telefono usa il font di SISTEMA (solo chi parla
 	# e il bottone usano quello del gioco), quindi qui le cifre si possono
-	# scrivere. Vedi `phone_notice.gd`.
+	# scrivere. Vedi `phone.gd`.
 	#
 	# Sono scritte come "etichetta: valore" e non come frasi ("2 vasi sono
 	# rimasti a secco") apposta: cosi' non c'e' nessun singolare da sbagliare
@@ -793,16 +1069,22 @@ const TEXT := {
 
 ## Quanto lunghe possono essere le voci del menu del telefono.
 ##
-## Non e' una regola di stile: lo schermo del telefono e' largo 112 px e il
-## bottone taglia quello che avanza. Tredici caratteri col font del gioco a
-## corpo 12 sono quello che ci sta. Vedi `PHONE_CALL_BRIAN`.
+## Non e' una regola di stile: il vetro del telefono e' largo 116 px (e la
+## larghezza della scocca e' scelta apposta perche' ci stiano, vedi `SIZE` in
+## `phone.gd`) e il bottone taglia quello che avanza. Tredici caratteri col font
+## del gioco a corpo 12 sono quello che ci sta. Vedi `PHONE_CALL_BRIAN`.
 const PHONE_MENU_CHARS := 13
 ## Le voci che devono stare in quella larghezza.
 const PHONE_MENU_KEYS := ["PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE"]
 
 ## Caratteri che il font del gioco sa disegnare: lettere e spazio, nient'altro.
 ## Vedi la regola 2 in cima al file.
-const PIXEL_FONT_CHARS := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz "
+##
+## L'a-capo e' ammesso e non e' un'eccezione alla regola: non e' un carattere
+## che il font deve disegnare, e' dove la riga finisce. Nelle vignette fa il
+## lavoro che farebbe la punteggiatura, che li' non si puo' scrivere.
+const PIXEL_FONT_CHARS := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz 
+"
 
 ## Le chiavi mostrate col font del gioco, e quindi limitate a lettere e spazio.
 ## L'elenco è scritto a mano perché è una proprietà di **dove** finisce la
@@ -811,16 +1093,28 @@ const PIXEL_KEYS := [
 	"MENU_NEW_GAME", "MENU_SAVES", "MENU_SETTINGS", "MENU_BACK", "MENU_VIDEO",
 	"MENU_AUDIO", "MENU_COMMANDS", "MENU_LANGUAGE", "MENU_LOAD", "MENU_DELETE",
 	"MENU_SURE",
-	"ROOM_ENTRANCE", "ROOM_KITCHEN", "ROOM_BASEMENT", "ROOM_GENERIC", "ROOM_EXIT",
+	"ROOM_ENTRANCE", "ROOM_KITCHEN", "ROOM_BASEMENT", "ROOM_GARAGE", "ROOM_GENERIC",
+	"ROOM_EXIT",
 	"PC_TITLE", "PC_CLOSE",
+	"RE_TITLE", "RE_CLOSE", "RE_BUY", "RE_OWNED", "RE_NO_CASH", "RE_CASH",
+	"RE_EMPTY", "RE_GARAGE_NAME", "RE_GARAGE_DESC",
 	"PC_TAB_OVERVIEW", "PC_TAB_GROW", "PC_TAB_SHOP", "PC_TAB_MARKET", "PC_TAB_STAFF",
 	"PC_CASH", "PC_DAY", "PC_STOCK", "PC_SEEDS", "PC_POTS_IN_USE", "PC_READY_TO_CUT",
 	"PC_ATTENTION", "PC_GRAMS_HARVESTED", "PC_GRAMS_SOLD", "PC_TOTAL_EARNED",
-	"PC_STAFF", "PC_WAGES", "PC_SALES_SPLIT", "PC_WHOLESALE_TODAY",
+	"PC_STAFF", "PC_WAGES", "PC_SALES_SPLIT", "PC_RESERVED", "PC_WHOLESALE_TODAY",
+	"PC_GROWER_SITES", "PC_SITE_SPARE", "SITE_BASEMENT", "SITE_GARAGE",
 	"PC_STREET_PRICE", "PC_STOCK_VALUE",
 	"MSG_COUSIN_SPEAKER", "MSG_STAFF_SPEAKER", "MSG_AWAY_SPEAKER", "MSG_POWER_SPEAKER",
 	"MSG_OK",
-	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE",
+	# I corpi delle vignette: si leggono col font del gioco, non con quello di
+	# sistema come gli avvisi. Vedi `phone.gd`.
+	"MSG_INTRO_BODY", "MSG_KILO_BODY", "MSG_EXPAND_BODY", "MSG_COUSIN_BODY",
+	"MSG_SEED_WHOLESALE_BODY", "SW_TITLE",
+	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE", "CHAT_TITLE",
+	# Della guida solo la voce in rubrica: dentro si legge col font di
+	# sistema, e le cifre servono.
+	"GUIDE_TITLE",
+	"CUT_VAN_OUT",
 ]
 
 static func locale_name(locale: String) -> String:

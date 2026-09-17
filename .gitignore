@@ -19,3 +19,7 @@ data_*/
 # 37 totali. I modelli usano i PNG, e da quelli escono gli sprite renderizzati
 # in assets/sprites/props/cars/ (vedi scripts_tools/render_cars.py).
 assets/sprites/props/Low_Poly_Cars_DevilsWorkShop_V03/**/*.tga
+
+# Cache di Python: gli script di scripts_tools importano moduli fra loro
+__pycache__/
+*.pyc

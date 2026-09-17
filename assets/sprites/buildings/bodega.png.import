@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://gr4hcp0tq8lc"
-path="res://.godot/imported/firstHouse.png-c056bda1b9f73aa1d09f1ac9a600fcb2.ctex"
+uid="uid://dctkedyip2av5"
+path="res://.godot/imported/bodega.png-216864bed3564e112a239dfe05553e37.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/buildings/firstHouse.png"
-dest_files=["res://.godot/imported/firstHouse.png-c056bda1b9f73aa1d09f1ac9a600fcb2.ctex"]
+source_file="res://assets/sprites/buildings/bodega.png"
+dest_files=["res://.godot/imported/bodega.png-216864bed3564e112a239dfe05553e37.ctex"]
 
 [params]
 

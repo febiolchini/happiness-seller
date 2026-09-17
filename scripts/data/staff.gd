@@ -6,8 +6,8 @@ extends RefCounted
 ##
 ## Due ruoli, e sono i due lati del gioco:
 ## - **GROWER** sta in cantina: pianta, annaffia, raccoglie.
-## - **DEALER** piazza la merce, in parte all'ingrosso e in parte in strada,
-##   nella proporzione decisa dal giocatore (`SaveData.wholesale_share`).
+## - **DEALER** piazza la merce **in strada**, e solo quella che il giocatore gli
+##   lascia: vedi "La riserva dell'ingrosso" qui sotto.
 ##
 ## ## Il lavoro non è simulato
 ##
@@ -62,14 +62,13 @@ const ORDER := ["grower", "dealer"]
 ## un moltiplicatore, non un sostituto del giocatore.
 const MAX_DEALERS := 3
 
-## Vasi che un coltivatore riesce a seguire: tutto il seminterrato.
+## Vasi che un coltivatore riesce a seguire.
 ##
-## Quanti coltivatori servono lo dice quindi il **posto che c'è**, non un numero
-## scritto qui: finché la coltivazione sta in cantina e i vasi sono sei, uno
-## basta e avanza, e il gioco lo dice invece di lasciare che il giocatore spenda
-## quattrocentoventi dollari per uno che sta a guardare. Quando ci sarà una
-## seconda proprietà il tetto salirà da solo. Vedi `max_for()`.
-const POTS_PER_GROWER := 6
+## Il numero vero sta in `GrowSites`, perché è una misura del posto e non della
+## persona: qui resta il rimando, così chi legge `Staff` non deve sapere dove
+## cercarlo. Quanti coltivatori servono lo dice quindi **il posto che c'è**, e
+## comprando vasi o proprieta' il tetto sale da solo. Vedi `max_for()`.
+const POTS_PER_GROWER := GrowSites.POTS_PER_GROWER
 ## Grammi all'ora di gioco che un dealer riesce a piazzare.
 const GRAMS_PER_DEALER_HOUR := 2.0
 ## Sotto a questi grammi il dealer non esce: aspetta di averne abbastanza.
@@ -116,8 +115,15 @@ static func cut(role: String) -> float:
 static func max_for(data: SaveData, role: String) -> int:
 	if role != "grower":
 		return MAX_DEALERS
-	var slots := Economy.MAX_PLOTS if data == null else maxi(data.plot_slots, data.plots.size())
-	return maxi(1, ceili(float(slots) / float(POTS_PER_GROWER)))
+	if data == null:
+		return maxi(1, ceili(float(Economy.MAX_PLOTS) / float(POTS_PER_GROWER)))
+	# Somma delle capienze dei posti aperti, e non un conto sul totale dei vasi:
+	# sei vasi in cantina e uno solo aperto in garage fanno due coltivatori (uno
+	# per posto) e non uno, perche' nessuno lavora in due stanze insieme.
+	var room := 0
+	for site: Dictionary in GrowSites.open_sites(data):
+		room += GrowSites.capacity(data, site)
+	return maxi(1, room)
 
 ## Quanto costa al giorno il ruolo, già scritto per essere mostrato: una paga
 ## per il coltivatore, una percentuale per il dealer.
@@ -157,6 +163,12 @@ static func hire(data: SaveData, role: String, now: float) -> bool:
 		return false
 	data.cash -= hire_cost(role)
 	data.staff[role] = count(data, role) + 1
+	# Un coltivatore appena assunto va **subito** in un posto che ha spazio, e
+	# non resta in panchina aspettando che qualcuno lo assegni: si paga ogni
+	# notte, e uno pagato per non fare niente si legge come un bug. Dove sta lo
+	# si cambia quando si vuole, dalla scheda del personale.
+	if role == "grower":
+		sync_sites(data)
 	# Il primo assunto non deve trovarsi addosso le ore passate da quando la
 	# partita è cominciata: il conto del lavoro riparte da adesso.
 	if total(data) == 1:
@@ -169,21 +181,225 @@ static func fire(data: SaveData, role: String) -> bool:
 	data.staff[role] = count(data, role) - 1
 	if int(data.staff[role]) <= 0:
 		data.staff.erase(role)
+	if role == "grower":
+		sync_sites(data)
 	return true
 
-# --- Ripartizione delle vendite --------------------------------------------
+# --- Chi lavora dove -------------------------------------------------------
 
-## Quota della merce che i dealer piazzano all'ingrosso, 0-100. Il resto va in
-## strada.
+## ## I coltivatori si assegnano, i dealer no
+##
+## Un coltivatore sta in **una** stanza e segue i vasi di quella: mandarne due in
+## cantina mentre il garage ha dodici piante da annaffiare e' una scelta
+## sbagliata che il gioco deve permettere, non impedire. La strada invece e' una
+## sola, quindi i dealer non hanno niente da assegnare.
+##
+## `SaveData.grower_sites` tiene "chiave del posto" -> quanti. Due invarianti,
+## e le rimette a posto `sync_sites()`:
+##
+## 1. la somma non supera mai i coltivatori assunti;
+## 2. nessun posto ne ha piu' di quanti ne regge (`GrowSites.capacity()`).
+##
+## Servono perche' l'organico e i vasi cambiano sotto: si licenzia, si vende una
+## proprieta', si compra un vaso. Invece di difendersi in ogni punto che legge,
+## si rimette in riga in un posto solo.
+
+## Quanti coltivatori stanno in questo posto.
+static func growers_on(data: SaveData, key: String) -> int:
+	if data == null:
+		return 0
+	return int(data.grower_sites.get(key, 0))
+
+## Quanti coltivatori assunti non sono ancora da nessuna parte.
+##
+## A regime e' zero — `sync_sites()` li piazza — ma non e' un errore: puo'
+## valere piu' di zero quando i posti sono tutti pieni, cioe' quando si ha piu'
+## gente che vasi.
+static func idle_growers(data: SaveData) -> int:
+	if data == null:
+		return 0
+	var placed := 0
+	for site: Dictionary in GrowSites.all():
+		placed += growers_on(data, str(site["key"]))
+	return maxi(0, count(data, "grower") - placed)
+
+## Ne aggiunge (o toglie) uno a questo posto. Torna false se non si poteva:
+## niente spazio nel posto, o nessuno libero da mandarci.
+static func assign(data: SaveData, key: String, amount: int) -> bool:
+	if data == null or amount == 0:
+		return false
+	var site := GrowSites.find(key)
+	if site.is_empty() or not GrowSites.is_open(data, site):
+		return false
+	var here := growers_on(data, key)
+	var wanted := here + amount
+	if wanted < 0:
+		return false
+	if amount > 0 and (wanted > GrowSites.capacity(data, site) or idle_growers(data) < amount):
+		return false
+	_set_growers_on(data, key, wanted)
+	return true
+
+## Rimette in riga le assegnazioni dopo che qualcosa e' cambiato sotto.
+##
+## Prima toglie il di piu' — posti chiusi, capienze scese, gente licenziata —
+## poi piazza chi e' rimasto libero nel primo posto che ha spazio. L'ordine
+## conta: piazzare prima di tagliare vorrebbe dire mandare qualcuno in un posto
+## che sta per chiudere.
+static func sync_sites(data: SaveData) -> void:
+	if data == null:
+		return
+	for key: String in data.grower_sites.keys():
+		if GrowSites.find(key).is_empty():
+			data.grower_sites.erase(key)
+	for site: Dictionary in GrowSites.all():
+		var key := str(site["key"])
+		var room := GrowSites.capacity(data, site) if GrowSites.is_open(data, site) else 0
+		if growers_on(data, key) > room:
+			_set_growers_on(data, key, room)
+	# Piu' gente che posti: si taglia dall'ultimo posto all'indietro, cosi' a
+	# restare coperta e' la cantina, che e' quella che c'e' sempre.
+	var over := -idle_growers_raw(data)
+	var sites := GrowSites.all()
+	for i in range(sites.size() - 1, -1, -1):
+		if over <= 0:
+			break
+		var key := str((sites[i] as Dictionary)["key"])
+		var take := mini(over, growers_on(data, key))
+		if take > 0:
+			_set_growers_on(data, key, growers_on(data, key) - take)
+			over -= take
+	# E chi e' rimasto libero va nel primo posto che lo regge.
+	for site: Dictionary in GrowSites.all():
+		var free := idle_growers(data)
+		if free <= 0:
+			break
+		if not GrowSites.is_open(data, site):
+			continue
+		var key := str(site["key"])
+		var room := GrowSites.capacity(data, site) - growers_on(data, key)
+		if room > 0:
+			_set_growers_on(data, key, growers_on(data, key) + mini(room, free))
+
+## Come `idle_growers()` ma senza il pavimento a zero: negativo vuol dire che
+## nei posti c'e' scritta piu' gente di quanta ne sia assunta, ed e' proprio il
+## caso che `sync_sites()` deve raddrizzare.
+static func idle_growers_raw(data: SaveData) -> int:
+	var placed := 0
+	for site: Dictionary in GrowSites.all():
+		placed += growers_on(data, str(site["key"]))
+	return count(data, "grower") - placed
+
+static func _set_growers_on(data: SaveData, key: String, value: int) -> void:
+	if value <= 0:
+		data.grower_sites.erase(key)
+	else:
+		data.grower_sites[key] = value
+
+# --- La riserva dell'ingrosso ----------------------------------------------
+
+## ## Come si divide la merce
+##
+## La percentuale scelta al PC **non dice ai dealer dove vendere**: dice quanta
+## roba mettere da parte perché non la vendano loro. I dealer lavorano la strada
+## e basta; quello che è da parte lo muove solo il giocatore, col furgone. Trenta
+## e settanta vuol dire: di cento grammi raccolti, settanta i dealer li possono
+## piazzare e trenta restano in magazzino ad aspettare un carico.
+##
+## Prima la stessa percentuale voleva dire "i dealer piazzano il 30% del loro
+## giro all'ingrosso", ed era un'altra cosa: il canale dell'ingrosso passava
+## anche a loro, il furgone non serviva a niente, e la scelta si riduceva a quale
+## dei due prezzi preferire. Adesso è una scelta fra **incassare subito** (la
+## strada, che però paga il dealer e alza l'attenzione) e **tenere da parte per
+## il carico grosso** (l'ingrosso, che però bisogna guidarcelo).
+##
+## ## Perché la riserva è un numero e non una percentuale
+##
+## Una quota ricalcolata sulla scorta si svuoterebbe da sola: i dealer piazzano
+## il 70%, sulla rimanenza il 30% è un terzo di quel che era, loro ne piazzano
+## di nuovo il 70%, e via così fino a zero. La riserva è quindi un totale di
+## grammi (`SaveData.wholesale_reserve`): **cresce a ogni raccolto** e cala solo
+## quando parte un carico.
+
+## Quota del raccolto che si mette da parte per l'ingrosso, 0-100.
+##
+## Finché l'ingrosso non è aperto (vedi `Delivery.UNLOCK_GRAMS`) è **zero
+## qualunque cosa dica il salvataggio**: il canale non esiste ancora per nessuno,
+## e mettere da parte merce per un furgone che non c'è vorrebbe dire bloccare il
+## magazzino senza motivo. Il numero scelto dal giocatore non si perde — resta
+## scritto, e torna valido appena il chilo arriva.
 static func wholesale_share(data: SaveData) -> int:
 	if data == null:
 		return 100
+	if not Delivery.is_unlocked(data):
+		return 0
 	return clampi(data.wholesale_share, 0, 100)
 
+## Cambia la quota e rimette subito d'accordo la riserva con la scorta di adesso.
+##
+## Il ritocco vale nei due versi: alzando la quota si mette da parte altra roba
+## fra quella che c'è già, abbassandola se ne libera. Senza, la quota nuova
+## varrebbe solo dal raccolto dopo, e chi abbassa la percentuale apposta per far
+## vendere i dealer si ritroverebbe il magazzino bloccato come prima.
 static func set_wholesale_share(data: SaveData, value: int) -> void:
 	if data == null:
 		return
 	data.wholesale_share = clampi(value, 0, 100)
+	retarget_reserve(data)
+
+## Rifà la riserva sulla scorta di adesso, alla quota di adesso.
+##
+## Si chiama quando cambia la quota e quando l'ingrosso si apre: in quel secondo
+## momento in magazzino c'è già un chilo, e senza questo i dealer se lo
+## piazzerebbero tutto prima che la percentuale appena comparsa al PC voglia dire
+## qualcosa.
+static func retarget_reserve(data: SaveData) -> void:
+	if data == null:
+		return
+	var stock := Economy.stock(data)
+	data.wholesale_reserve = clampi(
+		int(roundf(float(stock) * float(wholesale_share(data)) / 100.0)), 0, stock)
+
+## Grammi che i dealer non devono toccare.
+##
+## Limitata alla scorta a ogni lettura invece di essere riscritta: vendendo di
+## persona fino a scendere sotto la riserva, quella che resta è quella che c'è.
+## Ne segue che le vendite del giocatore intaccano la riserva **per ultima**, ed
+## è il verso giusto: la roba da parte è sua, non se la porta via da solo
+## finché ha dell'altro da vendere.
+static func reserved(data: SaveData) -> int:
+	if data == null:
+		return 0
+	return clampi(data.wholesale_reserve, 0, Economy.stock(data))
+
+## Grammi che i dealer possono piazzare in strada.
+static func sellable(data: SaveData) -> int:
+	if data == null:
+		return 0
+	return maxi(0, Economy.stock(data) - reserved(data))
+
+## Mette da parte la quota di un raccolto appena entrato in magazzino.
+##
+## Va chiamata DOPO aver aggiunto i grammi alla scorta, perché la riserva non
+## può superarla. Ci passano tutti e tre i modi di raccogliere — il vaso in
+## cantina, "raccogli tutto" dal PC, il coltivatore assunto — perché mettere da
+## parte è una proprietà del raccolto, non di chi ha impugnato le forbici.
+static func reserve_harvest(data: SaveData, grams: int) -> void:
+	if data == null or grams <= 0:
+		return
+	var share := wholesale_share(data)
+	if share <= 0:
+		return
+	var put_aside := int(roundf(float(grams) * float(share) / 100.0))
+	data.wholesale_reserve = clampi(
+		data.wholesale_reserve + put_aside, 0, Economy.stock(data))
+
+## Toglie dalla riserva la merce appena partita col furgone: è esattamente
+## quello per cui era stata messa da parte.
+static func release_reserved(data: SaveData, grams: int) -> void:
+	if data == null or grams <= 0:
+		return
+	data.wholesale_reserve = maxi(0, data.wholesale_reserve - grams)
 
 # --- Le paghe --------------------------------------------------------------
 
@@ -294,18 +510,38 @@ static func work(data: SaveData, now: float, strain_base: Dictionary = {}) -> Di
 	data.staff_checked_at = now - (elapsed - consumed)
 	return report
 
+## Il lavoro dei coltivatori, posto per posto.
+##
+## Prima era un ciclo solo sui primi `coltivatori x 6` vasi dell'elenco, e con
+## una stanza sola voleva dire la stessa cosa. Con due non piu': due assunti
+## entrambi in cantina coprivano i vasi 0-11, cioe' anche i primi sei del
+## garage, dove non c'era nessuno. Adesso ogni posto copre **la sua fetta**
+## dell'elenco, e chi non ha nessuno assegnato non viene toccato.
 static func _growers_work(data: SaveData, now: float, strain_base: Dictionary, report: Dictionary) -> void:
-	var pots := count(data, "grower") * POTS_PER_GROWER
-	if pots <= 0:
+	if count(data, "grower") <= 0:
 		return
+	for site: Dictionary in GrowSites.all():
+		if not GrowSites.is_open(data, site):
+			continue
+		var hands := growers_on(data, str(site["key"]))
+		if hands <= 0:
+			continue
+		var from := int(site["from"])
+		var covered := mini(hands * POTS_PER_GROWER, int(site["count"]))
+		_work_pots(data, now, strain_base, report, from, from + covered)
+
+static func _work_pots(
+		data: SaveData, now: float, strain_base: Dictionary, report: Dictionary,
+		from: int, to: int) -> void:
 	var seed_item := Economy.seed_item(Economy.DEFAULT_STRAIN)
-	for index in mini(pots, data.plots.size()):
+	for index in range(from, mini(to, data.plots.size())):
 		var plot: Dictionary = data.plots[index]
 		Grow.sync(plot, now)
 		if Grow.is_ready(plot, now):
 			var grams := Grow.harvest(plot, now)
 			if grams > 0:
 				data.add_item(Economy.PRODUCT, grams)
+				reserve_harvest(data, grams)
 				data.bump_stat(Economy.STAT_GRAMS_HARVESTED, grams)
 				data.bump_stat(Economy.STAT_PLANTS_GROWN)
 				report["harvested"] = int(report["harvested"]) + 1
@@ -330,30 +566,31 @@ static func _growers_work(data: SaveData, now: float, strain_base: Dictionary, r
 			Grow.water(plot, now)
 			report["watered"] = int(report["watered"]) + 1
 
-## Piazza la merce e restituisce le ore di lavoro davvero consumate.
+## Piazza la merce in strada e restituisce le ore di lavoro davvero consumate.
+##
+## Solo in strada: l'ingrosso è il furgone, e il furgone è del giocatore. Quello
+## che è messo da parte per un carico (`reserved()`) qui non si tocca, ed è tutta
+## la differenza che fa la percentuale scelta al PC.
 static func _dealers_work(data: SaveData, elapsed: float, report: Dictionary) -> float:
 	var dealers := count(data, "dealer")
 	if dealers <= 0 or elapsed <= 0.0:
 		return elapsed
 	var per_hour := float(dealers) * GRAMS_PER_DEALER_HOUR
-	var stock := Economy.stock(data)
-	var budget := mini(int(floorf(per_hour * elapsed)), stock)
+	var free := sellable(data)
+	var budget := mini(int(floorf(per_hour * elapsed)), free)
 	if budget <= 0:
-		# Niente da vendere: le ore non vanno tenute da parte, si sono perse.
-		return elapsed if stock <= 0 else 0.0
-	# `budget >= stock` è il caso del fondo di magazzino: meno della soglia ma
-	# non ne arriverà altra, quindi va piazzato lo stesso invece di restare lì.
-	if budget < MIN_BATCH_GRAMS and budget < stock:
+		# Niente che possano vendere: le ore non vanno tenute da parte, si sono
+		# perse. Vale anche a magazzino pieno ma tutto da parte: quella merce non
+		# è loro, e tenere le ore vorrebbe dire accumularle per una consegna che
+		# non faranno mai.
+		return elapsed if free <= 0 else 0.0
+	# `budget >= free` è il caso del fondo di magazzino: meno della soglia ma non
+	# ne arriverà altra, quindi va piazzato lo stesso invece di restare lì.
+	if budget < MIN_BATCH_GRAMS and budget < free:
 		return 0.0
 
-	var share := wholesale_share(data)
-	var bulk := int(roundf(float(budget) * float(share) / 100.0))
-	var street := budget - bulk
-	var gross := 0
-	if bulk > 0:
-		gross += Economy.sell_wholesale(data, bulk)
-	if street > 0:
-		gross += Economy.sell(data, street, Economy.retail_price(data), Economy.street_heat(data))
+	var gross := Economy.sell(
+		data, budget, Economy.retail_price(data), Economy.street_heat(data))
 
 	# La quota se la tengono sul posto, prima di consegnare: è il motivo per cui
 	# si scala dalla cassa qui e non a mezzanotte come le paghe. Non dipende da

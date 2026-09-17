@@ -1,122 +1,135 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/management_window.gd" id="1_window"]
-[ext_resource type="FontFile" path="res://assets/sprites/ui/alphabet.fnt" id="2_font"]
-[ext_resource type="PackedScene" path="res://scenes/ui/MenuTextButton.tscn" id="3_button"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-bg_color = Color(0.0862745, 0.0784314, 0.101961, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.694118, 0.541176, 0.309804, 1)
-corner_radius_top_left = 3
-corner_radius_top_right = 3
-corner_radius_bottom_right = 3
-corner_radius_bottom_left = 3
+[node name="ManagementWindow" type="CanvasLayer"]
+layer = 4
+script = ExtResource("1_window")
 
-[node name="ManagementWindow" type="Control"]
+[node name="Root" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_window")
+mouse_filter = 2
 
-[node name="Dimmer" type="ColorRect" parent="."]
+[node name="Dimmer" type="ColorRect" parent="Root"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.6)
+color = Color(0.109804, 0.0862745, 0.0705882, 0.55)
 
-[node name="Window" type="Panel" parent="."]
+[node name="Window" type="Panel" parent="Root"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 12.0
-offset_top = 10.0
-offset_right = -12.0
-offset_bottom = -10.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
-
-[node name="Title" type="Label" parent="Window"]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
+offset_left = 10.0
 offset_top = 8.0
-offset_bottom = 36.0
-grow_horizontal = 2
-mouse_filter = 2
-theme_override_colors/font_color = Color(1, 0.921569, 0.784314, 1)
-theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
-theme_override_constants/shadow_offset_x = 2
-theme_override_constants/shadow_offset_y = 2
-theme_override_fonts/font = ExtResource("2_font")
-theme_override_font_sizes/font_size = 24
-text = "PC_TITLE"
-horizontal_alignment = 1
-
-[node name="TitleRule" type="ColorRect" parent="Window"]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 20.0
-offset_top = 40.0
-offset_right = -20.0
-offset_bottom = 41.0
-grow_horizontal = 2
-mouse_filter = 2
-color = Color(0.694118, 0.541176, 0.309804, 0.470588)
-
-[node name="Tabs" type="HBoxContainer" parent="Window"]
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-offset_left = 20.0
-offset_top = 46.0
-offset_right = -20.0
-offset_bottom = 68.0
-grow_horizontal = 2
-theme_override_constants/separation = 24
-alignment = 1
-
-[node name="Scroll" type="ScrollContainer" parent="Window"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 20.0
-offset_top = 74.0
-offset_right = -20.0
-offset_bottom = -38.0
-grow_horizontal = 2
-grow_vertical = 2
-horizontal_scroll_mode = 0
-
-[node name="Content" type="VBoxContainer" parent="Window/Scroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 2
-
-[node name="Close" parent="Window" instance=ExtResource("3_button")]
-layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
-anchor_top = 1.0
-anchor_right = 0.5
-anchor_bottom = 1.0
-offset_left = -50.0
-offset_top = -30.0
-offset_right = 50.0
+offset_right = -10.0
 offset_bottom = -8.0
 grow_horizontal = 2
-grow_vertical = 0
+grow_vertical = 2
+
+[node name="Layout" type="VBoxContainer" parent="Root/Window"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Header" type="PanelContainer" parent="Root/Window/Layout"]
+layout_mode = 2
+
+[node name="Row" type="HBoxContainer" parent="Root/Window/Layout/Header"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Root/Window/Layout/Header/Row"]
+layout_mode = 2
+size_flags_vertical = 1
+mouse_filter = 2
+text = "PC_TITLE"
+vertical_alignment = 1
+
+[node name="Gap" type="Control" parent="Root/Window/Layout/Header/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Stats" type="VBoxContainer" parent="Root/Window/Layout/Header/Row"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = -1
+alignment = 1
+
+[node name="Cash" type="Label" parent="Root/Window/Layout/Header/Row/Stats"]
+layout_mode = 2
+mouse_filter = 2
+horizontal_alignment = 2
+
+[node name="Clock" type="Label" parent="Root/Window/Layout/Header/Row/Stats"]
+layout_mode = 2
+mouse_filter = 2
+horizontal_alignment = 2
+
+[node name="Body" type="HBoxContainer" parent="Root/Window/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="RailPad" type="MarginContainer" parent="Root/Window/Layout/Body"]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Rail" type="VBoxContainer" parent="Root/Window/Layout/Body/RailPad"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Tabs" type="VBoxContainer" parent="Root/Window/Layout/Body/RailPad/Rail"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Gap" type="Control" parent="Root/Window/Layout/Body/RailPad/Rail"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Close" type="Button" parent="Root/Window/Layout/Body/RailPad/Rail"]
+layout_mode = 2
+focus_mode = 0
 text = "PC_CLOSE"
+
+[node name="Divider" type="ColorRect" parent="Root/Window/Layout/Body"]
+custom_minimum_size = Vector2(1, 0)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.875, 0.815686, 0.713726, 1)
+
+[node name="ContentPad" type="MarginContainer" parent="Root/Window/Layout/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="Scroll" type="ScrollContainer" parent="Root/Window/Layout/Body/ContentPad"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="Content" type="VBoxContainer" parent="Root/Window/Layout/Body/ContentPad/Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6

@@ -11,6 +11,8 @@ extends Node
 ## gioco esportato è di sola lettura, quindi lì non si può scrivere.
 const CITY_SCENE := "res://scenes/levels/City.tscn"
 const PHONE_NOTICE_SCENE := "res://scenes/ui/PhoneNotice.tscn"
+const VAN_CUTSCENE_SCENE := "res://scenes/ui/VanCutscene.tscn"
+const GUIDE_SCENE := "res://scenes/ui/GuideBook.tscn"
 const DEFAULT_SAVE_DIR := "user://saves"
 const EXTENSION := ".json"
 
@@ -60,6 +62,19 @@ signal notice(text: String)
 ## `message()`, che ferma tutto con un riquadro a tutto schermo per le cose che
 ## non si possono perdere. Vedi `scripts/ui/phone.gd`.
 signal phone_message(sender: String, body: String)
+## Il furgone è appena partito per una consegna, o è appena rientrato.
+## Ci si aggancia `city.gd` per farlo attraversare la strada; chi non è in
+## strada in quel momento si perde l'animazione e legge il messaggino, che è
+## quanto basta.
+signal van_left(grams: int)
+signal van_back(revenue: int)
+
+## Il furgone è partito per il grossista dei semi, e ne è rientrato coi semi.
+## Servono alla City per far muovere il mezzo: sono due segnali a parte e non
+## `van_left`/`van_back` perché quelli portano grammi e incassi, e chi li
+## ascolta li usa per dire cosa è successo.
+signal seed_run_left(seeds: int)
+signal seed_run_back(seeds: int)
 ## Brian ha mandato la posizione: da qui in poi c'è un appuntamento sulla mappa.
 ## Ci si aggancia `city.gd` per tirarlo su dove aspetta.
 signal seed_spot_ready(spot: Vector2, place: String)
@@ -69,6 +84,14 @@ signal seed_deal_closed()
 ## Il prologo è finito: da qui in poi il PC ha la scheda del personale.
 ## Ci si può agganciare la storia, quando ci sarà.
 signal chapter_changed(chapter: String)
+
+## Una proprietà è stata comprata dall'agenzia.
+##
+## Serve ai segnalini sopra agli edifici (`enterable_building.gd`): un edificio
+## appena comprato passa da "non è tuo" a "è tuo" e deve cambiare colore subito,
+## non alla prossima volta che si entra in città. Il segnale porta l'id perché
+## chi ascolta possa saltare il ridisegno se non lo riguarda.
+signal property_bought(id: String)
 ## Emesso subito prima di scrivere su disco.
 ##
 ## Chi tiene in scena uno stato che non è ancora dentro a `current` lo riversa
@@ -110,7 +133,11 @@ func _process(delta: float) -> void:
 	_advance_clock(delta)
 	_tick_seed_deal()
 	_tick_staff()
+	_tick_van()
+	_tick_seed_run()
+	_check_intro()
 	_check_prologue()
+	_check_milestones()
 
 	# L'orologio gira solo mentre si gioca davvero (non nei menu), quindi
 	# agganciare qui il salvataggio automatico vuol dire salvare solo quando
@@ -148,9 +175,34 @@ func notify(text: String) -> void:
 ## Se in scena non c'è nessun telefono — il menu principale — non succede
 ## niente, e va bene così: il messaggio resta in `last_text` e si legge appena
 ## si rientra in partita.
-func text_message(sender: String, body: String) -> void:
-	last_text = {"sender": sender, "body": body}
+func text_message(sender: String, body: String, contact := "") -> void:
+	last_text = {"sender": sender, "body": body, "contact": contact}
 	phone_message.emit(sender, body)
+
+## Un messaggio da qualcuno che sta in rubrica: arriva sul telefono come tutti
+## gli altri, **e resta nella sua chat**.
+##
+## È la differenza fra i due modi di scrivere al giocatore, e non è una
+## sfumatura: `text_message()` è un avviso e basta — lo si legge quando arriva e
+## poi è andato — mentre quello che passa di qui si rilegge aprendo il telefono
+## anche tre giorni dopo. Ci vanno **i traguardi**: l'apertura, la fine del
+## prologo, il consiglio di allargarsi, il chilo, il grossista. Sono le cose che
+## dicono al giocatore cos'è cambiato nel gioco, ed è esattamente la roba che
+## uno vuole poter riguardare.
+##
+## Non ci vanno invece i messaggi dell'appuntamento coi semi, che pure sono di
+## Brian: quelli nella chat ci compaiono lo stesso, ma ricavati
+## dall'appuntamento (`Chat.live()`), e spariscono quando l'appuntamento si
+## chiude. Vedi `Chat`.
+##
+## Si passa la **chiave** e non la frase: la cronologia è fatta di chiavi, così
+## cambiando lingua cambiano anche i messaggi vecchi.
+func contact_message(contact: String, key: String, arg := "") -> void:
+	if current == null:
+		return
+	var row := {"contact": contact, "from": Chat.THEM, "key": key, "arg": arg}
+	Chat.keep(current, contact, key, arg, total_hours())
+	text_message(tr(Chat.name_key(contact)), Chat.body(row), contact)
 
 ## Porta avanti l'appuntamento con Brian e avvisa quando cambia qualcosa.
 ##
@@ -163,13 +215,19 @@ func _tick_seed_deal() -> void:
 		SeedDeal.STATE_READY:
 			var place := SeedDeal.place(current)
 			notify(tr("NOTE_BRIAN_SPOT") % place)
-			text_message(tr("MSG_COUSIN_SPEAKER"), tr("PHONE_BRIAN_READY") % place)
+			text_message(tr("MSG_COUSIN_SPEAKER"), tr("PHONE_BRIAN_READY") % place,
+				Chat.BRIAN)
 			seed_spot_ready.emit(SeedDeal.spot(current), place)
 			# Un appuntamento fissato è roba che il giocatore ricorda: se il
 			# gioco si chiude male, riaprirlo deve ritrovarlo, non farglielo
 			# richiedere da capo.
 			save_game()
-		"gone":
+		SeedDeal.EVENT_LEAVING:
+			# Sul telefono e non fra i messaggini: è una cosa che qualcuno dice,
+			# e soprattutto non deve sparire dopo due secondi e mezzo mentre si
+			# sta guardando altrove. Vedi `scripts/ui/phone.gd`.
+			text_message(tr("MSG_COUSIN_SPEAKER"), tr("PHONE_BRIAN_LEAVING"), Chat.BRIAN)
+		SeedDeal.EVENT_GONE:
 			notify(tr("NOTE_BRIAN_LEFT"))
 			seed_deal_closed.emit()
 
@@ -212,15 +270,83 @@ func _check_prologue() -> void:
 	current.chapter = "capitolo_uno"
 	current.set_flag("staff_unlocked", true)
 	chapter_changed.emit(current.chapter)
-	message(tr("MSG_COUSIN_SPEAKER"), tr("MSG_COUSIN_BODY"))
+	contact_message(Chat.BRIAN, "MSG_COUSIN_BODY")
 	save_game()
 
-## Mostra un messaggio sul telefono e restituisce il riquadro aperto.
+## Soldi che sbloccano il consiglio di allargarsi, e flag che ricorda di averlo
+## già dato. Come la fine del prologo, è un traguardo che scatta una volta sola
+## e resta scritto nel salvataggio.
+const EXPAND_CASH := 10000
+const EXPAND_FLAG := "expand_advised"
+## Flag del messaggio d'apertura, quello che racconta da dove viene la casa.
+const INTRO_FLAG := "intro_seen"
+
+## I traguardi che non sono la fine del prologo: il consiglio di allargarsi ai
+## diecimila, e il chilo di merce che apre l'ingrosso.
+##
+## Stanno tutti agganciati all'orologio e non al punto in cui cambiano i numeri,
+## per lo stesso motivo di `_check_prologue()`: i soldi e la merce entrano da
+## troppe parti — il PC, la strada, il personale, il furgone che rientra — e
+## ricordarsi di chiamare il controllo da ognuna vuol dire dimenticarselo da
+## qualcuna.
+func _check_milestones() -> void:
+	if current.cash >= EXPAND_CASH and not bool(current.get_flag(EXPAND_FLAG, false)):
+		current.set_flag(EXPAND_FLAG, true)
+		contact_message(Chat.BRIAN, "MSG_EXPAND_BODY")
+		save_game()
+	if Delivery.check_unlock(current):
+		contact_message(Chat.BRIAN, "MSG_KILO_BODY")
+		save_game()
+	# Comprato il furgone, Brian presenta il grossista della clinica: da lì in
+	# poi i semi si comprano a cassette invece che due alla volta da lui.
+	if SeedRun.check_unlock(current):
+		contact_message(Chat.BRIAN, "MSG_SEED_WHOLESALE_BODY")
+		save_game()
+
+## Il messaggio d'apertura: da dove viene la casa, e cosa ci si fa.
+##
+## Non sta in `new_game()` ma qui, agganciato all'orologio, perché `new_game()`
+## gira anche dal menu — e un fumetto che compare dietro ai bottoni del menu
+## principale, prima ancora di vedere la città, non lo legge nessuno.
+func _check_intro() -> void:
+	if bool(current.get_flag(INTRO_FLAG, false)):
+		return
+	current.set_flag(INTRO_FLAG, true)
+	contact_message(Chat.BRIAN, "MSG_INTRO_BODY")
+	save_game()
+
+## Fa rientrare il furgone dal grossista quando è ora, e scarica i semi.
+func _tick_seed_run() -> void:
+	var seeds := SeedRun.tick(current, total_hours())
+	if seeds <= 0:
+		return
+	notify(tr("NOTE_SEEDS_IN") % seeds)
+	seed_run_back.emit(seeds)
+	# Semi arrivati è roba che il giocatore ricorda: non deve dipendere dal
+	# prossimo salvataggio automatico.
+	save_game()
+
+## Fa rientrare il furgone quando è ora, e paga.
+func _tick_van() -> void:
+	var revenue := Delivery.tick(current, total_hours())
+	if revenue <= 0:
+		return
+	notify(tr("NOTE_VAN_BACK") % UiFormat.money(revenue))
+	van_back.emit(revenue)
+	# Un carico rientrato è roba che il giocatore ricorda: non deve dipendere
+	# dal prossimo salvataggio automatico.
+	save_game()
+
+## Un riquadro che ferma tutto finché non lo si chiude.
+##
+## È per le cose che vanno lette prima di continuare e che **non ha scritto
+## nessuno**: la società elettrica, il personale che se ne va, il resoconto di
+## quello che è successo a gioco chiuso. Quando invece a scrivere è una persona
+## — Brian — il posto è il telefono (`text_message()`), non questo.
 ##
 ## Il riquadro viene appeso a questo singleton, non alla scena corrente: è un
 ## autoload, quindi sta sopra alla scena, e il messaggio compare uguale in
-## strada e dentro a una stanza senza che nessuna delle due debba saperne
-## niente. Vedi `scripts/ui/phone_notice.gd`.
+## strada e dentro a una stanza. Vedi `scripts/ui/phone_notice.gd`.
 func message(speaker: String, body: String) -> Node:
 	var notice_scene: PackedScene = load(PHONE_NOTICE_SCENE)
 	if notice_scene == null:
@@ -231,6 +357,42 @@ func message(speaker: String, body: String) -> Node:
 	popup.setup(speaker, body)
 	add_child(popup)
 	return popup
+
+## La guida, aperta dal tasto in fondo alla rubrica del telefono.
+##
+## Appesa a questo singleton e non alla scena corrente, per il motivo di sempre:
+## è un autoload, quindi sta sopra alla scena, e la guida si apre uguale in
+## strada e dentro a una stanza. Vedi `scripts/ui/guide_book.gd`.
+##
+## Una sola per volta: il tasto resta premibile sotto alla finestra solo se
+## qualcosa va storto, e due guide sovrapposte sono due Esc per chiuderle.
+func open_guide() -> Node:
+	for open: Node in get_tree().get_nodes_in_group("modal"):
+		if open.scene_file_path == GUIDE_SCENE:
+			return open
+	var guide_scene: PackedScene = load(GUIDE_SCENE)
+	if guide_scene == null:
+		push_warning("Manca la scena della guida: %s" % GUIDE_SCENE)
+		return null
+	var book := guide_scene.instantiate()
+	add_child(book)
+	return book
+
+## Il filmato della partenza del furgone. Sta qui e non nella City per il
+## motivo di sempre: l'ingrosso si ordina dal PC in cantina, dove la City non
+## c'e'. Appeso a questo singleton si vede da qualunque stanza.
+##
+## Se la scena manca non succede niente: la consegna e' gia' partita nei dati,
+## e il filmato e' la ciliegina. Vedi `scripts/ui/van_cutscene.gd`.
+func van_cutscene(grams: int) -> Node:
+	var scene: PackedScene = load(VAN_CUTSCENE_SCENE)
+	if scene == null:
+		push_warning("Manca la scena del filmato: %s" % VAN_CUTSCENE_SCENE)
+		return null
+	var movie := scene.instantiate()
+	movie.setup(tr("CUT_VAN_OUT"))
+	add_child(movie)
+	return movie
 
 ## La mezzanotte: prezzo del giorno nuovo e attenzione che si raffredda.
 ## La logica sta in `Economy`, qui c'è solo il collegamento — così il singleton
@@ -426,12 +588,25 @@ func list_saves() -> Array:
 			"play_time": data.play_time,
 			"saved_at": data.saved_at,
 		})
-	# A parità di istante decide il nome dello slot, che contiene data e ora ed
-	# è unico. Senza il secondo criterio "l'ultima partita" dipenderebbe
+	# A parità esatta di istante decide il nome dello slot, che contiene data e
+	# ora ed è unico. Senza il secondo criterio "l'ultima partita" dipenderebbe
 	# dall'ordine in cui il sistema elenca i file, e due salvataggi scritti
-	# nello stesso secondo si scambierebbero di posto fra un avvio e l'altro.
+	# nello stesso millesimo di secondo si scambierebbero di posto fra un avvio
+	# e l'altro.
+	#
+	# **`!=` e non `is_equal_approx()`**, che è quello che c'era e che rompeva il
+	# tasto play. `saved_at` è un tempo UNIX: un miliardo e settecento milioni di
+	# secondi. `is_equal_approx()` ha una tolleranza RELATIVA — un centomillesimo
+	# del valore — che su numeri di quella taglia vale **cinque ore**. Due
+	# partite salvate a meno di cinque ore l'una dall'altra risultavano quindi
+	# "salvate nello stesso istante", il confronto cadeva sul nome dello slot, e
+	# il nome dello slot è la data in cui la partita è stata **creata**: play
+	# riprendeva la campagna iniziata più di recente invece di quella giocata più
+	# di recente. Due istanti si confrontano per quello che sono, non a meno di
+	# un epsilon: qui l'approssimazione non serviva a niente e mangiava mezza
+	# giornata.
 	saves.sort_custom(func(a, b):
-		if not is_equal_approx(a["saved_at"], b["saved_at"]):
+		if a["saved_at"] != b["saved_at"]:
 			return a["saved_at"] > b["saved_at"]
 		return a["slot_id"] > b["slot_id"])
 	return saves

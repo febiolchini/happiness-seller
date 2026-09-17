@@ -1,0 +1,128 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/Room.tscn" id="1_room"]
+[ext_resource type="Texture2D" path="res://assets/sprites/buildings/garageBack.png" id="2_bg"]
+[ext_resource type="PackedScene" path="res://scenes/components/RoomHotspot.tscn" id="3_hotspot"]
+[ext_resource type="PackedScene" path="res://scenes/components/GrowPlot.tscn" id="4_plot"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ManagementWindow.tscn" id="5_management"]
+
+[node name="Garage" instance=ExtResource("1_room")]
+room_name = "ROOM_GARAGE"
+exits = {
+"ROOM_EXIT": "res://scenes/levels/City.tscn"
+}
+background_color = Color(0.117647, 0.101961, 0.0901961, 1)
+window_rect = Rect2(8, 2, 48, 48)
+
+[node name="Backdrop" parent="." index="1"]
+texture = ExtResource("2_bg")
+
+[node name="Character" parent="." index="2"]
+position = Vector2(556, 236)
+scale = Vector2(4.4, 4.4)
+modulate = Color(0.84, 0.79, 0.72, 1)
+
+[node name="PC" parent="." index="6" instance=ExtResource("3_hotspot")]
+layout_mode = 1
+offset_left = 120.0
+offset_top = 76.0
+offset_right = 176.0
+offset_bottom = 102.0
+text = "PC"
+window_scene = ExtResource("5_management")
+
+[node name="Plot6" parent="." index="7" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 155.0
+offset_top = 152.0
+offset_right = 199.0
+offset_bottom = 194.0
+index = 6
+
+[node name="Plot7" parent="." index="8" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 201.0
+offset_top = 148.0
+offset_right = 245.0
+offset_bottom = 190.0
+index = 7
+
+[node name="Plot8" parent="." index="9" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 247.0
+offset_top = 144.0
+offset_right = 291.0
+offset_bottom = 186.0
+index = 8
+
+[node name="Plot9" parent="." index="10" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 154.0
+offset_top = 179.0
+offset_right = 198.0
+offset_bottom = 221.0
+index = 9
+
+[node name="Plot10" parent="." index="11" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 202.0
+offset_top = 176.0
+offset_right = 246.0
+offset_bottom = 218.0
+index = 10
+
+[node name="Plot11" parent="." index="12" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 250.0
+offset_top = 174.0
+offset_right = 294.0
+offset_bottom = 216.0
+index = 11
+
+[node name="Plot12" parent="." index="13" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 335.0
+offset_top = 143.0
+offset_right = 379.0
+offset_bottom = 185.0
+index = 12
+
+[node name="Plot13" parent="." index="14" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 388.0
+offset_top = 145.0
+offset_right = 432.0
+offset_bottom = 187.0
+index = 13
+
+[node name="Plot14" parent="." index="15" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 442.0
+offset_top = 147.0
+offset_right = 486.0
+offset_bottom = 189.0
+index = 14
+
+[node name="Plot15" parent="." index="16" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 332.0
+offset_top = 173.0
+offset_right = 376.0
+offset_bottom = 215.0
+index = 15
+
+[node name="Plot16" parent="." index="17" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 385.0
+offset_top = 171.0
+offset_right = 429.0
+offset_bottom = 213.0
+index = 16
+
+[node name="Plot17" parent="." index="18" instance=ExtResource("4_plot")]
+layout_mode = 1
+offset_left = 439.0
+offset_top = 170.0
+offset_right = 483.0
+offset_bottom = 212.0
+index = 17

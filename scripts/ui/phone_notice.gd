@@ -12,14 +12,16 @@ extends CanvasLayer
 ## Viene appesa a `GameState`, che è un autoload e quindi sta nell'albero sopra
 ## alla scena corrente: così il messaggio compare uguale in strada e in cantina,
 ## e non sparisce se nel frattempo si cambia stanza. Vedi `GameState.message()`.
+##
+## **Non è il posto dei messaggi di Brian.** Quelli arrivano sul telefono
+## (`GameState.text_message()`): lui scrive, non ti compare davanti. Qui ci
+## finisce solo quello che non ha un mittente umano — la bolletta, il personale
+## che se ne va, il resoconto di quello che è successo a gioco chiuso.
 
 const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
-const GAME_FONT := preload("res://assets/sprites/ui/alphabet.fnt")
 
 ## Sopra all'HUD (che sta a 1) e sopra alle finestre della stanza.
 const LAYER := 50
-const PANEL := Color(0.11, 0.12, 0.15, 0.97)
-const BORDER := Color(0.69, 0.54, 0.31, 0.9)
 
 var _speaker := ""
 var _body := ""
@@ -38,7 +40,7 @@ func _ready() -> void:
 	# Il tempo di gioco continua a scorrere: un messaggio non è una pausa, e
 	# fermare l'orologio qui vorrebbe dire fermarlo anche a chi lo lascia aperto.
 	var shade := ColorRect.new()
-	shade.color = Color(0, 0, 0, 0.45)
+	shade.color = UiTheme.DIMMER
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shade.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(shade)
@@ -50,10 +52,7 @@ func _ready() -> void:
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(380, 0)
-	var style := StyleBoxFlat.new()
-	style.bg_color = PANEL
-	style.border_color = BORDER
-	style.set_border_width_all(1)
+	var style := UiTheme.window_box()
 	style.set_content_margin_all(16)
 	panel.add_theme_stylebox_override("panel", style)
 	center.add_child(panel)
@@ -62,27 +61,20 @@ func _ready() -> void:
 	rows.add_theme_constant_override("separation", 10)
 	panel.add_child(rows)
 
-	var speaker_label := Label.new()
-	speaker_label.text = _speaker
-	speaker_label.add_theme_font_override("font", GAME_FONT)
-	speaker_label.add_theme_font_size_override("font_size", 18)
-	speaker_label.add_theme_color_override("font_color", Color(1, 0.86, 0.35))
+	var speaker_label := UiTheme.label(_speaker, UiTheme.SIZE_BIG, UiTheme.INK,
+		UiTheme.W_BOLD)
 	rows.add_child(speaker_label)
 
-	var body_label := Label.new()
-	body_label.text = _body
+	var body_label := UiTheme.label(_body, UiTheme.SIZE_VALUE, UiTheme.INK_SOFT)
 	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body_label.add_theme_font_size_override("font_size", 13)
-	body_label.add_theme_color_override("font_color", Color(0.92, 0.91, 0.85))
 	rows.add_child(body_label)
 
 	var close_button := Button.new()
 	close_button.text = "MSG_OK"
-	close_button.flat = true
 	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.add_theme_font_override("font", GAME_FONT)
-	close_button.add_theme_font_size_override("font_size", 18)
-	close_button.add_theme_color_override("font_color", Color(0.95, 0.93, 0.82))
+	UiTheme.dress_button(close_button, UiTheme.primary_boxes(), UiTheme.CARD,
+		UiTheme.SIZE_VALUE, UiTheme.W_BOLD)
+	close_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	close_button.set_script(BUTTON_SCRIPT)
 	close_button.use_press_offset = false
 	close_button.pressed.connect(queue_free)

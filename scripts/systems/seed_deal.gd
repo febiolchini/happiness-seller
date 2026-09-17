@@ -40,6 +40,12 @@ extends RefCounted
 const STATE_WAITING := "waiting"
 const STATE_READY := "ready"
 
+## Eventi che `tick()` può restituire oltre agli stati. Sono stringhe e non un
+## enum perché `tick()` è una funzione statica su dei dati, e chi la chiama le
+## confronta e basta.
+const EVENT_LEAVING := "leaving"
+const EVENT_GONE := "gone"
+
 ## Id e nome del personaggio. Sta qui e non nel roster perché Brian non è uno
 ## che gira per strada a orari fissi: esiste solo quando c'è un appuntamento, e
 ## `city.gd` lo tira su leggendo questo.
@@ -52,13 +58,29 @@ const NPC_ACCENT := Color(0.298, 0.478, 0.545)
 ## (`GameState.GAME_MINUTES_PER_SECOND` a 4.0, una giornata in 6 minuti reali)
 ## sono circa 30-60 secondi veri: il tempo di annaffiare, vendere qualcosa o
 ## incamminarsi, non abbastanza da mettere via il gioco.
-const WAIT_HOURS := Vector2(2.0, 4.0)
+const WAIT_HOURS := Vector2(2.0, 3.0)
 
-## Quanto resta ad aspettare prima di andarsene. Serve che sia generoso: un
-## appuntamento perso perché si era dall'altra parte della città è una punizione
-## per aver giocato, non una scelta sbagliata. Dieci ore di gioco bastano ad
-## attraversare la mappa più volte.
-const MEET_HOURS := 10.0
+## Quanto resta ad aspettare prima di andarsene.
+##
+## Erano dieci ore di gioco, ed è stato un errore di conto: al ritmo
+## dell'orologio (`GameState.GAME_MINUTES_PER_SECOND`) sono **due minuti e mezzo
+## veri**, e ci si arriva dopo altri trenta-sessanta secondi di attesa. Bastano
+## ad attraversare la mappa, come diceva il commento di prima — ma non bastano a
+## fare **qualsiasi altra cosa nel frattempo**: si chiede dal PC, si annaffia, si
+## raccoglie, si esce, e Brian se n'è già andato. Il giocatore lo vede come "a
+## volte sparisce".
+##
+## Ventiquattro ore sono una giornata di gioco piena, cioè sei minuti veri. Resta
+## finito — un appuntamento eterno non è un appuntamento — ma smette di punire
+## chi stava giocando.
+const MEET_HOURS := 24.0
+
+## Quanto prima della scadenza Brian avvisa che sta per andarsene.
+##
+## Perché il problema non era solo la durata: era che se ne andava **in
+## silenzio**. Un'ora e mezza vera di preavviso è il tempo di chiudere quello
+## che si sta facendo e uscire.
+const LEAVING_HOURS := 6.0
 
 ## Quanti semi riesce a portare, da un minimo a un massimo.
 ##
@@ -134,6 +156,8 @@ static func ask(data: SaveData, now: float) -> bool:
 		"spot_x": 0.0,
 		"spot_y": 0.0,
 		"place": "",
+		# Se l'avviso "sto per andarmene" è già partito: vedi `tick()`.
+		"warned": false,
 		# Quanti ne porta si decide adesso e resta scritto nell'appuntamento: il
 		# giocatore lo scopre arrivando, ma il numero non cambia sotto ai piedi
 		# se nel frattempo salva, chiude e riapre.
@@ -142,8 +166,8 @@ static func ask(data: SaveData, now: float) -> bool:
 	return true
 
 ## Porta l'appuntamento avanti fino a `now` e dice cosa è appena successo:
-## `STATE_READY` quando arriva la posizione, "gone" quando Brian si stanca e se
-## ne va, "" quando non è cambiato niente.
+## `STATE_READY` quando arriva la posizione, `EVENT_LEAVING` quando sta per
+## andarsene, `EVENT_GONE` quando se n'è andato, "" quando non è cambiato niente.
 ##
 ## Restituisce l'evento invece di emettere un segnale suo perché è una funzione
 ## statica su dei dati: chi la chiama sa già come avvisare il giocatore, e i
@@ -159,7 +183,12 @@ static func tick(data: SaveData, now: float) -> String:
 		return STATE_READY
 	if now >= float(data.seed_deal.get("expires_at", now)):
 		clear(data)
-		return "gone"
+		return EVENT_GONE
+	# L'avviso: una volta sola, e solo se c'è ancora tempo per arrivare.
+	if not bool(data.seed_deal.get("warned", false)):
+		if now >= float(data.seed_deal.get("expires_at", now)) - LEAVING_HOURS:
+			data.seed_deal["warned"] = true
+			return EVENT_LEAVING
 	return ""
 
 ## Sceglie dove aspetta e fa scattare la finestra dell'appuntamento.
