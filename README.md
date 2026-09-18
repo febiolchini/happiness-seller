@@ -401,8 +401,22 @@ su un marciapiede. Ogni cella ha quindi un prezzo:
 | Terreno | Costo |
 |---|---|
 | Marciapiede | 1.0 |
-| Asfalto | 2.2 |
 | Tutto il resto (cortili, prati, piazzali) | 3.0 |
+| Asfalto | 4.0 |
+
+L'asfalto è il più caro di tutti, più di un prato. Non è il rischio di
+essere investiti — quello lo guarda `Traffic` al momento di scendere dal
+cordolo — è che una persona sulla carreggiata **non ci cammina**, ci passa e
+basta. Con il 2.2 di prima il tragitto più conveniente era spessissimo quello
+dritto in mezzo alla strada, che è più corto: misurato su una quarantina di
+tragitti lunghi, più della metà dei passi cadeva sull'asfalto.
+
+A quattro volte il marciapiede l'attraversamento resta pagabile — sei celle, la
+strada è larga 96 px — e percorrerla per il lungo no. Di riflesso
+l'attraversamento viene **perpendicolare** da solo, senza doverlo scrivere da
+nessuna parte: in diagonale di celle d'asfalto se ne toccherebbero la metà in
+più. Oggi la stessa misura dà l'86% dei passi sul marciapiede e il 9%
+sull'asfalto, e quel 9% sono gli attraversamenti e gli incroci.
 
 Il percorso più conveniente diventa così da solo quello che farebbe una persona:
 si segue la via, si attraversa la carreggiata invece di percorrerla, e si taglia
@@ -418,17 +432,29 @@ A* su una griglia restituisce una scaletta di celle: seguita così, il
 personaggio cammina a zig-zag anche su una strada dritta. Si tiene quindi un
 punto solo quando da quello prima non si vede più il successivo.
 
-Ma la scorciatoia non può essere solo "il muro non c'è": **deve restare su un
-terreno non più caro di quello che sostituisce**. Alla prima versione mancava
-questo vincolo, e il risultato era che la semplificazione buttava via la
-preferenza per i marciapiedi appena calcolata da A*: un tragitto attraverso la
-città tornava a serpeggiare in diagonale dentro agli isolati, infilandosi in ogni
-varco fra due palazzi.
+Ma la scorciatoia non può essere solo "il muro non c'è": deve **costare quanto
+o meno del pezzo di percorso che sostituisce**. Senza questo vincolo la
+semplificazione butta via la preferenza per i marciapiedi appena calcolata da
+A*, e un tragitto attraverso la città torna a serpeggiare in diagonale dentro
+agli isolati, infilandosi in ogni varco fra due palazzi.
 
-Il tetto di spesa cresce lungo il tratto e si azzera a ogni punto tenuto: finché
-si è sul marciapiede non si scende in strada, ma appena il percorso deve
-attraversare, l'attraversamento in diagonale torna permesso — che è poi quello
-che farebbe una persona.
+Il confronto è fra i due costi **per intero**, e ci è arrivato in due passi.
+La prima versione usava un tetto: la scorciatoia era permessa se non metteva
+piede su un terreno più caro del più caro già attraversato. Sembra la stessa
+cosa e non lo è — un tetto non guarda **quanto** terreno caro si attraversa,
+solo di che tipo e'. Bastava quindi toccare l'asfalto una volta, per un
+attraversamento, perché da lì in poi tutto l'asfalto fosse gratis, e la
+scorciatoia successiva poteva tagliare per la carreggiata in diagonale per
+centinaia di pixel. E' metà del motivo per cui il protagonista camminava in
+mezzo alla strada.
+
+Adesso si sommano i costi dei due tragitti e si confrontano (`_segment_cost()`):
+un attraversamento passa perché accorcia davvero, un tratto in diagonale sulla
+carreggiata no perché costa quattro volte il marciapiede che aveva accanto, e
+su terreno uniforme la semplificazione è identica a prima. Le scorciatoie si
+cercano solo entro 400 px (`SHORTCUT_REACH`), o il confronto si allunga col
+percorso e un tragitto da un capo all'altro della città arriva a costare una
+pausa che si sente nel momento del click.
 
 ### Quando un percorso non c'è
 
@@ -439,6 +465,70 @@ nonostante tutto un percorso non si trova, `city.gd` manda il personaggio in
 linea retta: meglio un tragitto brutto che un click ignorato, che si legge come
 un gioco rotto.
 
+### Il passo, e perché è uno solo
+
+Il protagonista ha **una** velocità: 48 px/s, un passo svelto
+(`player.gd::speed`). I passanti girano a 30 e le auto fra i 96 e i 132, quindi
+si cammina una volta e mezza un passeggio e circa la metà del traffico — è il
+rapporto che si legge stando su un marciapiede vero.
+
+Prima ce n'erano due, 90 di passo e 190 oltre i 320 px dalla meta, per non
+metterci un minuto e mezzo ad attraversare la città. Erano sbagliate tutte e
+due: a 90 il protagonista camminava più forte di un'auto, a 190 scivolava. E il
+problema che risolvevano non è la velocità di un pedone — è che le distanze
+grandi vogliono un mezzo. I mezzi si compreranno; il pedone resta un pedone.
+
+Attorno al passo ci sono due dettagli che fanno la differenza fra una persona e
+una figurina trascinata:
+
+- **Si parte e ci si ferma in un tempo**, non di scatto (`accel_time` 0.22 s,
+  `brake_time` 0.12 s, più corto perché fermarsi è più rapido che partire
+  per chiunque). Il rallentamento guarda la META e non la prossima svolta, o si
+  singhiozzerebbe a ogni angolo.
+- **Il saltello va a passi e non a tempo**: si avanza di `stride` (20 px, la
+  falcata giusta per un personaggio alto 48) e si fa un passo. Legato ai
+  secondi, un personaggio che rallenta continua a sobbalzare alla stessa
+  cadenza e sembra che pattini.
+
+### Attraversare solo se non si viene investiti
+
+`scripts/systems/traffic.gd`. Arrivato al cordolo il protagonista si ferma,
+guarda a destra e a sinistra, e scende quando c'è il buco.
+
+Il conto è di **tempi, non di distanze**: "c'è un'auto entro cento pixel" non
+dice niente, perché un'auto lenta a cento pixel la si passa davanti
+comodamente e una veloce a duecento no. Si confrontano invece due intervalli —
+quando il pedone occupa la corsia, camminando a passo suo, e quando la occupa
+l'auto, dal muso alla coda più un margine — e si aspetta solo se si
+sovrappongono. Ne viene fuori da solo il comportamento giusto: si taglia la
+strada a un'auto lontana, si lascia passare quella vicina, e dietro a una appena
+transitata si riparte subito invece di restare fermi come davanti a un semaforo
+che non c'è.
+
+Si guarda **solo il passaggio dal marciapiede all'asfalto**. Una volta in mezzo
+alla strada non ci si ferma più per nessun motivo: fermarsi lì è la cosa
+peggiore da fare, per il pedone e da guardare.
+
+La parte che si sbaglia facilmente è lo **stallo**. Le auto frenano per chi sta
+sulla carreggiata, e prima frenavano anche per chi era fermo sul marciapiede a
+venti pixel dalla corsia (`BRAKE_WIDTH` era largo mezza carreggiata): messo
+insieme al pedone che aspetta un buco, faceva due che si guardano per sempre —
+lui fermo perché l'auto è lì, lei ferma perché lui è lì. Adesso un'auto
+frena solo per chi è **davvero sull'asfalto** (`CityMap.on_road()`), quindi chi
+aspetta al cordolo vede sempre auto in movimento e il buco arriva. Resta
+comunque una scappatoia da otto secondi: non dovrebbe mai servire, ma un
+protagonista che non riparte più è un gioco rotto.
+
+Vale anche per i passanti (`npc.gd`), con la stessa regola e per lo stesso
+motivo: un'auto che passa attraverso una persona è la cosa che fa sembrare
+finta una città.
+
+Misurato in città, col traffico vero: su 52 attraversamenti l'attesa media al
+cordolo è **mezzo secondo** (massimo 4,7) e le investite sono zero; su tragitti
+lunghi da un capo all'altro si cammina a 44 px/s di media contando le attese, si
+sta sull'asfalto il 7-9% del tempo e non si resta piantati da nessuna parte.
+`scripts_tools/WalkShot.tscn` fotografa un attraversamento per guardarlo.
+
 ## Traffico
 
 `scripts/components/car.gd` più le corsie di `CityMap.lanes()`, due per strada,
@@ -448,9 +538,15 @@ ottantotto auto sulle undici strade.
 
 Le corsie seguono la guida a destra — su una strada orizzontale chi va verso est
 sta nella corsia più in basso, su una verticale chi va verso sud sta in quella
-più a ovest — e le auto **frenano** se il protagonista è
-davanti al muso: due righe, ma un'auto che ci passa attraverso senza rallentare
-si legge subito come un bug. Di notte accendono i fari.
+più a ovest — e le auto **frenano** se il protagonista è davanti al muso e
+sulla carreggiata: due righe, ma un'auto che ci passa attraverso senza
+rallentare si legge subito come un bug. Di notte accendono i fari.
+
+Vanno dai 96 ai 132 px/s, velocità diverse per corsia perché tutte uguali si
+muovono come un trenino. Sono salite quando il protagonista è tornato a
+camminare a passo d'uomo: a 52-72 un'auto impiegava mezzo isolato a superare un
+pedone, e una città in cui si cammina alla velocità del traffico non ha
+nessun motivo di farsi attraversare con prudenza.
 
 ### Gli edifici disegnati si portano alla scala del gioco con uno script
 

@@ -47,6 +47,8 @@ func _ready() -> void:
 		["il meteo", _test_weather],
 		["pianta della citta'", _test_city_layout],
 		["percorsi", _test_navigation],
+		["si cammina sul marciapiede", _test_sidewalks],
+		["attraversare col traffico", _test_crossing],
 		["partita nuova", _test_new_game],
 		["ciclo di coltivazione", _test_grow_cycle],
 		["la sete rovina la resa", _test_dryness_hurts_yield],
@@ -421,6 +423,174 @@ func _test_navigation() -> void:
 	var far := nav.find_path(home, Vector2(4600, 3600))
 	_check(not far.is_empty(), "si attraversa tutta la città")
 	_check(far.size() < 200, "il percorso lungo resta semplificato (%d tappe)" % far.size())
+
+## Si cammina sul marciapiede, non in mezzo alla strada.
+##
+## È la cosa che un percorso può sbagliare restando perfettamente valido: nessun
+## muro attraversato, destinazione raggiunta, e il protagonista che se ne va per
+## la carreggiata come un ubriaco. Non si controlla guardando una linea sola —
+## una qualunque può dover attraversare — ma la SOMMA: su un campione di
+## tragitti lunghi, quanti pixel si fanno su ogni terreno.
+func _test_sidewalks() -> void:
+	var nav := CityNavigation.new()
+	nav.build(CityMap.all_buildings())
+
+	# Lungo una strada, dallo stesso lato: qui di asfalto non ce n'è motivo,
+	# a parte gli incroci che tagliano la strada di traverso.
+	var road: Rect2 = CityMap.ROADS_H[0]
+	var from := Vector2(road.position.x + 600.0, road.position.y - 16.0)
+	var to := Vector2(road.position.x + 3000.0, road.position.y - 16.0)
+	var ground := _surfaces(nav, nav.find_path(from, to))
+	var along_total: float = ground["side"] + ground["road"] + ground["ground"]
+	_check(
+		ground["road"] / along_total < 0.15,
+		"lungo una strada si sta sul marciapiede (asfalto %d%%)"
+			% int(100.0 * ground["road"] / along_total))
+
+	# Attraversare: dritti, non in diagonale lungo la carreggiata. Il pezzo
+	# sull'asfalto non deve essere molto più largo della strada stessa.
+	var across := _surfaces(nav, nav.find_path(
+		Vector2(road.position.x + 600.0, road.position.y - 16.0),
+		Vector2(road.position.x + 600.0, road.end.y + 16.0)))
+	_check(
+		across["road"] <= CityMap.ROAD_WIDTH * 1.4,
+		"si attraversa perpendicolari (%d px di asfalto per una strada larga %d)"
+			% [int(across["road"]), int(CityMap.ROAD_WIDTH)])
+
+	# E su un campione di tragitti lunghi, la stragrande maggioranza dei passi
+	# è su un marciapiede.
+	seed(7)
+	var doors: Array[Vector2] = []
+	for entry in CityMap.all_buildings():
+		if bool(entry.get("backdrop", false)):
+			continue
+		doors.append(CityMap.footprint(entry).get_center() + Vector2(0, 90))
+	var totals := {"side": 0.0, "road": 0.0, "ground": 0.0}
+	for i in 12:
+		var path := nav.find_path(doors[randi() % doors.size()], doors[randi() % doors.size()])
+		var part := _surfaces(nav, path)
+		for key in totals:
+			totals[key] = float(totals[key]) + float(part[key])
+	var total: float = totals["side"] + totals["road"] + totals["ground"]
+	_check(total > 0.0, "i tragitti di prova esistono")
+	# Due terzi e non di più: un tragitto comincia e finisce davanti a una porta,
+	# e quei due pezzi attraversano per forza il cortile dell'edificio. Quello
+	# che si vuole escludere è l'asfalto, e infatti il numero severo è l'altro.
+	_check(
+		totals["side"] / total > 0.6,
+		"in giro per la città si cammina sul marciapiede (%d%%)"
+			% int(100.0 * totals["side"] / total))
+	_check(
+		totals["road"] / total < 0.15,
+		"e poco sull'asfalto (%d%%)" % int(100.0 * totals["road"] / total))
+
+## Quanti pixel di un percorso cadono su ciascun terreno.
+func _surfaces(nav: CityNavigation, path: PackedVector2Array) -> Dictionary:
+	var result := {"side": 0.0, "road": 0.0, "ground": 0.0}
+	for i in range(path.size() - 1):
+		var distance: float = path[i].distance_to(path[i + 1])
+		var steps := maxi(1, int(distance / 8.0))
+		for k in steps:
+			var point: Vector2 = path[i].lerp(path[i + 1], float(k) / float(steps))
+			var cost := nav.cost_at(point)
+			var piece := distance / float(steps)
+			if is_equal_approx(cost, CityNavigation.COST_SIDEWALK):
+				result["side"] = float(result["side"]) + piece
+			elif is_equal_approx(cost, CityNavigation.COST_ROAD):
+				result["road"] = float(result["road"]) + piece
+			else:
+				result["ground"] = float(result["ground"]) + piece
+	return result
+
+## Si attraversa solo se non si viene investiti.
+##
+## Il conto è quello di `Traffic`: due intervalli di tempo che si sovrappongono
+## o no. Qui si mettono le auto dove servono e si guarda la risposta, che è
+## l'unico modo di provare una regola del genere senza stare a guardare la
+## città per mezz'ora.
+func _test_crossing() -> void:
+	var scene: PackedScene = load("res://scenes/components/Car.tscn")
+	_check(scene != null, "la scena dell'auto si carica")
+	if scene == null:
+		return
+	# Una strada orizzontale finta: corsia a y=0, auto che va verso est.
+	var lane := {
+		"axis": "h", "pos": 0.0, "dir": 1, "from": -4000.0, "to": 4000.0,
+		"cars": 1, "speed": 100.0,
+	}
+	var car: Car = scene.instantiate()
+	add_child(car)
+	car.setup(lane, 0.5, Car.VEHICLES[0])
+
+	# Il pedone attraversa da sopra a sotto, passando per la corsia.
+	var from := Vector2(0.0, -60.0)
+	var to := Vector2(0.0, 60.0)
+	var speed := 48.0
+
+	car.position = Vector2(-1200.0, 0.0)
+	_check(
+		Traffic.crossing_clear([car], from, to, speed),
+		"un'auto lontanissima non ferma nessuno")
+
+	car.position = Vector2(-80.0, 0.0)
+	_check(
+		not Traffic.crossing_clear([car], from, to, speed),
+		"un'auto addosso ferma al cordolo")
+
+	car.position = Vector2(-260.0, 0.0)
+	_check(
+		not Traffic.crossing_clear([car], from, to, speed),
+		"e anche una che arriva mentre si è in mezzo alla strada")
+
+	# Appena passata: si parte subito, non si aspetta un semaforo che non c'è.
+	car.position = Vector2(120.0, 0.0)
+	_check(
+		Traffic.crossing_clear([car], from, to, speed),
+		"dietro a un'auto appena passata si parte subito")
+
+	# Un'auto che arriva da lontano ma piano lascia passare; la stessa distanza
+	# a velocità doppia no. È la differenza fra guardare i tempi e le distanze.
+	car.position = Vector2(-330.0, 0.0)
+	var slow := lane.duplicate()
+	slow["speed"] = 40.0
+	car.setup(slow, 0.5, Car.VEHICLES[0])
+	car.position = Vector2(-330.0, 0.0)
+	_check(
+		Traffic.crossing_clear([car], from, to, speed),
+		"a un'auto lenta si taglia la strada")
+	var fast := lane.duplicate()
+	fast["speed"] = 200.0
+	car.setup(fast, 0.5, Car.VEHICLES[0])
+	car.position = Vector2(-330.0, 0.0)
+	_check(
+		not Traffic.crossing_clear([car], from, to, speed),
+		"alla stessa distanza, a una veloce no")
+
+	# Una corsia che il tragitto non taglia non c'entra niente: un'auto che
+	# passa su un'altra strada non deve fermare nessuno.
+	car.setup(lane, 0.5, Car.VEHICLES[0])
+	car.position = Vector2(-80.0, 0.0)
+	_check(
+		Traffic.crossing_clear([car], Vector2(0.0, 40.0), Vector2(200.0, 40.0), speed),
+		"chi cammina parallelo alla corsia non la attraversa")
+
+	# Le auto frenano per chi è sulla carreggiata, e NON per chi aspetta sul
+	# marciapiede: è quello che impedisce lo stallo fra i due.
+	var road: Rect2 = CityMap.ROADS_H[0]
+	var walker := Node2D.new()
+	add_child(walker)
+	car.setup(lane, 0.5, Car.VEHICLES[0])
+	car.watch = walker
+	car.position = Vector2(road.get_center().x - 40.0, road.get_center().y)
+	walker.global_position = road.get_center()
+	_check(car._player_ahead(), "un'auto frena per chi le cammina davanti sull'asfalto")
+	walker.global_position = Vector2(road.get_center().x, road.position.y - 16.0)
+	_check(
+		not car._player_ahead(),
+		"e tira dritto per chi aspetta sul marciapiede")
+
+	walker.queue_free()
+	car.queue_free()
 
 ## Stessa regola di `city.gd`: serve al test per sapere dov'è la porta.
 func _entry_offset(entry: Dictionary) -> Vector2:

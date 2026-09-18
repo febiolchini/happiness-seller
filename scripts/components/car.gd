@@ -49,8 +49,15 @@ const BEAM_LENGTH := 42.0
 const BEAM_SPREAD := 15.0
 
 ## Quanto davanti guarda per frenare, e quanto stretto è il "davanti".
+##
+## La larghezza è quella del mezzo e non di mezza carreggiata: chi aspetta sul
+## marciapiede sta a una ventina di pixel dalla corsia, e con la misura larga
+## finiva dentro al "davanti" di ogni auto che passava. Le auto inchiodavano
+## per qualcuno che stava fermo sul marciapiede, e insieme al pedone che aspetta
+## un buco nel traffico (`Traffic`) facevano uno stallo: lui fermo perché
+## l'auto è lì, lei ferma perché lui è lì. Vedi anche `_player_ahead()`.
 const BRAKE_DISTANCE := 58.0
-const BRAKE_WIDTH := 26.0
+const BRAKE_WIDTH := 14.0
 
 @onready var _body: Sprite2D = $Body
 
@@ -71,6 +78,8 @@ static func random_vehicle() -> String:
 
 func _ready() -> void:
 	add_to_group(Daylight.LIGHT_GROUP)
+	# Chi sta per attraversare guarda qui dentro per sapere se passa qualcuno.
+	add_to_group(Traffic.GROUP)
 
 ## `offset` è la posizione di partenza lungo la corsia, 0-1: serve a distribuire
 ## le auto della stessa corsia invece di farle partire tutte appiccicate.
@@ -115,8 +124,15 @@ func _place() -> void:
 	position = Vector2(_along, _fixed) if _horizontal else Vector2(_fixed, _along)
 
 ## Il protagonista è davanti al muso, dentro alla larghezza dell'auto?
+##
+## E **sulla carreggiata**: un pedone sul marciapiede non è un ostacolo, è uno
+## che cammina per i fatti suoi. Senza questa condizione le auto frenavano
+## rasentando il cordolo, che oltre a essere sbagliato da guardare bloccava chi
+## aspettava di attraversare — vedi il commento su `BRAKE_WIDTH`.
 func _player_ahead() -> bool:
 	if watch == null:
+		return false
+	if not CityMap.on_road(watch.global_position):
 		return false
 	var to_player := watch.global_position - global_position
 	var forward := _forward()
@@ -128,6 +144,40 @@ func _forward() -> Vector2:
 	if _horizontal:
 		return Vector2(float(_dir), 0.0)
 	return Vector2(0.0, float(_dir))
+
+# --- La corsia, per chi deve attraversare ----------------------------------
+#
+# `Traffic` ha bisogno di sapere dove va quest'auto e quanto è lunga. Sono
+# metodi e non variabili pubbliche perché la corsia arriva da `setup()` e non
+# cambia più: leggerla è lecito, riscriverla no.
+
+func lane_horizontal() -> bool:
+	return _horizontal
+
+## La coordinata fissa della corsia: la y se è orizzontale, la x se è verticale.
+func lane_position() -> float:
+	return _fixed
+
+func lane_forward() -> Vector2:
+	return _forward()
+
+## La velocità di crociera, non quella di adesso.
+##
+## Chi sta per attraversare deve prevedere dove sarà quest'auto fra qualche
+## secondo, e un'auto che sta frenando riparte: prendere la velocità istantanea
+## vorrebbe dire dare il via libera a un pedone proprio mentre l'auto rallenta
+## per qualcun altro, e poi vedersela ripartire addosso.
+func lane_speed() -> float:
+	return _speed
+
+## Mezza lunghezza del mezzo, nel verso in cui viaggia: un autobus ingombra la
+## carreggiata molto più a lungo di una berlina.
+##
+## Sempre la larghezza del PNG, anche sulle verticali: lo sprite è renderizzato
+## col muso a destra e poi ruotato, quindi è la sua x a stare nel verso di
+## marcia comunque sia messa la corsia.
+func lane_half_length() -> float:
+	return _size.x * 0.5
 
 ## Chiamata da `atmosphere.gd` quando la luce è cambiata abbastanza da vedersi.
 func on_light_changed() -> void:

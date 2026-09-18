@@ -25,7 +25,20 @@ extends RefCounted
 const CELL := 16.0
 
 const COST_SIDEWALK := 1.0
-const COST_ROAD := 2.2
+## L'asfalto. Caro sul serio, e non di poco: quattro volte il marciapiede.
+##
+## Non è il rischio di essere investiti — quello lo guarda `Traffic`, al
+## momento di scendere dal cordolo — è che una persona sulla carreggiata **non
+## ci cammina**, ci passa e basta. Con un costo appena più alto del marciapiede
+## il percorso più conveniente restava spesso quello dritto in mezzo alla
+## strada, che è più corto: si misurava più di metà del tragitto sull'asfalto.
+##
+## Quattro volte tanto lascia comunque passare l'attraversamento, che di celle
+## ne costa sei (la strada è larga 96 px), e rende invece impagabile
+## percorrerla per il lungo. Di riflesso l'attraversamento diventa anche
+## **perpendicolare** da solo, senza doverlo scrivere da nessuna parte: in
+## diagonale di celle d'asfalto se ne toccherebbero la metà in più.
+const COST_ROAD := 4.0
 const COST_GROUND := 3.0
 
 ## Quanto si sta larghi dai muri. Il protagonista è largo una ventina di pixel e
@@ -35,6 +48,15 @@ const WALL_MARGIN := 8.0
 
 ## Ogni quanti pixel si controlla una linea quando si semplifica il percorso.
 const LINE_STEP := 8.0
+## Quanto lunga può essere una scorciatoia cercata dalla semplificazione.
+##
+## Senza un tetto il confronto fra i due costi si allunga col percorso — per
+## ogni punto si ripesa tutta la linea dall'ultimo tenuto — e un tragitto da un
+## capo all'altro della città arrivava a 70 ms, che è una pausa che si sente
+## nel momento del click. Oltre questo tetto la scorciatoia viene semplicemente
+## troncata: su un rettilineo restano due o tre tappe in più, che stanno sulla
+## stessa retta e non cambiano di un pixel il tragitto camminato.
+const SHORTCUT_REACH := 400.0
 
 var _grid := AStarGrid2D.new()
 var _origin := Vector2.ZERO
@@ -131,37 +153,72 @@ func find_path(from: Vector2, to: Vector2) -> PackedVector2Array:
 ##
 ## A* su una griglia restituisce una scaletta di celle: seguita così com'è, il
 ## personaggio cammina a zig-zag anche in mezzo a una strada dritta. Si tiene un
-## punto solo quando da quello prima non si vede più il successivo.
+## punto solo quando togliendolo il tragitto **peggiora**.
 ##
-## La scorciatoia però non può essere solo "il muro non c'è": deve restare su un
-## terreno **non più caro** di quello che sostituisce. Senza questo vincolo la
-## semplificazione butterebbe via la preferenza per i marciapiedi appena
-## calcolata da A*, e un tragitto lungo tornerebbe a tagliare in diagonale
-## dentro agli isolati ogni volta che fra due palazzi c'è un varco libero.
+## "Peggiora" è la parte delicata, ed è cambiata. Prima era un tetto di spesa:
+## la scorciatoia era permessa se non metteva piede su un terreno più caro del
+## più caro già attraversato. Sembra la stessa cosa e non lo è — il tetto non
+## guarda **quanto** terreno caro si attraversa, solo di che tipo è. Bastava
+## quindi toccare l'asfalto una volta, per un attraversamento, perché da lì in
+## poi tutta l'asfalto fosse gratis: la scorciatoia successiva poteva tagliare
+## per la carreggiata in diagonale per centinaia di pixel. Misurato su una
+## quarantina di tragitti lunghi, il protagonista camminava sull'asfalto per
+## **metà** del percorso.
 ##
-## Il tetto di spesa cresce lungo il tratto e si azzera a ogni punto tenuto:
-## finché si è sul marciapiede non si scende in strada, ma appena il percorso
-## deve attraversare, l'attraversamento in diagonale torna permesso — che è
-## poi quello che farebbe una persona.
+## Adesso si confrontano i due costi per intero: la linea diretta si prende solo
+## se costa quanto o meno del pezzo di percorso che sostituisce. Un
+## attraversamento resta (accorcia davvero), un tratto in diagonale sulla strada
+## no (costa quattro volte il marciapiede che aveva accanto), e su terreno
+## uniforme la semplificazione è la stessa di prima.
 func _simplify(points: PackedVector2Array) -> PackedVector2Array:
 	if points.size() <= 2:
 		return points
 	var result := PackedVector2Array([points[0]])
 	var anchor := 0
-	var budget := cost_at(points[0])
+	# Quanto costa il percorso originale da `anchor` fino al punto corrente.
+	var walked := 0.0
 	for i in range(1, points.size() - 1):
-		budget = maxf(budget, cost_at(points[i]))
-		if is_clear(points[anchor], points[i + 1], budget):
-			continue
+		walked += _segment_cost(points[i - 1], points[i])
+		if points[anchor].distance_to(points[i + 1]) <= SHORTCUT_REACH:
+			var direct := _segment_cost(points[anchor], points[i + 1])
+			var original := walked + _segment_cost(points[i], points[i + 1])
+			if direct >= 0.0 and direct <= original + 0.001:
+				continue
 		result.append(points[i])
 		anchor = i
-		budget = cost_at(points[i])
+		walked = 0.0
 	result.append(points[points.size() - 1])
 	return result
 
+## Quanto costa andare da `a` a `b` in linea retta: la lunghezza pesata dal
+## terreno che si calpesta. `-1` se si finisce dentro a un muro.
+##
+## È la stessa misura che usa A* sulle celle — peso x distanza — così i due
+## numeri si possono confrontare senza convertire niente.
+func _segment_cost(a: Vector2, b: Vector2) -> float:
+	var distance := a.distance_to(b)
+	if distance <= 0.0:
+		return 0.0
+	var steps := maxi(1, int(distance / LINE_STEP))
+	var step := distance / float(steps)
+	var total := 0.0
+	for i in range(steps + 1):
+		var point := a.lerp(b, float(i) / float(steps))
+		if not is_walkable(point):
+			return -1.0
+		# Gli estremi contano mezzo passo: sono il bordo del tratto, non il
+		# centro di un pezzetto come tutti gli altri campioni.
+		var weight := 0.5 if i == 0 or i == steps else 1.0
+		total += cost_at(point) * step * weight
+	return total
+
 ## Vero se fra due punti si può andare in linea retta senza entrare in un muro
 ## e senza mettere piede su un terreno più caro di `limit`.
-func is_clear(a: Vector2, b: Vector2, limit := COST_GROUND) -> bool:
+##
+## Di suo non guarda il costo — il limite parte dal più caro che ci sia — perché
+## la domanda che gli si fa quasi sempre è "c'è un muro in mezzo?". Chi vuole
+## anche il terreno lo dice.
+func is_clear(a: Vector2, b: Vector2, limit := COST_ROAD) -> bool:
 	var distance := a.distance_to(b)
 	var steps := int(distance / LINE_STEP)
 	for i in range(1, steps + 1):

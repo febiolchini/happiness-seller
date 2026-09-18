@@ -1053,6 +1053,15 @@ static func _flag_on(flag: String) -> bool:
 	var data := GameState.current
 	return data == null or bool(data.get_flag(flag, false))
 
+## Il punto è sulla CARREGGIATA? Marciapiedi esclusi: è il posto in cui un
+## pedone si fa investire, e il posto in cui un'auto deve frenare.
+##
+## Sta qui e non in `CityNavigation` perché è una domanda sulla pianta, non sui
+## percorsi: la fa anche chi non ha una griglia sotto mano — le auto, e il
+## protagonista quando guarda se può scendere dal cordolo.
+static func on_road(point: Vector2) -> bool:
+	return _crosses(ROADS_H, point) or _crosses(ROADS_V, point)
+
 ## Se un punto cade dentro a una delle strade date. Serve a saltare gli incroci.
 static func _crosses(roads: Array, point: Vector2) -> bool:
 	for road: Rect2 in roads:
@@ -1095,7 +1104,14 @@ static func _lane(axis: String, pos: float, direction: int, from: float, to: flo
 		"to": to + 68.0,
 		"cars": clampi(int(length / 1100.0), 2, 6),
 		# Velocità diverse per corsia: tutte uguali si muovono come un trenino.
-		"speed": 52.0 + float(index % 5) * 5.0,
+		#
+		# Sono salite quando il protagonista è tornato a camminare a passo
+		# d'uomo (48 px/s): a 52-72 un'auto impiegava mezzo isolato a superare
+		# un pedone, e una città in cui si cammina alla velocità del traffico
+		# non ha nessun motivo di farsi attraversare con prudenza. Adesso la
+		# più lenta va il doppio di chi cammina e la più veloce quasi il
+		# triplo, che è il rapporto che si vede da un marciapiede vero.
+		"speed": 96.0 + float(index % 5) * 9.0,
 	}
 
 # --- Comodità --------------------------------------------------------------

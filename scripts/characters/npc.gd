@@ -28,6 +28,11 @@ const HAIR := Color(0.24, 0.19, 0.16)
 const MARKER_SELLER := Color(0.55, 0.85, 0.45)
 const MARKER_BUYER := Color(1.0, 0.85, 0.25)
 
+## Quanto al massimo un passante resta fermo prima di attraversare comunque, e
+## quanto lontano guarda per capire quanto è larga la strada. Vedi `_must_wait()`.
+const MAX_CROSS_WAIT := 6.0
+const CROSSING_LOOKAHEAD := 200.0
+
 var entry: Dictionary = {}
 var npc_id := ""
 var npc_name := ""
@@ -46,6 +51,8 @@ var _out := true
 ## Fermo mentre gli si parla: continuare a camminare durante il dialogo
 ## lascerebbe il giocatore a parlare con la schiena di qualcuno.
 var _busy := false
+## Da quanto aspetta di attraversare. Vedi `_must_wait()`.
+var _cross_wait := 0.0
 
 func _ready() -> void:
 	add_to_group(GROUP)
@@ -86,6 +93,9 @@ func _process(delta: float) -> void:
 	var target: Vector2 = _route[_index]
 	var to_target := target - position
 	var step := _speed * delta
+	if _must_wait(to_target.normalized(), step, delta):
+		_settle(delta)
+		return
 	if to_target.length() <= step:
 		position = target
 		_wait_left = _pause * randf_range(0.6, 1.6)
@@ -100,6 +110,32 @@ func _process(delta: float) -> void:
 			queue_redraw()
 	_bob += delta * 9.0
 	queue_redraw()
+
+## Anche i passanti guardano prima di attraversare.
+##
+## Stessa regola del protagonista, e per la stessa ragione: le auto frenano solo
+## per lui (`car.gd`), quindi un passante che scende dal cordolo senza guardare
+## prima o poi se la prende addosso, e un'auto che passa attraverso una persona è
+## la cosa che fa sembrare finta una città. Le tappe sono già tutte sul
+## marciapiede: quello che si controlla è il tratto fra una e l'altra.
+func _must_wait(direction: Vector2, step: float, delta: float) -> bool:
+	if CityMap.on_road(position) 			or not CityMap.on_road(position + direction * maxf(step, 2.0)):
+		# Lontano da un cordolo il conto dell'attesa si azzera, o la scappatoia
+		# dei sei secondi si brucerebbe una volta sola e poi resterebbe aperta
+		# per sempre.
+		_cross_wait = 0.0
+		return false
+	_cross_wait += delta
+	# Come per il protagonista: dopo tanto si passa comunque, perché un passante
+	# piantato per sempre in mezzo al marciapiede si nota.
+	if _cross_wait > MAX_CROSS_WAIT:
+		return false
+	var exit := position + direction * CROSSING_LOOKAHEAD
+	if Traffic.crossing_clear(
+			get_tree().get_nodes_in_group(Traffic.GROUP), position, exit, _speed):
+		_cross_wait = 0.0
+		return false
+	return true
 
 func _advance_target() -> void:
 	if _route.size() > 1:
