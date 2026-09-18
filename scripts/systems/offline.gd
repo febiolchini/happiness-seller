@@ -128,6 +128,8 @@ static func empty_report() -> Dictionary:
 		"quit": "",
 		# Le bollette della luce scadute nel frattempo.
 		"power": 0,
+		# Le tasse sulla proprieta' scadute nel frattempo.
+		"tax": 0,
 		# Vasi seguiti dal personale rimasti vuoti per mancanza di semi.
 		"idle": 0,
 		# Vasi che adesso hanno bisogno d'acqua.
@@ -254,6 +256,9 @@ static func _new_day(data: SaveData, report: Dictionary) -> void:
 	# La bolletta non guarda in faccia a nessuno: scade anche se non c'è
 	# personale, perché il contatore gira lo stesso.
 	report["power"] = int(report["power"]) + int(Economy.charge_power(data)["paid"])
+	# Le tasse sulla proprieta' nemmeno: l'anniversario cade anche se il gioco
+	# era spento, e chi resta via un anno lo ritrova scalato dalla cassa.
+	report["tax"] = int(report.get("tax", 0)) + int(Economy.charge_property_tax(data)["paid"])
 	if Staff.total(data) <= 0:
 		return
 	var result := Staff.pay_wages(data)

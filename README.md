@@ -2210,12 +2210,28 @@ chiavi del mezzo.
 ### La bolletta della luce
 
 Il seminterrato consuma. Ogni **30 giorni di gioco** (`Economy.BILL_DAYS`)
-arriva la bolletta: **100 $** di quota fissa più **10 $ per ogni lampada**
-accesa. A sei lampade sono 160 $ al mese.
+arriva la bolletta, ed è la somma di tre cose diverse:
 
-Si paga per le lampade e non per i vasi, perché un vaso al buio non consuma
-niente — ed è anche il motivo per cui comprare la sesta lampada è una scelta e
-non un acquisto ovvio: accorcia la crescita e allunga la bolletta.
+- **100 $** di quota fissa (`POWER_BASE`): la casa, che non si compra e quindi
+  non ha una riga in `RealEstate`;
+- **quello che consumano i muri in più** che si sono comprati — il garage è
+  120 $ al mese (`corrente` nell'annuncio di `real_estate.gd`);
+- **10 $ per ogni lampada** accesa (`POWER_PER_LAMP`).
+
+A sei lampade e senza proprietà sono 160 $ al mese; col garage e tutte e
+diciotto le lampade sono 400 $.
+
+Le proprietà pesano perché un posto consuma **anche vuoto**: saracinesca,
+ventilazione, il contatore che gira. È quello che rende il garage una spesa
+fissa e non solo dodici vasi in regalo — chi lo compra se ne accorge alla prima
+bolletta, anche prima di averci piantato niente. Quanto pesa ognuna sta accanto
+al suo prezzo, in `RealEstate.LISTINGS`, perché è l'altra metà di quanto costa
+avere quel posto.
+
+Le lampade invece si pagano per quelle **accese**, non per i vasi, perché un
+vaso al buio non consuma niente — ed è anche il motivo per cui ogni lampada in
+più è una scelta e non un acquisto ovvio: accorcia la crescita e allunga la
+bolletta.
 
 È una spesa con un **tempo diverso** da quello delle paghe, ed è per questo che
 esiste: le paghe mordono ogni notte, la bolletta si vede arrivare da lontano e
@@ -2232,6 +2248,34 @@ Se la cassa non basta si paga quello che c'è, come per le paghe del personale, 
 arriva un messaggio sul telefono. Restare al buio è la conseguenza naturale da
 scrivere quando ci sarà qualcosa da spegnere; per ora un buco che si allarga in
 silenzio sarebbe peggio di un conto pagato a metà.
+
+### Le tasse sulla proprietà
+
+Ogni **365 giorni di gioco** (`Economy.TAX_DAYS`) ogni proprietà comprata si
+porta via l'**1% del prezzo di acquisto** (`TAX_RATE`): il garage da 35.000 $
+sono 350 $ all'anno.
+
+Un anno e non un mese perché è quello che è: una patrimoniale non è una
+bolletta, e contarla in mesi la farebbe sembrare l'ennesima spesa corrente. Al
+ritmo dell'orologio sono un paio di giornate vere di gioco — abbastanza lontano
+da dimenticarsene, ed è il punto: chi compra il secondo capannone lo compra
+guardando quanto rende, e la tassa gli ricorda che **possedere costa anche
+quando non produce**.
+
+Si conta sul prezzo di listino e non su un valore di mercato: quello in questo
+gioco non esiste, e inventarne uno solo per tassarlo vorrebbe dire due verità su
+quanto vale un edificio.
+
+La scadenza è l'**anniversario del rogito**, non il capodanno, e ognuna ha il
+suo: nel salvataggio ogni voce di `properties` porta `tassato_il`, il giorno da
+cui si conta l'anno. Come per la bolletta il conto riparte da quando la tassa è
+**scaduta** e non da oggi, quindi tre anni di assenza sono tre tasse e non una.
+Le partite salvate prima che le tasse esistessero non hanno `tassato_il`, e
+l'anno si conta dal loro `acquisito_il`: non si trovano né un arretrato
+inventato né un anno regalato.
+
+Se la cassa non basta si paga quello che c'è e arriva un messaggio dal comune,
+esattamente come per la luce.
 
 ## Il negozio online
 
@@ -2296,12 +2340,19 @@ in avanti, e una pianta già in terra finisce il suo ciclo com'era partita.
 I due campi mancano nei vasi piantati prima del negozio, e lì `Grow` ricade da
 solo sui valori della varietà.
 
-### Le lampade nel seminterrato
+### Le lampade rosse
 
-`scenes/components/GrowLamp.tscn` è il segnaposto disegnato a mano: **sei**
-lampade appese sopra ai vasi in `Basement.tscn`, una per vaso. La prima si
-accende col primo acquisto, la seconda col secondo e così via, così la cantina
-si riempie man mano invece di passare da buia a illuminata in un colpo solo.
+`scenes/components/GrowLamp.tscn` è il segnaposto disegnato a mano: **una
+lampada per vaso, in tutti e due i posti** — sei in `Basement.tscn` e dodici in
+`Garage.tscn`, appese sopra ai vasi. `lamp_set` è l'indice del vaso che
+copre, quindi le sei della cantina sono 0-5 e le dodici del garage 6-17, la
+stessa numerazione dei vasi in `SaveData.plots`. La prima si accende col primo
+acquisto, la seconda col secondo e così via, così una stanza si riempie man
+mano invece di passare da buia a illuminata in un colpo solo.
+
+Le dodici del garage sono arrivate dopo, quando il negozio ha smesso di
+fermarsi a sei lampade: un vaso in garage che va più veloce senza che sopra ci
+sia appeso niente è una cosa che il giocatore non può indovinare.
 
 Le tre della fila davanti (`Lamp3`..`Lamp5`) pendono più in basso e più a
 destra di quelle di fondo, seguendo la prospettiva isometrica del tavolo: in
@@ -2309,7 +2360,8 @@ quella vista una lampada più vicina si disegna più giù, e i coni si
 sovrappongono come si sovrappongono davvero. Stanno dopo le altre nell'albero,
 quindi passano davanti — che è quello che devono fare.
 
-Ognuna aggiunge 10 $ alla bolletta del mese: vedi "La bolletta della luce".
+Ognuna aggiunge 10 $ alla bolletta del mese — e il garage ne ha una fissa tutta
+sua, comprato o vuoto che sia: vedi "La bolletta della luce".
 
 Spenta resta comunque disegnata, in grigio: è il modo in cui un gestionale fa
 vedere al giocatore la roba che non ha ancora comprato. Le lampade stanno dopo i
@@ -2951,5 +3003,34 @@ Tre cose lavorano insieme per non perdere mai risoluzione, e vanno tenute tutte:
 1. `rendering/textures/canvas_textures/default_texture_filter = 0` (Nearest).
 2. `mipmaps/generate = false` su tutte le texture (e negli `importer_defaults`,
    così vale anche per i PNG che aggiungerai in futuro).
-3. La camera è agganciata a coordinate mondo intere (`_snap()`): con una camera
-   ferma a 320.37 il campionamento si sfalsa e gli sprite sbavano lo stesso.
+3. La camera è posata su pixel interi **di schermo** (`_snap()`): con una
+   camera ferma a metà pixel il campionamento si sfalsa e gli sprite sbavano lo
+   stesso. Si snappa `position * scala netta` e non `position`: il
+   pixel-perfect non chiede coordinate di mondo intere, chiede che lo
+   scostamento a schermo lo sia. Arrotondando al pixel di MONDO, come si faceva
+   prima, a 8x la mappa si trascinava a blocchi di otto pixel a schermo.
+
+### Guardarsi intorno col tasto destro
+
+Il pan sta in `_input()` e non in `_unhandled_input()` come tutto il resto,
+perché l'interfaccia si mangia i click: un `Control` con `MOUSE_FILTER_STOP` —
+il telefono in fondo allo schermo, il tasto del menu in alto — consuma
+**qualunque** tasto del mouse che cade dentro al suo rettangolo, anche se poi
+nel suo `_gui_input()` guarda solo il sinistro. Da lì venivano due difetti che
+sembravano uno solo:
+
+- cominciare la trascinata sopra al telefono non muoveva niente, perché la
+  pressione non arrivava mai alla camera;
+- **lasciare** il tasto sopra al telefono lasciava acceso `_panning`, e da lì in
+  poi la visuale seguiva il mouse senza che nessuno la trascinasse.
+
+Il tasto destro non lo usa nessun pezzo di interfaccia, quindi prenderlo prima
+della GUI non toglie niente a nessuno. Ruota e tasto sinistro restano in
+`_unhandled_input()`: quelli l'interfaccia li usa davvero.
+
+L'altra metà è che `Camera2D` da solo limita l'**inquadratura disegnata**, non
+`position`: trascinando oltre il bordo della città l'immagine si fermava ma la
+posizione continua scappava, e per tornare indietro bisognava ripercorrere al
+contrario tutto quello che si era trascinato a vuoto — da fuori sembrava una
+visuale bloccata. `_snap()` ferma anche quella dentro ai confini rientrati di
+mezza inquadratura, così il bordo è un muro e non un elastico.

@@ -1,10 +1,11 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/rooms/Room.tscn" id="1_room"]
 [ext_resource type="Texture2D" path="res://assets/sprites/buildings/garageBack.png" id="2_bg"]
 [ext_resource type="PackedScene" path="res://scenes/components/RoomHotspot.tscn" id="3_hotspot"]
 [ext_resource type="PackedScene" path="res://scenes/components/GrowPlot.tscn" id="4_plot"]
 [ext_resource type="PackedScene" path="res://scenes/ui/ManagementWindow.tscn" id="5_management"]
+[ext_resource type="PackedScene" path="res://scenes/components/GrowLamp.tscn" id="6_lamp"]
 
 [node name="Garage" instance=ExtResource("1_room")]
 room_name = "ROOM_GARAGE"
@@ -126,3 +127,99 @@ offset_top = 170.0
 offset_right = 483.0
 offset_bottom = 212.0
 index = 17
+
+[node name="Lamp6" parent="." index="19" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 145.0
+offset_top = 78.0
+offset_right = 209.0
+offset_bottom = 148.0
+lamp_set = 6
+
+[node name="Lamp7" parent="." index="20" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 191.0
+offset_top = 74.0
+offset_right = 255.0
+offset_bottom = 144.0
+lamp_set = 7
+
+[node name="Lamp8" parent="." index="21" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 237.0
+offset_top = 70.0
+offset_right = 301.0
+offset_bottom = 140.0
+lamp_set = 8
+
+[node name="Lamp9" parent="." index="22" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 144.0
+offset_top = 105.0
+offset_right = 208.0
+offset_bottom = 175.0
+lamp_set = 9
+
+[node name="Lamp10" parent="." index="23" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 192.0
+offset_top = 102.0
+offset_right = 256.0
+offset_bottom = 172.0
+lamp_set = 10
+
+[node name="Lamp11" parent="." index="24" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 240.0
+offset_top = 100.0
+offset_right = 304.0
+offset_bottom = 170.0
+lamp_set = 11
+
+[node name="Lamp12" parent="." index="25" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 325.0
+offset_top = 69.0
+offset_right = 389.0
+offset_bottom = 139.0
+lamp_set = 12
+
+[node name="Lamp13" parent="." index="26" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 378.0
+offset_top = 71.0
+offset_right = 442.0
+offset_bottom = 141.0
+lamp_set = 13
+
+[node name="Lamp14" parent="." index="27" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 432.0
+offset_top = 73.0
+offset_right = 496.0
+offset_bottom = 143.0
+lamp_set = 14
+
+[node name="Lamp15" parent="." index="28" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 322.0
+offset_top = 99.0
+offset_right = 386.0
+offset_bottom = 169.0
+lamp_set = 15
+
+[node name="Lamp16" parent="." index="29" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 375.0
+offset_top = 97.0
+offset_right = 439.0
+offset_bottom = 167.0
+lamp_set = 16
+
+[node name="Lamp17" parent="." index="30" instance=ExtResource("6_lamp")]
+layout_mode = 1
+offset_left = 429.0
+offset_top = 96.0
+offset_right = 493.0
+offset_bottom = 166.0
+lamp_set = 17

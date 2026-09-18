@@ -68,6 +68,7 @@ func _ready() -> void:
 		["mezzanotte", _test_day_rollover],
 		["i quartieri ricchi", _test_district_price],
 		["la bolletta della luce", _test_power_bill],
+		["le tasse sulla proprieta", _test_property_tax],
 		["l'ingrosso col furgone", _test_delivery],
 		["il telefono", _test_phone_alerts],
 		["la chat con brian", _test_chat],
@@ -1960,6 +1961,70 @@ func _test_power_bill() -> void:
 	_check_eq(
 		before - away.cash, Economy.POWER_BASE * 2,
 		"in sessanta giorni arrivano due bollette, non una e non tre")
+
+	# Comprare un posto lo si paga anche dopo, ogni mese, a vasi vuoti.
+	var owner := _fresh()
+	owner.cash = 100000
+	var empty := Economy.power_bill(owner)
+	owner.properties["Garage"] = {"livello": 1, "acquisito_il": owner.day, "tassato_il": owner.day}
+	_check_eq(
+		Economy.power_bill(owner), empty + RealEstate.power_draw("Garage"),
+		"una proprieta' in piu' alza la bolletta anche senza lampade")
+
+# ---------------------------------------------------------------------------
+
+## La tassa sulla proprieta': una volta l'anno, l'1% di quello che e' costata.
+func _test_property_tax() -> void:
+	var data := _fresh()
+	data.cash = 100000
+
+	_check_eq(int(Economy.charge_property_tax(data)["due"]), 0, "senza proprieta' non si paga niente")
+	_check_eq(Economy.days_to_tax(data), -1, "e non c'e' nessuna scadenza in vista")
+
+	data.properties["Garage"] = {"livello": 1, "acquisito_il": data.day, "tassato_il": data.day}
+	var due := int(roundf(float(RealEstate.price("Garage")) * Economy.TAX_RATE))
+	_check_eq(Economy.property_tax("Garage"), due, "la tassa e' l'uno per cento del prezzo")
+	_check_eq(Economy.yearly_tax(data), due, "e all'anno si paga quella")
+	_check_eq(Economy.days_to_tax(data), Economy.TAX_DAYS, "la prima scade fra un anno")
+
+	# Prima dell'anniversario non si tocca niente.
+	data.day += Economy.TAX_DAYS - 1
+	_check_eq(int(Economy.charge_property_tax(data)["due"]), 0, "un giorno prima non scade")
+	_check_eq(data.cash, 100000, "e la cassa resta intatta")
+
+	# All'anniversario si paga.
+	data.day += 1
+	var charged := Economy.charge_property_tax(data)
+	_check_eq(int(charged["due"]), due, "dopo un anno arriva la tassa")
+	_check_eq(int(charged["paid"]), due, "e si paga tutta")
+	_check_eq(data.cash, 100000 - due, "la cassa cala di quello che era dovuto")
+	_check_eq(int(Economy.charge_property_tax(data)["due"]), 0, "non arriva due volte lo stesso anno")
+
+	# Cassa a secco: si paga quello che c'e' e non si va sotto zero.
+	data.day += Economy.TAX_DAYS
+	data.cash = 12
+	var short_tax := Economy.charge_property_tax(data)
+	_check(int(short_tax["due"]) > int(short_tax["paid"]), "a cassa vuota la tassa resta scoperta")
+	_check_eq(data.cash, 0, "e la cassa non va sotto zero")
+
+	# Piu' anni in un colpo solo — il tempo a gioco chiuso — sono piu' tasse.
+	var away := _fresh()
+	away.cash = 100000
+	away.properties["Garage"] = {"livello": 1, "acquisito_il": away.day, "tassato_il": away.day}
+	away.day += Economy.TAX_DAYS * 3
+	_check_eq(
+		int(Economy.charge_property_tax(away)["due"]), due * 3,
+		"tre anni di assenza sono tre tasse, non una")
+
+	# Un salvataggio vecchio non ha `tassato_il`: l'anno si conta dal rogito, e
+	# non si trova ne' un arretrato inventato ne' un anno regalato.
+	var old_save := _fresh()
+	old_save.cash = 100000
+	old_save.properties["Garage"] = {"livello": 1, "acquisito_il": old_save.day}
+	old_save.day += Economy.TAX_DAYS
+	_check_eq(
+		int(Economy.charge_property_tax(old_save)["due"]), due,
+		"una partita di prima delle tasse paga un anno solo")
 
 # ---------------------------------------------------------------------------
 

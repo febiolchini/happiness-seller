@@ -275,20 +275,34 @@ static func _mark_street_sale(data: SaveData, npc_id: String, grams: int) -> voi
 ## al contrario delle paghe che mordono ogni notte. Sono due tempi diversi
 ## apposta — un gestionale ha bisogno di tutti e due.
 const BILL_DAYS := 30
-## Quota fissa: il contatore c'è anche a cantina spenta.
+## Quota fissa: il contatore c'è anche a cantina spenta. È la casa di partenza,
+## che non si compra e quindi non ha una riga in `RealEstate`.
 const POWER_BASE := 100
 ## Quanto costa tenere accesa una lampada in più per un mese.
 const POWER_PER_LAMP := 10
 
 ## Quanto verrà la prossima bolletta.
 ##
-## Si paga per le lampade **accese**, non per i vasi: un vaso al buio non
-## consuma niente. È anche il motivo per cui comprare la sesta lampada è una
-## scelta e non un acquisto ovvio — accorcia la crescita e allunga la bolletta.
+## Tre addendi, e sono tre cose diverse: la casa (`POWER_BASE`), i **muri in
+## più** che si sono comprati, e le lampade accese.
+##
+## Le proprietà pesano perché un posto consuma anche vuoto — saracinesca,
+## ventilazione, il contatore che gira — ed è quello che rende il garage una
+## spesa fissa e non solo dodici vasi in regalo: chi lo compra se ne accorge
+## alla prima bolletta anche prima di averci piantato niente. Quanto pesa
+## ognuna lo dice `RealEstate` (`corrente`), accanto al prezzo, perché è
+## l'altra metà di quanto costa avere quel posto.
+##
+## Le lampade si pagano **accese**, non per vaso: un vaso al buio non consuma
+## niente. È anche il motivo per cui ogni lampada in più è una scelta e non un
+## acquisto ovvio — accorcia la crescita e allunga la bolletta.
 static func power_bill(data: SaveData) -> int:
 	if data == null:
 		return POWER_BASE
-	return POWER_BASE + POWER_PER_LAMP * Shop.owned(data, "lamps")
+	var bill := POWER_BASE + POWER_PER_LAMP * Shop.owned(data, "lamps")
+	for id: String in data.properties:
+		bill += RealEstate.power_draw(id)
+	return bill
 
 ## Fra quanti giorni di gioco arriva.
 static func days_to_bill(data: SaveData) -> int:
@@ -316,6 +330,83 @@ static func charge_power(data: SaveData) -> Dictionary:
 	result["due"] = due
 	result["paid"] = paid
 	return result
+
+# --- Tasse sulla proprietà --------------------------------------------------
+
+## Ogni quanti giorni di gioco torna la tassa sulla proprietà.
+##
+## Un anno, perché è quello che è: una patrimoniale non è una bolletta, e
+## contarla in mesi la farebbe sembrare l'ennesima spesa corrente. Al ritmo
+## dell'orologio sono un paio di giornate vere di gioco — abbastanza lontano da
+## dimenticarsene, ed è il punto: chi compra il secondo capannone lo compra
+## guardando quanto rende, e la tassa gli ricorda che possedere costa anche
+## quando non produce.
+const TAX_DAYS := 365
+## Quanto si paga ogni anno, sul prezzo di acquisto.
+const TAX_RATE := 0.01
+
+## Quanto verrebbe la tassa di **una** proprietà: l'1% di quello che è costata.
+##
+## Sul prezzo di listino e non su un valore che si muove: il valore di mercato
+## non esiste ancora in questo gioco, e inventarne uno solo per tassarlo
+## vorrebbe dire due verità su quanto vale un edificio.
+static func property_tax(id: String) -> int:
+	return int(roundf(float(RealEstate.price(id)) * TAX_RATE))
+
+## Quanto si paga in tutto ogni anno, con le proprietà di adesso. Serve al PC:
+## è il numero che si guarda prima di comprare.
+static func yearly_tax(data: SaveData) -> int:
+	if data == null:
+		return 0
+	var total := 0
+	for id: String in data.properties:
+		total += property_tax(id)
+	return total
+
+## Fra quanti giorni scade la prossima, `-1` se non si possiede niente.
+static func days_to_tax(data: SaveData) -> int:
+	if data == null:
+		return -1
+	var soonest := -1
+	for id: String in data.properties:
+		var left := maxi(0, TAX_DAYS - (data.day - _taxed_day(data, id)))
+		if soonest < 0 or left < soonest:
+			soonest = left
+	return soonest
+
+## Scala le tasse scadute. Stessa forma di `charge_power()`, e per gli stessi
+## motivi: torna quanto era dovuto e quanto si è riusciti a pagare, e chi chiama
+## decide se dirlo.
+##
+## Ogni proprietà ha il suo anniversario — si contano i giorni dal rogito, non
+## dal capodanno — e il `while` serve perché il tempo a gioco chiuso può far
+## passare più di un anno in un colpo solo: come per la bolletta, il giorno da
+## cui riparte il conto è quello in cui la tassa è SCADUTA e non oggi, così non
+## se ne salta nessuna.
+static func charge_property_tax(data: SaveData) -> Dictionary:
+	var result := {"due": 0, "paid": 0}
+	if data == null:
+		return result
+	for id: String in data.properties:
+		var entry: Dictionary = data.properties[id]
+		var last := _taxed_day(data, id)
+		while data.day - last >= TAX_DAYS:
+			last += TAX_DAYS
+			result["due"] = int(result["due"]) + property_tax(id)
+		entry["tassato_il"] = last
+	var paid := mini(int(result["due"]), data.cash)
+	data.cash -= paid
+	result["paid"] = paid
+	return result
+
+## Da che giorno si conta l'anno di questa proprietà.
+##
+## I salvataggi di prima delle tasse hanno solo `acquisito_il`, e va benissimo:
+## è esattamente il giorno da cui l'anno andrebbe contato. Chi rientra in una
+## partita vecchia non si trova un arretrato inventato né un anno regalato.
+static func _taxed_day(data: SaveData, id: String) -> int:
+	var entry: Dictionary = data.properties.get(id, {})
+	return int(entry.get("tassato_il", entry.get("acquisito_il", data.day)))
 
 # --- Attenzione ------------------------------------------------------------
 

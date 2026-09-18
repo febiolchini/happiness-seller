@@ -87,6 +87,42 @@ func set_bounds(bounds: Rect2) -> void:
 	limit_right = int(bounds.end.x)
 	limit_bottom = int(bounds.end.y)
 
+## Il pan col destro sta in `_input()` e non in `_unhandled_input()`, al
+## contrario di tutto il resto.
+##
+## Il motivo e' che l'interfaccia si mangia i click. Un `Control` con
+## `MOUSE_FILTER_STOP` — il telefono in fondo allo schermo, il tasto del menu
+## in alto — consuma QUALUNQUE tasto del mouse che cade dentro al suo
+## rettangolo, anche se poi nel suo `_gui_input()` guarda solo il sinistro. Da
+## `_unhandled_input()` questo faceva due danni:
+##
+## - iniziare la trascinata sopra al telefono non muoveva niente, perche' la
+##   pressione non arrivava mai qui;
+## - lasciare il tasto sopra al telefono lasciava `_panning` acceso, e da li'
+##   in poi la visuale seguiva il mouse senza che nessuno la trascinasse. E'
+##   questo il "va a scatti": la camera si muoveva da sola.
+##
+## Il tasto destro non lo usa nessun pezzo di interfaccia, quindi prenderlo
+## prima della GUI non toglie niente a nessuno. Ruota e tasto sinistro restano
+## in `_unhandled_input()`: quelli l'interfaccia li usa davvero.
+func _input(event: InputEvent) -> void:
+	if not interactive:
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+		_panning = event.pressed
+		if _panning:
+			# Guardarsi intorno stacca la camera dal personaggio: se
+			# continuasse a inseguirlo, il pan tornerebbe indietro da solo.
+			_following = false
+		_update_cursor()
+	elif event is InputEventMouseMotion and _panning:
+		# `event.relative` e' gia' nei 640x360 di progetto — Godot riporta gli
+		# eventi nello spazio di disegno prima di consegnarli — quindi basta
+		# dividere per lo zoom per sapere quanti pixel di MONDO ha percorso il
+		# cursore.
+		_pan_position -= event.relative / zoom
+		_snap()
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not interactive:
 		return
@@ -96,21 +132,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				_step(1)
 			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 				_step(-1)
-		if event.button_index == MOUSE_BUTTON_RIGHT:
-			_panning = event.pressed
-			if _panning:
-				# Guardarsi intorno stacca la camera dal personaggio: se
-				# continuasse a inseguirlo, il pan tornerebbe indietro da solo.
-				_following = false
-			_update_cursor()
-		elif event.button_index == MOUSE_BUTTON_LEFT:
+		if event.button_index == MOUSE_BUTTON_LEFT:
 			# Il comando di movimento lo gestisce la mappa (city.gd): qui cambia
 			# solo il cursore, così il click resta "non gestito" e arriva a entrambi.
 			_clicking = event.pressed
 			_update_cursor()
-	elif event is InputEventMouseMotion and _panning:
-		_pan_position -= event.relative / zoom
-		_snap()
 
 func _update_cursor() -> void:
 	var cursor := HAND_OPEN
@@ -137,19 +163,57 @@ func _step(direction: int) -> void:
 ## Traduce la scala netta desiderata nello zoom della camera, tenendo conto
 ## di quanto la finestra corrente sta già ingrandendo il canvas.
 func _apply() -> void:
-	var design_height: float = ProjectSettings.get_setting("display/window/size/viewport_height")
-	var stretch: float = float(get_window().size.y) / design_height
-	if stretch <= 0.0:
-		stretch = 1.0
-	var level: float = net_scales[_level] / stretch
+	var level: float = net_scales[_level] / _stretch()
 	zoom = Vector2(level, level)
 	_snap()
 
-## Tiene la camera su coordinate mondo intere. Con la scala netta intera questo
-## garantisce che ogni pixel degli sprite cada esattamente su pixel dello schermo:
-## senza, una camera ferma a 320.37 sfalsa il campionamento e l'immagine "sbava".
+## Di quanto la finestra corrente sta gia' ingrandendo il canvas: 2 a 720p.
+##
+## Serve allo zoom, che deve arrivare a una scala netta intera, e ai confini:
+## `get_viewport_rect()` e' in pixel DI FINESTRA, quindi per sapere quanto mondo
+## si vede si divide per la scala netta (`zoom * stretch`) e non per il solo
+## `zoom`.
+func _stretch() -> float:
+	var design_height: float = ProjectSettings.get_setting("display/window/size/viewport_height")
+	var stretch: float = float(get_window().size.y) / design_height
+	if stretch <= 0.0:
+		return 1.0
+	return stretch
+
+## Ferma la camera dentro ai confini e la posa su pixel interi DI SCHERMO.
+##
+## Due cose in un posto solo, perche' sono la stessa: dove finisce la camera.
+##
+## **I confini.** `Camera2D` per conto suo limita solo l'inquadratura disegnata,
+## non `position`: trascinando oltre il bordo della citta' l'immagine si fermava
+## ma `_pan_position` continuava a scappare, e per tornare indietro bisognava
+## ripercorrere al contrario tutto quello che si era trascinato a vuoto. Da
+## fuori sembrava una visuale bloccata. Fermando qui anche la posizione
+## continua, il bordo e' un muro e non un elastico.
+##
+## **Il passo.** Prima si arrotondava al pixel di mondo: a zoom 8 un pixel di
+## mondo sono otto pixel a schermo, e la mappa avanzava a blocchi di otto. Il
+## pixel-perfect pero' non chiede coordinate di mondo intere, chiede che lo
+## scostamento a schermo sia intero — cioe' `position * scala netta`. Snappando
+## li' il passo diventa un pixel di schermo a qualunque zoom: gli sprite restano
+## netti e il trascinamento e' liscio.
 func _snap() -> void:
-	position = _pan_position.round()
+	var net: float = net_scales[_level]
+	_pan_position = _clamp_to_limits(_pan_position)
+	position = (_pan_position * net).round() / net
+
+## Il rettangolo in cui puo' stare il CENTRO della camera: i confini del mondo
+## rientrati di mezza inquadratura. Se il mondo e' piu' piccolo dello schermo il
+## rientro si mangia il rettangolo, e allora l'unica posizione giusta e' il
+## centro del mondo.
+func _clamp_to_limits(at: Vector2) -> Vector2:
+	var half: Vector2 = get_viewport_rect().size * 0.5 / (zoom * _stretch())
+	var low := Vector2(limit_left, limit_top) + half
+	var high := Vector2(limit_right, limit_bottom) - half
+	var middle := (Vector2(limit_left, limit_top) + Vector2(limit_right, limit_bottom)) * 0.5
+	return Vector2(
+		clampf(at.x, low.x, high.x) if low.x <= high.x else middle.x,
+		clampf(at.y, low.y, high.y) if low.y <= high.y else middle.y)
 
 ## La nitidezza dipende da questa lista: se qualcuno ci infila un valore sbagliato
 ## è meglio accorgersene subito invece di inseguire uno sfarfallio a video.

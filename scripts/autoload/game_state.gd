@@ -415,6 +415,7 @@ func _on_day_started(_day: int) -> void:
 	Economy.roll_new_day(current)
 	_pay_staff()
 	_pay_power()
+	_pay_property_tax()
 	# Il cambio di giorno è un punto di controllo naturale: è il momento in cui
 	# cambiano prezzi e attenzione, ed è quello che il giocatore ricorda.
 	save_game()
@@ -443,6 +444,17 @@ func _pay_power() -> void:
 	if int(bill["paid"]) < int(bill["due"]):
 		message(tr("MSG_POWER_SPEAKER"), tr("MSG_POWER_SHORT") % [
 			UiFormat.money(int(bill["due"])), UiFormat.money(int(bill["paid"]))])
+
+## La tassa sulla proprieta', una volta l'anno per ogni edificio comprato.
+## Vedi `Economy.charge_property_tax()`: qui c'e' solo come la si racconta.
+func _pay_property_tax() -> void:
+	var tax := Economy.charge_property_tax(current)
+	if int(tax["due"]) <= 0:
+		return
+	notify(tr("NOTE_PROPERTY_TAX") % UiFormat.money(int(tax["paid"])))
+	if int(tax["paid"]) < int(tax["due"]):
+		message(tr("MSG_TAX_SPEAKER"), tr("MSG_TAX_SHORT") % [
+			UiFormat.money(int(tax["due"])), UiFormat.money(int(tax["paid"]))])
 
 # --- Ciclo di vita della partita -------------------------------------------
 
@@ -530,6 +542,8 @@ func _away_body(report: Dictionary) -> String:
 		facts.append(tr("AWAY_WAGES") % UiFormat.money(int(report["wages"])))
 	if int(report["power"]) > 0:
 		facts.append(tr("AWAY_POWER") % UiFormat.money(int(report["power"])))
+	if int(report.get("tax", 0)) > 0:
+		facts.append(tr("AWAY_TAX") % UiFormat.money(int(report["tax"])))
 	var quit_role: String = report["quit"]
 	if not quit_role.is_empty():
 		facts.append(tr("AWAY_QUIT") % Staff.role_name(quit_role))

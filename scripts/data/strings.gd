@@ -457,6 +457,8 @@ const TEXT := {
 	## %s quanto è stato pagato
 	"NOTE_WAGES": ["WAGES  -%s", "PAGHE  -%s", "SUELDOS  -%s"],
 	"NOTE_POWER_BILL": ["POWER BILL  -%s", "BOLLETTA  -%s", "LUZ  -%s"],
+	## %s quanto e' stato pagato di tasse sulla proprieta'
+	"NOTE_PROPERTY_TAX": ["PROPERTY TAX  -%s", "TASSE SULLA CASA  -%s", "IMPUESTOS  -%s"],
 	## %d chili partiti
 	"NOTE_VAN_LEFT": ["%d KG ON THE ROAD", "%d KG PARTITI", "%d KG EN CAMINO"],
 	## %s incasso
@@ -584,9 +586,9 @@ const TEXT := {
 
 	"GUIDE_FASTER": ["GOING FASTER", "ANDARE PIÙ FORTE", "IR MÁS RÁPIDO"],
 	"GUIDE_FASTER_BODY": [
-		"Three things, in this order.\n\nMORE POTS. They do not make a plant grow faster, they grow more at once. You unlock them from the PC, and the garage adds twelve on top of the six downstairs.\n\nGROW TOOLKIT. 154$ once, and every harvest comes in 15% heavier. It pays for itself in two cuts.\n\nLAMPS. 315$ each, and one lamp sits over ONE pot: it cuts 8% off that pot's time, not off everybody's. Six lamps do not make one pot six times faster, and every one of them shows up on the power bill.",
-		"Tre cose, in quest'ordine.\n\nPIÙ VASI. Non fanno crescere una pianta più in fretta, ne fanno crescere di più insieme. Si sbloccano dal PC, e il garage ne aggiunge dodici sopra ai sei di sotto.\n\nGROW TOOLKIT. 154$ una volta sola, e ogni raccolto rende il 15% in più. Si ripaga in due tagli.\n\nLAMPADE. 315$ l'una, e una lampada sta sopra a UN vaso: taglia l'8% del tempo di quel vaso, non di tutti. Sei lampade non rendono un vaso sei volte più veloce, e ognuna si vede sulla bolletta della luce.",
-		"Tres cosas, en este orden.\n\nMÁS MACETAS. No hacen crecer una planta más rápido, hacen crecer más a la vez. Se desbloquean desde el PC, y el garaje añade doce sobre las seis de abajo.\n\nGROW TOOLKIT. 154$ una sola vez, y cada cosecha rinde un 15% más. Se paga solo en dos cortes.\n\nLÁMPARAS. 315$ cada una, y una lámpara va sobre UNA maceta: le quita el 8% del tiempo a esa maceta, no a todas. Seis lámparas no hacen una maceta seis veces más rápida, y cada una se nota en la factura de la luz.",
+		"Three things, in this order.\n\nMORE POTS. They do not make a plant grow faster, they grow more at once. You unlock them from the PC, and the garage adds twelve on top of the six downstairs. Owning it is not free: it adds 120$ to every power bill even empty, and 1% of what you paid for it goes in property tax once a year.\n\nGROW TOOLKIT. 154$ once, and every harvest comes in 15% heavier. It pays for itself in two cuts.\n\nLAMPS. 315$ each, and one lamp sits over ONE pot: it cuts 8% off that pot's time, not off everybody's. Six lamps do not make one pot six times faster, and every one of them shows up on the power bill.",
+		"Tre cose, in quest'ordine.\n\nPIÙ VASI. Non fanno crescere una pianta più in fretta, ne fanno crescere di più insieme. Si sbloccano dal PC, e il garage ne aggiunge dodici sopra ai sei di sotto. Averlo non è gratis: aggiunge 120$ a ogni bolletta anche vuoto, e una volta l'anno se ne va l'1% di quanto è costato in tasse sulla proprietà.\n\nGROW TOOLKIT. 154$ una volta sola, e ogni raccolto rende il 15% in più. Si ripaga in due tagli.\n\nLAMPADE. 315$ l'una, e una lampada sta sopra a UN vaso: taglia l'8% del tempo di quel vaso, non di tutti. Sei lampade non rendono un vaso sei volte più veloce, e ognuna si vede sulla bolletta della luce.",
+		"Tres cosas, en este orden.\n\nMÁS MACETAS. No hacen crecer una planta más rápido, hacen crecer más a la vez. Se desbloquean desde el PC, y el garaje añade doce sobre las seis de abajo. Tenerlo no es gratis: añade 120$ a cada factura aunque esté vacío, y una vez al año se va el 1% de lo que costó en impuestos.\n\nGROW TOOLKIT. 154$ una sola vez, y cada cosecha rinde un 15% más. Se paga solo en dos cortes.\n\nLÁMPARAS. 315$ cada una, y una lámpara va sobre UNA maceta: le quita el 8% del tiempo a esa maceta, no a todas. Seis lámparas no hacen una maceta seis veces más rápida, y cada una se nota en la factura de la luz.",
 	],
 
 	"GUIDE_STAFF": ["HIRING", "IL PERSONALE", "EL PERSONAL"],
@@ -704,6 +706,13 @@ Te hara falta para seguir el ritmo",
 	],
 	"MSG_STAFF_SPEAKER": ["STAFF", "PERSONALE", "PERSONAL"],
 	"MSG_POWER_SPEAKER": ["POWER COMPANY", "SOCIETA ELETTRICA", "COMPANIA DE LUZ"],
+	"MSG_TAX_SPEAKER": ["CITY HALL", "COMUNE", "AYUNTAMIENTO"],
+	## %s quanto era dovuto, %s quanto e' stato pagato
+	"MSG_TAX_SHORT": [
+		"Property tax came to %s and only %s went through. What you own costs you every year, full pots or empty ones.",
+		"Le tasse sulla proprieta erano %s e ne sono passati solo %s. Quello che possiedi ti costa ogni anno, che i vasi siano pieni o vuoti.",
+		"Los impuestos eran %s y solo han pasado %s. Lo que tienes te cuesta cada ano, esten las macetas llenas o vacias.",
+	],
 	## %s quanto era dovuto, %s quanto e' stato pagato
 	"MSG_POWER_SHORT": [
 		"The bill came to %s and only %s went through. Those lamps eat power whether the pots are full or not.",
@@ -744,6 +753,7 @@ Te hara falta para seguir el ritmo",
 	"AWAY_CUT": ["Dealer cut: -%s", "Quota dei dealer: -%s", "Parte de los vendedores: -%s"],
 	"AWAY_WAGES": ["Wages: -%s", "Paghe: -%s", "Sueldos: -%s"],
 	"AWAY_POWER": ["Power bill: -%s", "Bolletta della luce: -%s", "Factura de la luz: -%s"],
+	"AWAY_TAX": ["Property tax: -%s", "Tasse sulla proprieta: -%s", "Impuestos: -%s"],
 	"AWAY_QUIT": [
 		"%s walked out: there was no money to pay the wages.",
 		"%s se n'è andato: non c'erano i soldi per pagarlo.",
@@ -1153,6 +1163,7 @@ const PIXEL_KEYS := [
 	"PC_GROWER_SITES", "PC_SITE_SPARE", "SITE_BASEMENT", "SITE_GARAGE",
 	"PC_STREET_PRICE", "PC_STOCK_VALUE",
 	"MSG_COUSIN_SPEAKER", "MSG_STAFF_SPEAKER", "MSG_AWAY_SPEAKER", "MSG_POWER_SPEAKER",
+	"MSG_TAX_SPEAKER",
 	"MSG_OK",
 	# I corpi delle vignette: si leggono col font del gioco, non con quello di
 	# sistema come gli avvisi. Vedi `phone.gd`.
