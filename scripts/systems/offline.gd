@@ -32,38 +32,59 @@ extends RefCounted
 ## mezzanotte perché paghe, prezzo del giorno e meteo cadano al momento giusto.
 ## Sono un centinaio di giri per una notte intera: non si sente.
 ##
-## ## Il tetto, e perché è in ore di gioco
+## ## Tutta l'assenza, ma a metà resa
 ##
-## L'orologio della partita corre **duecentoquaranta volte** più veloce del
-## nostro: a `GAME_MINUTES_PER_SECOND` = 4 una giornata di gioco dura sei minuti
-## veri. Stare via due ore vere vorrebbe quindi dire venti giorni di gioco, più
-## di quanto duri una partita intera fin qui. Contarli tutti non sarebbe
-## generoso: sarebbe dire al giocatore che il modo migliore di giocare è non
-## aprire il gioco.
+## Non c'è più un tetto. Si conta **tutto** il tempo passato fuori: chi torna
+## dopo una settimana trova una settimana di lavoro, non le quarantotto ore che
+## si contavano prima.
 ##
-## Per questo il tetto è in ore DI GIOCO e non in ore vere: è l'unità in cui si
-## ragiona di bilanciamento — cicli di crescita, paghe, prezzo del giorno — ed è
-## l'unica che resta giusta se un domani si cambia il ritmo dell'orologio.
+## Quello che c'è al posto del tetto è la resa: a gioco spento **tutto rende la
+## metà**. Se in quel tempo si sarebbero piazzati cinquanta grammi, se ne
+## trovano venticinque; le piante fanno metà dei cicli, e metà sono anche le
+## paghe e le bollette, perché è tutto il mondo ad andare a metà velocità e non
+## solo la parte che frutta.
+##
+## Come: `catch_up()` accredita metà delle ore, e da lì in poi non cambia
+## niente: i sistemi che c'erano già lavorano su quelle. È solo un conto —
+## il gioco era spento, non c'era niente da vedere — ed è il modo più onesto di
+## farlo, perché non c'è nessun punto in cui una cosa rende e un'altra no.
+##
+## **Perché a metà e non per intero.** L'orologio della partita corre
+## duecentoquaranta volte più veloce del nostro: a `GAME_MINUTES_PER_SECOND` = 4
+## una giornata di gioco dura sei minuti veri, e una notte di sonno vale due
+## mesi di gioco. Contarla tutta per intero vorrebbe dire che il modo migliore
+## di giocare è non aprire il gioco. A metà resta conveniente **esserci** — chi
+## gioca produce il doppio di chi aspetta — e chi torna dopo una settimana
+## trova comunque una settimana di roba, che è quello che uno si aspetta.
 ##
 ## ## Cosa NON succede a gioco chiuso
 ##
 ## Solo il personale lavora. Il giocatore no: non annaffia i vasi che i
 ## coltivatori non seguono, non vende in strada a mano, e soprattutto **non
 ## compra semi** — quelli si prendono solo da Brian, di persona. Finiti i semi i
-## vasi restano vuoti e la produzione si ferma da sola. È questo, più del tetto,
-## a tenere il conto onesto: non serve un moltiplicatore che dimezzi la resa,
-## perché a gioco chiuso manca metà del gioco.
+## vasi restano vuoti e la produzione si ferma da sola: è il vero limite di una
+## lunga assenza, e non lo mette un numero.
 
-## Quante ore di gioco si recuperano al massimo. Vedi il commento qui sopra.
+## Quanto rende un'ora passata a gioco spento. Vedi il commento qui sopra.
 ##
-## Quarantotto sono due giornate di gioco: un coltivatore porta a casa un ciclo
-## e mezzo per vaso, i dealer piazzano quello che trovano, e si pagano due notti
-## di paghe. Ci si arriva stando via **dodici minuti veri**; oltre, si trova
-## sempre quello.
+## È l'unico numero da girare per rendere il ritorno più o meno ricco: tutto il
+## resto viene da sé, perché tutto il recupero è fatto delle ore che questo
+## moltiplicatore decide.
+const CLOSED_RATE := 0.5
+
+## Quanti passi al massimo, per non piantare il gioco all'avvio.
 ##
-## È il numero da girare per rendere il ritorno più o meno ricco, ed è l'unico
-## che serve toccare: tutto il resto viene da sé.
-const MAX_GAME_HOURS := 48.0
+## Il passo è di mezz'ora di gioco, e per un'assenza normale i passi sono
+## qualche centinaio. Ma senza tetto l'assenza non ha più un massimo: un mese
+## via sarebbe un quarto di milione di giri, cioè una manciata di secondi di
+## schermo fermo all'apertura. Oltre questo numero il passo si allarga da solo.
+##
+## Allargandolo si perde qualcosa — un coltivatore raccoglie **una volta per
+## chiamata**, quindi con passi larghi qualche ciclo non viene contato — e va
+## bene che sia così: l'errore è sempre in difetto, mai a favore, e comincia a
+## esistere dopo mesi di assenza, quando i semi sono finiti da un pezzo e non
+## c'è più niente da raccogliere comunque.
+const MAX_STEPS := 6000
 
 ## Sotto a questi secondi non è successo niente che valga la pena raccontare.
 ##
@@ -82,10 +103,10 @@ static func empty_report() -> Dictionary:
 	return {
 		# Se il recupero è stato fatto davvero.
 		"ran": false,
-		# Secondi veri passati, e quanti se ne sono contati (il tetto).
+		# Secondi veri passati: si contano tutti, non c'è più un tetto.
 		"away_seconds": 0.0,
-		"credited_seconds": 0.0,
-		"capped": false,
+		# Quanto ha rendito quel tempo, 0-1. Vedi `CLOSED_RATE`.
+		"rate": 1.0,
 		# Ore di gioco recuperate, e da dove si partiva.
 		"game_hours": 0.0,
 		"from_day": 0,
@@ -143,24 +164,27 @@ static func catch_up(data: SaveData, real_seconds: float, minutes_per_second: fl
 	if data == null or real_seconds < MIN_REAL_SECONDS or minutes_per_second <= 0.0:
 		return report
 
-	var wanted := real_seconds * minutes_per_second / 60.0
-	var hours := minf(wanted, MAX_GAME_HOURS)
+	# Le ore che l'assenza varrebbe, e quelle che valgono davvero: a gioco
+	# spento tutto rende la metà, e il modo di dirlo è accreditare metà delle
+	# ore. Da qui in avanti nessuno sa più niente dello sconto — i sistemi
+	# lavorano sulle ore che si trovano, come hanno sempre fatto.
+	var real_hours := real_seconds * minutes_per_second / 60.0
+	var hours := real_hours * CLOSED_RATE
 	if hours <= 0.0:
 		return report
 
 	report["ran"] = true
 	report["away_seconds"] = real_seconds
-	# Quanti secondi veri sono stati davvero contati: sotto al tetto sono tutti,
-	# sopra sono quelli che al ritmo dell'orologio danno le ore del tetto.
-	report["credited_seconds"] = hours * 60.0 / minutes_per_second
-	report["capped"] = hours < wanted
+	report["rate"] = CLOSED_RATE
 	report["game_hours"] = hours
 	report["from_day"] = data.day
 	report["from_time"] = data.time_of_day
 
+	# Il passo si allarga solo per le assenze lunghissime: vedi `MAX_STEPS`.
+	var step := maxf(STEP_HOURS, hours / float(MAX_STEPS))
 	var left := hours
 	while left > 0.0:
-		left -= _one_step(data, minf(STEP_HOURS, left), report)
+		left -= _one_step(data, minf(step, left), report)
 
 	# I vasi che il personale non segue nessuno li ha annaffiati: dirlo è la
 	# differenza fra "il gioco mi ha rovinato le piante" e "le piante avevano

@@ -144,10 +144,28 @@ static func roles_for(data: SaveData) -> Array:
 			list.append(role)
 	return list
 
-## C'è un autista in organico? Da questo dipende se i semi si possono ordinare
-## dal PC invece che andando di persona dal grossista.
+## C'è un autista in organico? Da questo dipendono due cose: i semi ordinabili
+## dal PC, e il contatto in rubrica sul telefono (`Chat.contacts()`).
 static func has_driver(data: SaveData) -> bool:
 	return count(data, "driver") > 0
+
+## Il flag che ricorda che l'autista si è già presentato.
+const DRIVER_HELLO_FLAG := "driver_said_hello"
+
+## Assunto l'autista, il primo messaggio lo manda lui: vero **solo il giro in
+## cui scatta**, come gli altri traguardi.
+##
+## È quel messaggio a mettere il contatto in rubrica sotto agli occhi del
+## giocatore. La rubrica ce l'avrebbe comunque — `Chat.contacts()` guarda
+## l'organico — ma un contatto che compare in silenzio dentro a una schermata
+## che si apre solo se la si cerca non lo trova nessuno.
+static func check_driver_hello(data: SaveData) -> bool:
+	if data == null or not has_driver(data):
+		return false
+	if bool(data.get_flag(DRIVER_HELLO_FLAG, false)):
+		return false
+	data.set_flag(DRIVER_HELLO_FLAG, true)
+	return true
 
 static func hire_cost(role: String) -> int:
 	return int(ROLES.get(role, {}).get("hire", 0))

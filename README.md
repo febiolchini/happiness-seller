@@ -1100,19 +1100,37 @@ niente da segnalare, il lavoro sta andando avanti.
 
 ### La chat, e le due specie di messaggio
 
-Aperto, il telefono è una **rubrica** — per ora un contatto, Brian — e dentro
-ci sta la **chat**: il filo dei messaggi in nuvolette, le sue a sinistra e le
-tue a destra, col bottone della richiesta in fondo dove in un'app di messaggi
-c'è la casella da cui si scrive.
+Aperto, il telefono è una **rubrica** e dentro ci sta la **chat**: il filo dei
+messaggi in nuvolette, le sue a sinistra e le tue a destra, col bottone in fondo
+dove in un'app di messaggi c'è la casella da cui si scrive.
 
-La rubrica con un contatto solo sembra un passaggio in più, e non lo è per due
-motivi. Il primo è che la riga di Brian porta sotto al nome **l'ultima cosa che
-si sono detti**, quindi la rubrica è già una risposta alla domanda "che mi aveva
-detto?" e il click serve solo a leggere il resto. Il secondo è che aprire il
-telefono dritto su una chat vorrebbe dire che il telefono *è* quella chat, e il
-secondo contatto — il personale, la società elettrica — costringerebbe a
-rifare la schermata e a insegnare al giocatore un posto nuovo. Così invece è
-una riga in `Chat.contacts()`.
+I contatti sono due, e il secondo compare quando arriva: **Brian** sempre, e
+**l'autista** da quando lo si assume (`Chat.contacts()` guarda l'organico).
+Quando la rubrica aveva un contatto solo sembrava un passaggio in più, e non lo
+era per due motivi. Il primo è che la riga porta sotto al nome **l'ultima cosa
+che si sono detti**, quindi la rubrica è già una risposta alla domanda "che mi
+aveva detto?" e il click serve solo a leggere il resto. Il secondo è che aprire
+il telefono dritto su una chat vorrebbe dire che il telefono *è* quella chat, e
+il secondo contatto avrebbe costretto a rifare la schermata. Il secondo contatto
+è arrivato, ed è stata una riga in `contacts()`.
+
+### Mandare l'autista dal telefono
+
+Nella chat dell'autista il bottone in fondo non chiede niente a nessuno: apre il
+**menu dei tagli**, che è una terza pagina del telefono (`Page.PICK`) e non una
+tendina sopra alla chat — su un vetro largo centoquattordici pixel una tendina
+coprirebbe la conversazione e lascerebbe metà bottone fuori. Tre righe con
+quanti semi e quanto costano, la freccia indietro torna alla chat.
+
+Scelto il taglio parte lo stesso ordine dello sportello del grossista
+(`SeedRun.order()`), il furgone esce dalla città e in chat restano due righe —
+"vai a prendere 25 semi" e "vado, torno fra un paio d'ore" — che **spariscono da
+sole** quando il furgone rientra, perché non le scrive nessuno: se le ricava
+`Chat.driver_live()` da `seed_run`, come quelle dell'appuntamento con Brian.
+
+I tagli sono gli stessi tre di sempre: `SeedRun.PACKS` è una tabella sola, e il
+telefono è il terzo posto che la mostra dopo l'edificio e il PC, senza che
+nessuno dei tre sappia degli altri.
 
 Dentro alla chat ci sono **due specie di riga**, e la differenza è tutto il
 punto di `scripts/data/chat.gd`:
@@ -1120,7 +1138,7 @@ punto di `scripts/data/chat.gd`:
 | | cosa sono | dove stanno |
 |---|---|---|
 | restano | i messaggi dei traguardi: l'apertura, la fine del prologo ai mille, il consiglio di allargarsi, il chilo, il grossista | nel salvataggio, `SaveData.chat_log` |
-| non restano | il giro della richiesta di semi: "servono semi" — "ci penso io" — "ti aspetto in MILL ROAD" — "me ne vado" | da nessuna parte: si ricavano |
+| non restano | il giro della richiesta di semi a Brian, e l'ordine mandato all'autista | da nessuna parte: si ricavano |
 
 I primi sono pezzi di storia e si rileggono a distanza di giorni. I secondi
 finito l'appuntamento non vogliono più dire niente, e tenerli vorrebbe dire che
@@ -2366,7 +2384,10 @@ prima volta che si compra una cassa di semi Brian scrive che c'è un modo di non
 rifare quella strada — un autista sul furgone — e da quel momento il ruolo si
 può assumere.
 
-Assunto, nella scheda GROW del PC compare `MANDA L'AUTISTA`, che apre lo
+Assunto, si presenta lui con un messaggio — ed è quello a far trovare il
+contatto nuovo in rubrica — e da lì i semi si ordinano in due posti: dalla sua
+chat sul telefono, scegliendo il taglio da un menu (vedi "Mandare l'autista dal
+telefono"), e dalla scheda GROW del PC, dove `MANDA L'AUTISTA` apre lo
 **stesso** sportello del grossista che sta sull'edificio: stessi tagli, stessi
 sconti, stesse due ore. Non è una seconda interfaccia con gli stessi numeri
 dentro, è la stessa scena caricata da un altro posto — due copie vorrebbero dire
@@ -2602,25 +2623,43 @@ volta sbaglierebbe in due modi:
 
 Quindi si avanza a mezz'ore di gioco, spezzando il passo esatto sulla mezzanotte
 perché paghe, prezzo del giorno e meteo cadano al momento giusto. Sono un
-centinaio di giri per il recupero più lungo possibile: non si sente. Il controllo
-automatico verifica proprio questo — che in quarantotto ore i vasi vengano
-**ripiantati** e non seminati una volta sola.
+centinaio di giri per un'assenza normale: non si sente. Il controllo automatico
+verifica proprio questo — che in quarantotto ore i vasi vengano **ripiantati** e
+non seminati una volta sola.
 
-### Il tetto è in ore di gioco, non in ore vere
+### Niente tetto: si conta tutta l'assenza, ma rende la metà
 
-È la decisione che conta. L'orologio della partita corre **duecentoquaranta
-volte** più veloce del nostro: a `GAME_MINUTES_PER_SECOND` = 4 una giornata di
-gioco dura sei minuti veri. Stare via due ore vere vorrebbe dire venti giorni di
-gioco — più di quanto duri una partita intera fin qui. Contarli tutti non
-sarebbe generoso: sarebbe dire al giocatore che il modo migliore di giocare è
-non aprire il gioco.
+C'era un tetto e valeva quarantotto ore di gioco: oltre, si trovava sempre
+quello, e tornare dopo una settimana dava quanto tornare dopo un quarto d'ora.
+Non c'è più. Si conta **tutto** il tempo passato fuori.
 
-`Offline.MAX_GAME_HOURS` vale **48**, cioè due giornate. Ci si arriva stando via
-dodici minuti veri; oltre, si trova sempre quello — tornare dopo una settimana
-dà quanto tornare dopo un quarto d'ora. È l'unico numero da girare per rendere
-il ritorno più o meno ricco, e sta in ore di gioco perché quella è l'unità in
-cui si ragiona di bilanciamento (cicli, paghe, prezzo del giorno) ed è l'unica
-che resta giusta se un domani si cambia il ritmo dell'orologio.
+Al suo posto c'è la resa: `Offline.CLOSED_RATE` vale **0,5**, e a gioco spento
+tutto rende la metà. Se in quel tempo si sarebbero piazzati cinquanta grammi se
+ne trovano venticinque, le piante fanno metà dei cicli, e metà sono anche le
+paghe e le bollette — è tutto il mondo ad andare a metà velocità, non solo la
+parte che frutta. Il conto si fa in un punto solo: `catch_up()` accredita metà
+delle ore e da lì in poi nessuno sa più niente dello sconto.
+
+**Perché a metà e non per intero.** L'orologio della partita corre
+**duecentoquaranta volte** più veloce del nostro: a `GAME_MINUTES_PER_SECOND` =
+4 una giornata di gioco dura sei minuti veri, e una notte di sonno vale due mesi
+di gioco. Contarla tutta per intero vorrebbe dire dire al giocatore che il modo
+migliore di giocare è non aprire il gioco. A metà resta conveniente **esserci**
+— chi gioca produce il doppio di chi aspetta — e chi torna dopo una settimana
+trova comunque una settimana di roba, che è quello che uno si aspetta.
+
+**Il freno vero non è un numero.** Sono i semi: a gioco chiuso non si comprano,
+quindi la produzione si ferma da sola quando finiscono (vedi qui sotto). Un mese
+di assenza non dà un mese di raccolto, dà quello che i semi rimasti permettevano
+— e in compenso un mese di paghe e di bollette lo scala per intero, che è il
+motivo per cui si torna col personale andato via e la cassa vuota. È una
+conseguenza voluta di contare tutto, non un effetto collaterale.
+
+**Il passo si allarga sulle assenze lunghissime.** Senza tetto un anno di
+assenza sarebbe un milione di giri da mezz'ora: `MAX_STEPS` tiene il recupero
+sotto ai seimila passi allargando il passo, e l'errore che ne viene è sempre in
+difetto — qualche ciclo di raccolto non contato, mai uno in più. Un anno di
+assenza si recupera in meno di un secondo.
 
 Sotto al minuto non succede niente: chi riapre il gioco subito dopo averlo
 chiuso non deve beccarsi un riquadro a tutto schermo per venti secondi.
@@ -2635,8 +2674,8 @@ non seguono, non vende in strada a mano, e soprattutto **non compra semi** —
 quelli si prendono solo da Brian, di persona. Finiti i semi i vasi restano vuoti
 e la produzione si ferma da sola.
 
-È questo, più del tetto, a tenere il conto onesto: **non serve un moltiplicatore
-che dimezzi la resa offline**, perché a gioco chiuso manca già metà del gioco.
+È questo il freno che conta davvero, più di qualunque numero: la resa dimezzata
+rallenta tutto, ma sono i semi finiti a fermare la produzione per davvero.
 Un coltivatore segue due vasi, gli altri restano a secco, e la sete si porta via
 un pezzo di raccolto esattamente come a gioco aperto (mai sotto a
 `Grow.MIN_QUALITY`: una notte via non azzera niente).
@@ -2656,7 +2695,7 @@ riaprirebbe il gioco al giorno 5 ricordandosi di averlo chiuso al giorno 3:
 ```
 Sei stato via 45m.
 GIORNO 3 21:24  ->  GIORNO 5 21:24
-Si recuperano al massimo 48 ore di gioco.
+A gioco spento tutto rende il 50% in meno.
 
 Raccolto: 40 g
 Piazzato: 35 g per 294 $

@@ -1707,37 +1707,51 @@ func _test_offline() -> void:
 		Offline.away_seconds(data, Time.get_unix_time_from_system()), 0.0,
 		"un salvataggio nel futuro non regala tempo")
 
-	# --- L'orologio avanza di quanto deve ----------------------------------
+	# --- L'orologio avanza di meta' di quanto deve -------------------------
 	#
-	# A 4 minuti di gioco al secondo, due minuti veri sono 480 minuti di gioco,
-	# cioe' otto ore. E' il rapporto che rende necessario il tetto: vedi sotto.
+	# A 4 minuti di gioco al secondo, due minuti veri sarebbero 480 minuti di
+	# gioco, cioe' otto ore. A gioco spento pero' tutto rende la meta', e il
+	# modo in cui lo si dice e' accreditare meta' delle ore: quattro.
 	data = _fresh()
 	data.time_of_day = 8.0
 	data.day = 1
 	var report := Offline.catch_up(data, 120.0, RATE)
 	_check(Offline.happened(report), "due minuti veri fanno scattare il recupero")
-	_check(is_equal_approx(float(report["game_hours"]), 8.0), "due minuti veri sono otto ore di gioco")
 	_check(
-		data.day == 1 and is_equal_approx(data.time_of_day, 16.0),
-		"e l'orologio della partita arriva alle sedici")
-	_check(not bool(report["capped"]), "otto ore stanno sotto al tetto")
+		is_equal_approx(float(report["game_hours"]), 8.0 * Offline.CLOSED_RATE),
+		"e valgono meta' delle otto ore di gioco che varrebbero")
+	_check(
+		data.day == 1 and is_equal_approx(data.time_of_day, 12.0),
+		"quindi l'orologio della partita arriva a mezzogiorno, non alle sedici")
+	_check(
+		is_equal_approx(float(report["rate"]), Offline.CLOSED_RATE),
+		"e il resoconto dice di quanto ha reso il tempo passato fuori")
 
-	# --- Il tetto -----------------------------------------------------------
+	# --- Niente tetto: una settimana vale una settimana --------------------
+	#
+	# Il tetto c'era, valeva quarantotto ore, e voleva dire che tornare dopo una
+	# settimana dava quanto tornare dopo un quarto d'ora. Adesso si conta tutto
+	# e a fare da freno c'e' solo la resa dimezzata, quindi una settimana deve
+	# valere piu' di due ore — e di preciso la meta' di quello che varrebbe.
 	data = _fresh()
 	data.time_of_day = 8.0
 	var long_away := Offline.catch_up(data, 2.0 * HOUR, RATE)
-	_check(bool(long_away["capped"]), "due ore vere sbattono contro il tetto")
 	_check(
-		is_equal_approx(float(long_away["game_hours"]), Offline.MAX_GAME_HOURS),
-		"e vengono recuperate solo le ore del tetto")
-	# Il tetto e' quello che tiene il gioco un gestionale invece di un idle:
-	# tornare dopo una settimana deve dare quanto tornare dopo un quarto d'ora.
+		is_equal_approx(
+			float(long_away["game_hours"]),
+			2.0 * HOUR * RATE / 60.0 * Offline.CLOSED_RATE),
+		"due ore vere valgono meta' delle ore che varrebbero")
 	var week := _fresh()
 	week.time_of_day = 8.0
 	var week_report := Offline.catch_up(week, 24.0 * 7.0 * HOUR, RATE)
 	_check(
-		is_equal_approx(float(week_report["game_hours"]), float(long_away["game_hours"])),
-		"una settimana vale quanto il tetto, non di piu'")
+		float(week_report["game_hours"]) > float(long_away["game_hours"]) * 10.0,
+		"e una settimana vale molto piu' di due ore, non lo stesso numero fisso")
+	_check(
+		is_equal_approx(
+			float(week_report["game_hours"]),
+			24.0 * 7.0 * HOUR * RATE / 60.0 * Offline.CLOSED_RATE),
+		"anche lei dimezzata, e nient'altro")
 
 	# --- Il personale lavora davvero ---------------------------------------
 	data = _fresh()
@@ -1752,8 +1766,9 @@ func _test_offline() -> void:
 	# Semi in mano: senza, i coltivatori non hanno niente da piantare.
 	data.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 6)
 	var cash_before := data.cash
-	# Dodici minuti veri: il tetto pieno, due giornate di gioco.
-	var worked := Offline.catch_up(data, 12.0 * 60.0, RATE)
+	# Ventiquattro minuti veri: novantasei ore di gioco che, dimezzate, fanno le
+	# quarantotto che servono a vedere un ciclo intero piu' mezzo.
+	var worked := Offline.catch_up(data, 24.0 * 60.0, RATE)
 	_check(int(worked["planted"]) > 0, "i coltivatori piantano mentre il gioco e' chiuso")
 	_check(int(worked["grams"]) > 0, "e raccolgono")
 	_check(int(worked["sold"]) > 0, "i dealer piazzano la merce")
@@ -1775,7 +1790,8 @@ func _test_offline() -> void:
 	Staff.hire(stepped, "grower", 0.0)
 	stepped.staff_checked_at = 0.0
 	stepped.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 8)
-	# Il tetto pieno: 48 ore di gioco, sopra a un ciclo e mezzo di 29 ore.
+	# Mezz'ora vera: centoventi ore di gioco che, dimezzate, fanno sessanta —
+	# sopra a un ciclo e mezzo di 29 ore.
 	var tended_pots := mini(Staff.POTS_PER_GROWER, stepped.plots.size())
 	var many := Offline.catch_up(stepped, 30.0 * 60.0, RATE)
 	_check(
@@ -1818,8 +1834,10 @@ func _test_offline() -> void:
 	meeting.day = 1
 	meeting.time_of_day = 8.0
 	SeedDeal.ask(meeting, 8.0)
-	# Piu' della finestra dell'incontro: Brian non aspetta in pausa.
-	var missed := Offline.catch_up(meeting, 12.0 * 60.0, RATE)
+	# Piu' della finestra dell'incontro: Brian non aspetta in pausa. Sono
+	# ventiquattro minuti veri e non dodici perche' le ore accreditate sono
+	# meta' di quelle che il tempo vale (vedi `Offline.CLOSED_RATE`).
+	var missed := Offline.catch_up(meeting, 24.0 * 60.0, RATE)
 	_check_eq(str(missed["deal"]), "gone", "un appuntamento lasciato in sospeso scade")
 	_check(not SeedDeal.is_active(meeting), "e l'appuntamento viene chiuso")
 
@@ -2068,6 +2086,45 @@ func _test_chat() -> void:
 	_check_eq(
 		Chat.thread(data, Chat.BRIAN, 40.0).size(), 2,
 		"chiuso l'appuntamento resta solo la cronologia")
+
+	# --- L'autista in rubrica ------------------------------------------------
+	# Il contatto non c'e' finche' non lo si assume: una chat con uno che non
+	# lavora per te e' un contatto che non risponde mai.
+	var rubrica := Chat.contacts(data)
+	_check_eq(rubrica.size(), 1, "in rubrica c'e' il solo Brian")
+	data.upgrades["van"] = 1
+	data.cash = Staff.hire_cost("driver")
+	_check(Staff.hire(data, "driver", 50.0), "si assume l'autista")
+	_check_eq(Chat.contacts(data).size(), 2, "e entra in rubrica")
+	_check_eq(
+		Chat.name_key(Chat.DRIVER), "MSG_DRIVER_SPEAKER",
+		"col suo nome, che e' una chiave come tutti gli altri")
+	# Si presenta lui, una volta sola: e' quel messaggio a far trovare la chat.
+	_check(Staff.check_driver_hello(data), "assunto, scrive per primo")
+	_check(not Staff.check_driver_hello(data), "ma una volta sola")
+
+	# --- Il giro dei semi, che sparisce da solo ------------------------------
+	_check(
+		Chat.thread(data, Chat.DRIVER, 50.0).is_empty(),
+		"fermo, la sua chat non ha niente da dire")
+	data.cash = SeedRun.pack_price(SeedRun.PACKS[0])
+	# Il grossista lo apre Brian col furgone, e qui il furgone e' arrivato di
+	# soppiatto: senza il flag `order()` rifiuterebbe e il resto non proverebbe
+	# niente.
+	data.set_flag(SeedRun.UNLOCK_FLAG, true)
+	_check(SeedRun.order(data, SeedRun.PACKS[0], 50.0) > 0, "lo si manda a prendere i semi")
+	_check_eq(
+		Chat.thread(data, Chat.DRIVER, 50.0).size(), 1,
+		"l'ordine compare subito")
+	var risposta := Chat.thread(data, Chat.DRIVER, 50.0 + Chat.REPLY_GAP)
+	_check_eq(risposta.size(), 2, "e un attimo dopo risponde")
+	_check(
+		Chat.body(risposta[0]).contains(str(int(SeedRun.PACKS[0]["seeds"]))),
+		"e nell'ordine c'e' scritto quanti semi")
+	SeedRun.tick(data, 50.0 + SeedRun.TRIP_HOURS)
+	_check(
+		Chat.thread(data, Chat.DRIVER, 60.0).is_empty(),
+		"rientrato, le due righe se ne vanno da sole")
 	_check_eq(
 		data.chat_log.size(), 2,
 		"e nessuno ha dovuto cancellare niente: non erano salvate")

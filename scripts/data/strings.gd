@@ -502,6 +502,20 @@ const TEXT := {
 	## parola, ed e' successo davvero ("BRIAN CI PENS"). Un controllo automatico
 	## lo verifica, perche' a leggerle qui sembrano tutte corte uguali.
 	"PHONE_CALL_BRIAN": ["CALL BRIAN", "CHIAMA BRIAN", "LLAMA A BRIAN"],
+	## Il bottone in fondo alla chat dell'autista, e cosa dice mentre e' fuori.
+	"PHONE_SEND_DRIVER": ["GET SEEDS", "PRENDI SEMI", "TRAE SEMILLAS"],
+	"PHONE_DRIVER_OUT": ["ON THE WAY", "IN VIAGGIO", "EN CAMINO"],
+	## %s quanti semi
+	"CHAT_SEND_DRIVER": [
+		"Go get %s seeds",
+		"Vai a prendere %s semi",
+		"Ve a por %s semillas",
+	],
+	"CHAT_DRIVER_ON_IT": [
+		"On my way. Back in a couple of hours.",
+		"Vado. Torno fra un paio d'ore.",
+		"Voy. Vuelvo en un par de horas.",
+	],
 	"PHONE_WAITING": ["HE IS ON IT", "CI PENSA LUI", "EL SE ENCARGA"],
 	"PHONE_BRIAN_HERE": ["HE IS WAITING", "TI ASPETTA", "TE ESPERA"],
 	# --- La chat con Brian --------------------------------------------------
@@ -577,9 +591,9 @@ const TEXT := {
 
 	"GUIDE_STAFF": ["HIRING", "IL PERSONALE", "EL PERSONAL"],
 	"GUIDE_STAFF_BODY": [
-		"At a thousand dollars the STAFF tab opens on the PC.\n\nA grower covers 6 pots: plants, waters and cuts for you, and keeps working while the game is closed. A dealer moves the product on the street and keeps a cut of it. A driver takes the van to the seed supplier, so you order the crates from the PC instead of walking downtown. You can keep 3 dealers, and 2 more for every property you buy.\n\nWages run every day whether there is work or not. Hiring before you have the pots to fill is just an expense.",
-		"Ai mille dollari si apre la scheda PERSONALE nel PC.\n\nUn coltivatore segue 6 vasi: pianta, annaffia e raccoglie al posto tuo, e continua a lavorare anche a gioco chiuso. Un dealer piazza la merce in strada e se ne tiene una quota. Un autista porta il furgone dal grossista dei semi, così le casse le ordini dal PC invece di farti la strada fino in centro. I dealer che puoi tenere sono 3, più 2 per ogni proprietà che compri.\n\nLe paghe corrono ogni giorno, che ci sia lavoro o no. Assumere prima di avere i vasi da riempire è solo una spesa.",
-		"A los mil dólares se abre la pestaña PERSONAL en el PC.\n\nUn cultivador lleva 6 macetas: planta, riega y corta por ti, y sigue trabajando con el juego cerrado. Un camello coloca la mercancía en la calle y se queda una parte. Un chofer lleva la furgoneta al mayorista de semillas, así pides las cajas desde el PC en vez de cruzar la ciudad. Puedes tener 3 camellos, y 2 más por cada propiedad que compres.\n\nLos sueldos corren cada día, haya trabajo o no. Contratar antes de tener macetas que llenar es solo un gasto.",
+		"At a thousand dollars the STAFF tab opens on the PC.\n\nA grower covers 6 pots: plants, waters and cuts for you, and keeps working while the game is closed. A dealer moves the product on the street and keeps a cut of it. A driver takes the van to the seed supplier: hire him and he turns up in your phone, so you order the crates from his chat or from the PC instead of walking downtown. You can keep 3 dealers, and 2 more for every property you buy.\n\nWages run every day whether there is work or not. Hiring before you have the pots to fill is just an expense.",
+		"Ai mille dollari si apre la scheda PERSONALE nel PC.\n\nUn coltivatore segue 6 vasi: pianta, annaffia e raccoglie al posto tuo, e continua a lavorare anche a gioco chiuso. Un dealer piazza la merce in strada e se ne tiene una quota. Un autista porta il furgone dal grossista dei semi: assunto ti compare in rubrica sul telefono, così le casse le ordini dalla sua chat o dal PC invece di farti la strada fino in centro. I dealer che puoi tenere sono 3, più 2 per ogni proprietà che compri.\n\nLe paghe corrono ogni giorno, che ci sia lavoro o no. Assumere prima di avere i vasi da riempire è solo una spesa.",
+		"A los mil dólares se abre la pestaña PERSONAL en el PC.\n\nUn cultivador lleva 6 macetas: planta, riega y corta por ti, y sigue trabajando con el juego cerrado. Un camello coloca la mercancía en la calle y se queda una parte. Un chofer lleva la furgoneta al mayorista de semillas: contratado te aparece en la agenda del teléfono, así pides las cajas desde su chat o desde el PC en vez de cruzar la ciudad. Puedes tener 3 camellos, y 2 más por cada propiedad que compres.\n\nLos sueldos corren cada día, haya trabajo o no. Contratar antes de tener macetas que llenar es solo un gasto.",
 	],
 
 	"GUIDE_WHOLESALE": ["WHOLESALE", "L'INGROSSO", "EL MAYOREO"],
@@ -680,6 +694,14 @@ Te hara falta para seguir el ritmo",
 		"Ci sei andato di persona\ncugino\nSe il viaggio ti pesa\nmettici un autista\nVa lui a prendere i semi\ne tu li ordini da casa",
 		"Fuiste tu mismo primo\nSi el viaje te pesa\nponle un chofer\na la furgoneta\nEl va a por las semillas\ny tu las pides desde casa",
 	],
+	"MSG_DRIVER_SPEAKER": ["DRIVER", "AUTISTA", "CHOFER"],
+	## La prima riga che scrive: arriva quando lo si assume, ed e' anche quella
+	## che mette il contatto in rubrica.
+	"MSG_DRIVER_HELLO": [
+		"I drive the van\nWrite me when the\nseeds run low",
+		"Sono io al furgone\nScrivimi quando i\nsemi finiscono",
+		"Conduzco yo jefe\nEscribeme cuando\nfalten semillas",
+	],
 	"MSG_STAFF_SPEAKER": ["STAFF", "PERSONALE", "PERSONAL"],
 	"MSG_POWER_SPEAKER": ["POWER COMPANY", "SOCIETA ELETTRICA", "COMPANIA DE LUZ"],
 	## %s quanto era dovuto, %s quanto e' stato pagato
@@ -711,10 +733,11 @@ Te hara falta para seguir el ritmo",
 		"Sei stato via %s.",
 		"Has estado fuera %s.",
 	],
-	"AWAY_CAPPED": [
-		"At most %d game hours are caught up.",
-		"Si recuperano al massimo %d ore di gioco.",
-		"Se recuperan como maximo %d horas de juego.",
+	## %d di quanto e' ridotta la resa, in percentuale
+	"AWAY_SLOW": [
+		"With the game closed everything yields %d%% less.",
+		"A gioco spento tutto rende il %d%% in meno.",
+		"Con el juego cerrado todo rinde un %d%% menos.",
 	],
 	"AWAY_HARVEST": ["Harvested: %d g", "Raccolto: %d g", "Cosechado: %d g"],
 	"AWAY_SOLD": ["Moved: %d g for %s", "Piazzato: %d g per %s", "Colocado: %d g por %s"],
@@ -1097,7 +1120,10 @@ Te hara falta para seguir el ritmo",
 ## del gioco a corpo 12 sono quello che ci sta. Vedi `PHONE_CALL_BRIAN`.
 const PHONE_MENU_CHARS := 13
 ## Le voci che devono stare in quella larghezza.
-const PHONE_MENU_KEYS := ["PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE"]
+const PHONE_MENU_KEYS := [
+	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE",
+	"PHONE_SEND_DRIVER", "PHONE_DRIVER_OUT",
+]
 
 ## Caratteri che il font del gioco sa disegnare: lettere e spazio, nient'altro.
 ## Vedi la regola 2 in cima al file.
@@ -1131,7 +1157,8 @@ const PIXEL_KEYS := [
 	# I corpi delle vignette: si leggono col font del gioco, non con quello di
 	# sistema come gli avvisi. Vedi `phone.gd`.
 	"MSG_INTRO_BODY", "MSG_KILO_BODY", "MSG_EXPAND_BODY", "MSG_COUSIN_BODY",
-	"MSG_SEED_WHOLESALE_BODY", "MSG_DRIVER_BODY", "SW_TITLE",
+	"MSG_SEED_WHOLESALE_BODY", "MSG_DRIVER_BODY", "MSG_DRIVER_HELLO", "SW_TITLE",
+	"MSG_DRIVER_SPEAKER",
 	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE", "CHAT_TITLE",
 	# Della guida solo la voce in rubrica: dentro si legge col font di
 	# sistema, e le cifre servono.

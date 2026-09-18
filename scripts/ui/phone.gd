@@ -164,6 +164,10 @@ const PREVIEW_INK := Color(0.58, 0.63, 0.62)
 const BUBBLE_TEXT_MAX := 82.0
 const BUBBLE_SIZE := 9
 const PREVIEW_SIZE := 8
+## Il titolo di una riga scritto col font di sistema — quelli che hanno delle
+## cifre dentro. Più grande dell'anteprima e più piccolo di una nuvoletta: è un
+## titolo, non una frase.
+const ROW_TITLE_SIZE := 10
 
 ## Spento quando la mappa fa solo da sfondo a un menu, come l'HUD: senza questo
 ## la cima del telefono comparirebbe dietro ai bottoni del menu principale.
@@ -175,9 +179,16 @@ const PREVIEW_SIZE := 8
 		visible = value
 
 enum State { CLOSED, MESSAGE, OPEN }
-## Le due schermate del telefono aperto. La guida non è una di queste: si apre
+## Le schermate del telefono aperto. La guida non è una di queste: si apre
 ## fuori dal telefono, a tutto schermo.
-enum Page { CONTACTS, CHAT }
+##
+## `PICK` è il menu dei tagli di semi da mandare a prendere all'autista. È una
+## pagina e non una finestra sopra alla chat perché lo schermo è largo
+## centoquattordici pixel: una tendina dentro a un vetro così coprirebbe la
+## conversazione e lascerebbe metà bottone fuori. Tre righe cliccabili al posto
+## del filo, e la freccia indietro torna alla chat — che è poi come sceglie le
+## cose un telefono vero.
+enum Page { CONTACTS, CHAT, PICK }
 
 var _state := State.CLOSED
 var _page := Page.CONTACTS
@@ -259,7 +270,7 @@ func _gui_input(event: InputEvent) -> void:
 	if click.position.y <= HANDLE:
 		_toggle()
 		return
-	if _state == State.OPEN and _page == Page.CHAT and BACK.has_point(click.position):
+	if _state == State.OPEN and _page != Page.CONTACTS and BACK.has_point(click.position):
 		_back()
 
 # --- Aprire, chiudere, tornare indietro -------------------------------------
@@ -281,6 +292,11 @@ func _toggle() -> void:
 ## Esc e la freccia indietro: un passo per volta. Dalla chat si torna alla
 ## rubrica, dalla rubrica si chiude il telefono.
 func _back() -> void:
+	# Dal menu dei tagli si torna alla chat e non alla rubrica: si è dentro a
+	# una conversazione, e il menu è un passo di quella.
+	if _page == Page.PICK:
+		_go_chat(_contact)
+		return
 	if _page != Page.CONTACTS:
 		_go_contacts()
 		return
@@ -295,6 +311,12 @@ func _go_contacts() -> void:
 func _go_chat(contact: String) -> void:
 	_page = Page.CHAT
 	_contact = contact
+	_drawn = ""
+	_show_page()
+
+## Il menu dei tagli: quanti semi mandare a prendere.
+func _go_pick() -> void:
+	_page = Page.PICK
 	_drawn = ""
 	_show_page()
 
@@ -375,6 +397,8 @@ func _target_y() -> float:
 ## Accende i nodi della schermata giusta e la riempie.
 func _show_page() -> void:
 	var open := _state == State.OPEN
+	# Il bottone in fondo sta solo nella chat: nel menu dei tagli le righe sono
+	# già i bottoni, e lasciarne uno sotto vorrebbe dire due modi di scegliere.
 	var chat := open and _page == Page.CHAT
 	_sender.visible = _state == State.MESSAGE
 	_body.visible = _state == State.MESSAGE
@@ -392,9 +416,17 @@ func _show_page() -> void:
 	if _page == Page.CONTACTS:
 		_title.text = tr("CHAT_TITLE")
 		_fill_contacts()
+	elif _page == Page.PICK:
+		_title.text = tr(Chat.name_key(_contact))
+		_fill_packs()
 	else:
 		_title.text = tr(Chat.name_key(_contact))
 		_fill_thread()
+	# Anche il bottone: dice una cosa diversa a seconda di con chi si parla, e
+	# senza questa riga entrando nella chat dell'autista restava quello di
+	# prima — `_sync_thread()` non lo riscrive, perché la fotografia del filo
+	# l'ha appena presa questa funzione e per lui non è cambiato niente.
+	_refresh()
 	_drawn = _mark()
 
 func _clear(box: Node) -> void:
@@ -430,7 +462,11 @@ func _mark() -> String:
 	if _page == Page.CHAT:
 		return str(Chat.thread(data, _contact, now))
 	var mark := str(GameState.last_text.get("contact", "")) if _unread else ""
-	for entry in Chat.contacts():
+	if _page == Page.PICK:
+		# Il menu cambia quando cambiano i soldi: una riga che diventa
+		# raggiungibile mentre la si guarda deve accendersi da sola.
+		return "pick|%d|%s" % [data.cash, SeedRun.is_running(data)]
+	for entry in Chat.contacts(data):
 		var thread := Chat.thread(data, str(entry["id"]), now)
 		mark += "|" + (str(thread[-1]) if not thread.is_empty() else "")
 	return mark
@@ -447,7 +483,7 @@ func _mark() -> String:
 func _fill_contacts() -> void:
 	var data := GameState.current
 	var now := GameState.total_hours()
-	for entry in Chat.contacts():
+	for entry in Chat.contacts(data):
 		var id := str(entry["id"])
 		var thread := Chat.thread(data, id, now)
 		var last := Chat.body(thread[-1]) if not thread.is_empty() else tr("CHAT_EMPTY")
@@ -463,10 +499,51 @@ func _fill_contacts() -> void:
 	_rows.add_child(_list_row(
 		tr("GUIDE_TITLE"), tr("GUIDE_ROW_NOTE"), HANDLE_ARROW, false, _open_guide))
 
+## I tagli da mandare a prendere: gli stessi tre dello sportello del grossista,
+## con lo stesso prezzo e lo stesso sconto.
+##
+## Non è una seconda tabella: `SeedRun.PACKS` è una sola, e questo è il terzo
+## posto che la mostra (l'edificio, il PC, il telefono) senza che nessuno dei
+## tre sappia niente degli altri. Un taglio nuovo compare in tutti e tre.
+##
+## Una riga che non ci si può permettere resta lì e lo dice, invece di sparire:
+## sapere quanto manca è metà del motivo per cui si guarda il listino.
+func _fill_packs() -> void:
+	var data := GameState.current
+	var now := GameState.total_hours()
+	for entry in SeedRun.PACKS:
+		var pack: Dictionary = entry
+		var prezzo := SeedRun.pack_price(pack)
+		var puoi := SeedRun.can_order(data, pack)
+		var nota := UiFormat.money(prezzo) if puoi else tr("SW_NO_CASH")
+		# Il titolo porta il numero, quindi va col font di sistema: quello del
+		# gioco le cifre non le disegna. Vedi `_list_row()`.
+		_rows.add_child(_list_row(
+			tr("SW_PACK") % int(pack["seeds"]), nota,
+			NAME_INK if puoi else PREVIEW_INK, false,
+			func() -> void: _order_pack(pack, now), false))
+
+## Manda l'autista. Le due righe della chat non le scrive nessuno: se le ricava
+## `Chat.driver_live()` dal viaggio in corso, ed è per questo che spariscono
+## quando il furgone rientra.
+func _order_pack(pack: Dictionary, now: float) -> void:
+	var seeds := SeedRun.order(GameState.current, pack, now)
+	if seeds <= 0:
+		return
+	# Lo stesso giro dello sportello: il furgone esce dalla città e la partita
+	# si salva. Vedi `seed_wholesale_window.gd`.
+	GameState.seed_run_left.emit(seeds)
+	GameState.save_game()
+	_go_chat(_contact)
+
 ## Una riga dell'elenco: un titolo col font del gioco, una riga di spiegazione
 ## sotto, e tutto il riquadro che si clicca.
+## `pixel` decide il font del titolo. Col font del gioco — lettere e spazio —
+## si scrivono i nomi in rubrica; col font di sistema i titoli che contengono
+## cifre, come i tagli di semi del menu dell'autista. È la stessa scelta che fa
+## il PC riga per riga.
 func _list_row(title: String, note: String, ink: Color, alert: bool,
-		on_press: Callable) -> Control:
+		on_press: Callable, pixel := true) -> Control:
 	var row := PanelContainer.new()
 	row.add_theme_stylebox_override("panel", _row_box(Color(1, 1, 1, 0)))
 
@@ -479,11 +556,15 @@ func _list_row(title: String, note: String, ink: Color, alert: bool,
 	head.add_theme_constant_override("separation", 4)
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	lines.add_child(head)
-	var label := Label.new()
-	label.text = title
-	label.add_theme_font_override("font", GAME_FONT)
-	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", ink)
+	var label: Label = null
+	if pixel:
+		label = Label.new()
+		label.text = title
+		label.add_theme_font_override("font", GAME_FONT)
+		label.add_theme_font_size_override("font_size", 12)
+		label.add_theme_color_override("font_color", ink)
+	else:
+		label = UiTheme.label(title, ROW_TITLE_SIZE, ink, UiTheme.W_BOLD)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_child(label)
 	if alert:
@@ -651,8 +732,17 @@ func _build_action() -> void:
 	_call.add_theme_color_override("font_disabled_color", Color(0.42, 0.45, 0.50))
 	_call.set_script(BUTTON_SCRIPT)
 	_call.use_press_offset = false
-	_call.pressed.connect(_call_brian)
+	_call.pressed.connect(_on_action)
 	_action.add_child(_call)
+
+## Il bottone fa una cosa diversa a seconda di con chi si sta parlando: a Brian
+## si chiedono i semi, all'autista si dice di andarli a prendere — e lì serve
+## sapere quanti, quindi si apre il menu invece di partire.
+func _on_action() -> void:
+	if _contact == Chat.DRIVER:
+		_go_pick()
+		return
+	_call_brian()
 
 ## Premendo il bottone non si scrive niente da nessuna parte: si apre
 ## l'appuntamento, e le due righe — la richiesta e la risposta — se le ricava
@@ -674,6 +764,13 @@ func _refresh() -> void:
 	var data := GameState.current
 	if data == null:
 		_call.disabled = true
+		return
+	if _contact == Chat.DRIVER:
+		# Fuori è fuori: che sia andato a prendere i semi o a portare la merce,
+		# il furgone è uno e non si sdoppia.
+		var fuori := SeedRun.is_running(data) or Delivery.is_running(data)
+		_call.text = tr("PHONE_DRIVER_OUT") if fuori else tr("PHONE_SEND_DRIVER")
+		_call.disabled = fuori
 		return
 	if SeedDeal.is_waiting(data):
 		_call.text = tr("PHONE_WAITING")
@@ -711,9 +808,11 @@ func _draw() -> void:
 	# secondo solo dove il bottone c'è davvero, cioè nella chat: sulla rubrica
 	# sarebbe una riga sospesa in fondo allo schermo.
 	_draw_rule(HEADER_LINE)
-	if _page != Page.CHAT:
+	if _page == Page.CONTACTS:
 		return
-	_draw_rule(_action.position.y - 6.0)
+	# Il filetto sopra al bottone solo dove il bottone c'è davvero.
+	if _page == Page.CHAT:
+		_draw_rule(_action.position.y - 6.0)
 	_draw_back()
 
 func _draw_rule(y: float) -> void:

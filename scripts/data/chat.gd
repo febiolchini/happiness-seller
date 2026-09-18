@@ -43,14 +43,22 @@ extends RefCounted
 const THEM := "them"
 const YOU := "you"
 
-## Il contatto in rubrica, e per ora l'unico.
+## I contatti in rubrica.
 ##
-## **Uno solo, ed è già il motivo per cui c'è una rubrica**: aprire il telefono
-## dritto sulla chat di Brian vorrebbe dire che il telefono *è* quella chat, e
-## la seconda persona che si aggiunge — il personale, la società elettrica —
-## costringerebbe a rifare la schermata e a insegnare al giocatore un posto
-## nuovo. Con la rubrica il secondo contatto è una riga in `contacts()`.
+## **La rubrica c'era già quando il contatto era uno solo**, ed è esattamente
+## per questo giorno: aprire il telefono dritto sulla chat di Brian avrebbe
+## voluto dire che il telefono *è* quella chat, e il secondo contatto avrebbe
+## costretto a rifare la schermata e a insegnare al giocatore un posto nuovo.
+## Il secondo contatto è arrivato, ed è stata una riga in `contacts()`.
 const BRIAN := "brian"
+## L'autista, da quando lo si assume. Vedi `contacts()`.
+const DRIVER := "driver"
+
+## Come si chiama ognuno in rubrica: la CHIAVE del nome, non il nome.
+const CONTACT_NAMES := {
+	BRIAN: "MSG_COUSIN_SPEAKER",
+	DRIVER: "MSG_DRIVER_SPEAKER",
+}
 
 ## Quanto ci mette Brian a rispondere alla richiesta di semi, in ore di gioco.
 ##
@@ -72,17 +80,26 @@ const REPLY_GAP := 0.15
 ## messaggi a un evento che si ripete.
 const MAX_KEPT := 60
 
-## La rubrica. `name_key` e non il nome già scritto perché il mittente è una
-## voce di `Strings` come tutto il resto (vedi `MSG_COUSIN_SPEAKER`), e il
-## telefono deve poterlo rileggere quando cambia lingua.
-static func contacts() -> Array:
-	return [{"id": BRIAN, "name_key": "MSG_COUSIN_SPEAKER"}]
+## La rubrica di **questa** partita. `name_key` e non il nome già scritto perché
+## il mittente è una voce di `Strings` come tutto il resto (vedi
+## `MSG_COUSIN_SPEAKER`), e il telefono deve poterlo rileggere quando cambia
+## lingua.
+##
+## Dipende dal salvataggio perché l'autista in rubrica **non c'è finché non lo
+## si assume**: uno che non lavora per te non ha motivo di stare nel tuo
+## telefono, e una chat che non risponde mai è peggio di un contatto che non
+## c'è. Senza salvataggio — il menu principale — resta il solo Brian.
+static func contacts(data: SaveData = null) -> Array:
+	var list: Array = [{"id": BRIAN, "name_key": str(CONTACT_NAMES[BRIAN])}]
+	if Staff.has_driver(data):
+		list.append({"id": DRIVER, "name_key": str(CONTACT_NAMES[DRIVER])})
+	return list
 
+## Il nome di un contatto qualunque, anche di uno che adesso non è in rubrica:
+## serve a rileggere una chat vecchia senza dover sapere chi lavora per te
+## adesso.
 static func name_key(contact: String) -> String:
-	for entry in contacts():
-		if str(entry["id"]) == contact:
-			return str(entry["name_key"])
-	return ""
+	return str(CONTACT_NAMES.get(contact, ""))
 
 # --- Il testo di una riga ---------------------------------------------------
 
@@ -154,8 +171,30 @@ static func live(data: SaveData, now: float) -> Array:
 			float(deal.get("expires_at", asked)) - SeedDeal.LEAVING_HOURS))
 	return rows
 
+## Il giro dell'autista, riscritto dal viaggio in corso.
+##
+## Stessa forma di `live()` e per lo stesso motivo: le due righe — "vai a
+## prendere i semi" e "vado" — non vogliono più dire niente quando il furgone è
+## tornato, e spariscono da sole quando `seed_run` si svuota. Nessuna lista da
+## ripulire, e nessun modo di ritrovarsi in chat l'ordine di ieri.
+static func driver_live(data: SaveData, now: float) -> Array:
+	if data == null or not SeedRun.is_running(data):
+		return []
+	var run: Dictionary = data.seed_run
+	var left := float(run.get("left_at", 0.0))
+	var rows: Array = [
+		_row_for(DRIVER, YOU, "CHAT_SEND_DRIVER", str(int(run.get("seeds", 0))), left),
+	]
+	if now >= left + REPLY_GAP:
+		rows.append(_row_for(DRIVER, THEM, "CHAT_DRIVER_ON_IT", "", left + REPLY_GAP))
+	return rows
+
 static func _row(from: String, key: String, arg: String, at: float) -> Dictionary:
-	return {"contact": BRIAN, "from": from, "key": key, "arg": arg, "at": at}
+	return _row_for(BRIAN, from, key, arg, at)
+
+static func _row_for(contact: String, from: String, key: String, arg: String,
+		at: float) -> Dictionary:
+	return {"contact": contact, "from": from, "key": key, "arg": arg, "at": at}
 
 # --- Il filo intero ---------------------------------------------------------
 
@@ -169,6 +208,8 @@ static func thread(data: SaveData, contact: String, now: float) -> Array:
 	var rows := kept(data, contact)
 	if contact == BRIAN:
 		rows.append_array(live(data, now))
+	elif contact == DRIVER:
+		rows.append_array(driver_live(data, now))
 	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return float(a.get("at", 0.0)) < float(b.get("at", 0.0)))
 	return rows

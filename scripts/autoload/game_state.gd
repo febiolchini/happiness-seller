@@ -309,6 +309,11 @@ func _check_milestones() -> void:
 	if SeedRun.check_driver_hint(current):
 		contact_message(Chat.BRIAN, "MSG_DRIVER_BODY")
 		save_game()
+	# Assunto l'autista, si presenta lui: è il messaggio che porta il giocatore
+	# nella sua chat, che è il posto da cui lo si manda a prendere i semi.
+	if Staff.check_driver_hello(current):
+		contact_message(Chat.DRIVER, "MSG_DRIVER_HELLO")
+		save_game()
 
 ## Il messaggio d'apertura: da dove viene la casa, e cosa ci si fa.
 ##
@@ -507,8 +512,12 @@ func _away_body(report: Dictionary) -> String:
 		tr("HUD_DAY"), int(report["from_day"]), UiFormat.clock(float(report["from_time"])),
 		AWAY_ARROW,
 		tr("HUD_DAY"), current.day, UiFormat.clock(current.time_of_day)])
-	if bool(report["capped"]):
-		lines.append(tr("AWAY_CAPPED") % int(Offline.MAX_GAME_HOURS))
+	# Lo sconto va detto, o il conto non torna: chi è stato via due giorni e
+	# trova un giorno di lavoro deve sapere perché, altrimenti sembra che il
+	# gioco si sia perso qualcosa per strada.
+	var rate := float(report.get("rate", 1.0))
+	if rate < 1.0:
+		lines.append(tr("AWAY_SLOW") % int(roundf((1.0 - rate) * 100.0)))
 
 	var facts := PackedStringArray()
 	if int(report["grams"]) > 0:
