@@ -19,7 +19,7 @@ extends CharacterBody2D
 ## scivolava — e il problema che risolvevano non è la velocità di un pedone: è
 ## che le distanze grandi vogliono un mezzo. I mezzi arriveranno; il pedone
 ## resta un pedone.
-@export var speed := 48.0
+@export var speed := 108.0
 ## In quanto tempo si arriva a regime, e in quanto ci si ferma.
 ##
 ## Partire e fermarsi di scatto è la cosa che più fa sembrare un personaggio una

@@ -278,6 +278,8 @@ func _check_prologue() -> void:
 ## e resta scritto nel salvataggio.
 const EXPAND_CASH := 10000
 const EXPAND_FLAG := "expand_advised"
+## Brian ha chiesto il nome dell'organizzazione (al primo assunto).
+const ORG_NAME_FLAG := "org_name_asked"
 ## Flag del messaggio d'apertura, quello che racconta da dove viene la casa.
 const INTRO_FLAG := "intro_seen"
 
@@ -308,6 +310,13 @@ func _check_milestones() -> void:
 	# ruolo in più in una lista di ruoli.
 	if SeedRun.check_driver_hint(current):
 		contact_message(Chat.BRIAN, "MSG_DRIVER_BODY")
+		save_game()
+	# Il primo assunto, chiunque sia: non si è più soli, è un'attività vera, e
+	# Brian dice che serve un nome. La finestra per darlo la apre l'HUD
+	# (`hud.gd::_check_org_name()`), che c'è sia in città sia nelle stanze.
+	if Staff.total(current) > 0 and not bool(current.get_flag(ORG_NAME_FLAG, false)):
+		current.set_flag(ORG_NAME_FLAG, true)
+		contact_message(Chat.BRIAN, "MSG_ORG_NAME_BODY")
 		save_game()
 	# Assunto l'autista, si presenta lui: è il messaggio che porta il giocatore
 	# nella sua chat, che è il posto da cui lo si manda a prendere i semi.
@@ -500,6 +509,12 @@ func load_slot(slot_id: String) -> bool:
 ## solo il collegamento: da dove arriva il ritmo dell'orologio, e come si
 ## racconta al giocatore quello che è successo.
 func _catch_up_offline() -> void:
+	# Chi ha spento il mondo a gioco chiuso riapre dove aveva lasciato: stessa
+	# ora, stesse piante, stessa cassa. Basta non chiamare il recupero, perché
+	# `saved_at` viene riscritto al primo salvataggio e il tempo saltato non si
+	# accumula per la volta dopo. Vedi `GameSettings.offline_progress`.
+	if not GameSettings.offline_progress:
+		return
 	var away := Offline.away_seconds(current, Time.get_unix_time_from_system())
 	var report := Offline.catch_up(current, away, GAME_MINUTES_PER_SECOND)
 	if not Offline.happened(report):
@@ -524,12 +539,12 @@ func _away_body(report: Dictionary) -> String:
 		tr("HUD_DAY"), int(report["from_day"]), UiFormat.clock(float(report["from_time"])),
 		AWAY_ARROW,
 		tr("HUD_DAY"), current.day, UiFormat.clock(current.time_of_day)])
-	# Lo sconto va detto, o il conto non torna: chi è stato via due giorni e
-	# trova un giorno di lavoro deve sapere perché, altrimenti sembra che il
-	# gioco si sia perso qualcosa per strada.
-	var rate := float(report.get("rate", 1.0))
-	if rate < 1.0:
-		lines.append(tr("AWAY_SLOW") % int(roundf((1.0 - rate) * 100.0)))
+	# Il tetto va detto, o il conto non torna: chi è stato via un mese e trova
+	# una settimana di lavoro deve sapere perché, altrimenti sembra che il gioco
+	# si sia perso qualcosa per strada. Quando l'assenza ci sta dentro non se ne
+	# parla nemmeno: non c'è niente da spiegare.
+	if bool(report.get("capped", false)):
+		lines.append(tr("AWAY_CAPPED") % Offline.MAX_GAME_DAYS)
 
 	var facts := PackedStringArray()
 	if int(report["grams"]) > 0:

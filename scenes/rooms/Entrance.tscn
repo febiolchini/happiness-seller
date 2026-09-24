@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/rooms/Room.tscn" id="1_room"]
-[ext_resource type="Texture2D" path="res://assets/sprites/buildings/ingressoback.png" id="2_bg"]
+[ext_resource type="Texture2D" path="res://assets/sprites/rooms/ingresso.png" id="2_bg"]
 
 [node name="Entrance" instance=ExtResource("1_room")]
 room_name = "ROOM_ENTRANCE"
@@ -11,12 +11,13 @@ exits = {
 "ROOM_EXIT": "res://scenes/levels/City.tscn"
 }
 background_color = Color(0.129412, 0.109804, 0.101961, 1)
-window_rect = Rect2(49, 4, 44, 146)
+window_rect = Rect2(53, 88, 68, 98)
+art = "ingresso"
 
 [node name="Backdrop" parent="." index="1"]
 texture = ExtResource("2_bg")
 
 [node name="Character" parent="." index="2"]
-position = Vector2(275, 210)
-scale = Vector2(4.4, 4.4)
+position = Vector2(277, 208)
+scale = Vector2(4.27, 4.27)
 modulate = Color(0.86, 0.8, 0.76, 1)

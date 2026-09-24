@@ -473,7 +473,7 @@ func _build_seeds() -> void:
 		_add_note(tr("PC_BRIAN_NOTE_EMPTY"))
 
 ## Il grossista aperto dal PC, che è tutto quello che l'autista fa: lo stesso
-## sportello che sta sull'edificio in DOWNTOWN, ma senza doverci andare.
+## sportello che sta sull'edificio nel COMMERCIAL DISTRICT, ma senza doverci andare.
 ##
 ## Si riusa la finestra invece di rifare qui i tagli e i prezzi: sono gli stessi
 ## ordini, e averne due copie vorrebbe dire due posti in cui aggiustare uno

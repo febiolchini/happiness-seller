@@ -34,6 +34,7 @@ Uso:
   python scripts_tools/import_flats_art.py
 """
 
+import glob
 import os
 
 import numpy as np
@@ -75,22 +76,56 @@ ASSETS = [
     # identica.
     ("render_condominio.png", "tenement", None, 694),
     ("render_casa.png", "flatsHouse", None, 361),
-    ("render_agenzia.png", "realEstate", None, 334),
-    ("render_garage.png", "garage", None, 197),
-    ("render_bodega.png", "bodega", None, 255),
-    ("render_lavanderia.png", "laundry", None, 249),
-    ("render_liquori.png", "liquorStore", None, 248),
-    ("render_officina.png", "autoRepair", None, 219),
-    ("render_caseggiato.png", "rowBlock", None, 391),
-    ("render_pensione.png", "rooming", None, 329),
+    # --- la schiera, dopo che i modelli hanno perso il marciapiede ---------
+    #
+    # Queste otto altezze sono cambiate il 2026-09-21, e **non e' una taglia
+    # nuova**: e' la stessa taglia senza la lastra di marciapiede che i modelli
+    # si portavano dentro allo sprite (vedi la nota in cima a
+    # `render_buildings.py`). L'edificio a schermo e' identico a prima, gli e'
+    # sparita da sotto una striscia di trenta pixel.
+    #
+    # **Non sono il ritaglio netto diviso quattro**, che sarebbe la regola per
+    # un render nuovo, e il motivo e' che questi otto non ci sono mai stati: i
+    # valori vecchi venivano dal numero stampato da `render_buildings.py`, che
+    # e' l'inquadratura MARGINE COMPRESO, quindi stavano un 7% sopra ai 22,3
+    # px/m. Ricalcolarli sul netto li avrebbe rimpiccioliti tutti di quel 7% —
+    # e l'agenzia ha il muro ATTACCATO a quello di casa (vedi `BUILDINGS` in
+    # `city_map.gd`), che invece resta a 361. Fra i due si sarebbe aperto un
+    # buco.
+    #
+    # Il conto e' quindi a proporzione, sul ritaglio: la lastra valeva 120 px
+    # di render (2,70 m di profondita' e 14 cm di spessore visti a 27 gradi,
+    # per 22,3 px/m per quattro), quindi
+    #
+    #     nuova = vecchia * netto / (netto + 120)
+    #
+    # che e' esattamente cio' che tiene ferma anche la LARGHEZZA, perche' la
+    # lastra era larga quanto l'edificio e il ritaglio in orizzontale non e'
+    # cambiato. Le larghezze finali infatti sono le stesse di prima, a meno di
+    # un pixel: 227, 196, 210, 181, 161, 263, 283, 223.
+    ("render_agenzia.png", "realEstate", None, 301),
+    ("render_garage.png", "garage", None, 163),
+    ("render_bodega.png", "bodega", None, 222),
+    ("render_lavanderia.png", "laundry", None, 216),
+    ("render_liquori.png", "liquorStore", None, 215),
+    ("render_officina.png", "autoRepair", None, 185),
+    ("render_caseggiato.png", "rowBlock", None, 359),
+    ("render_pensione.png", "rooming", None, 296),
     # Primo edificio del quartiere benestante: la clinica dove lavora Brian.
     ("render_clinica.png", "clinic", None, 428),
     # Primo edificio di DOWNTOWN: il grossista dei semi. L'altezza e' l'ingombro
-    # NETTO e non i 413 che stampa `render_buildings.py`, che sono
+    # NETTO e non quello che stampa `render_buildings.py`, che e'
     # l'inquadratura MARGINE COMPRESO. Il numero esatto non va stimato: il
     # render e' gia' a 22,3 px/m per quattro, quindi e' l'altezza del ritaglio
-    # sull'alpha diviso il supersampling, 1196 / 4.
-    ("render_magazzino.png", "wholesale", None, 299),
+    # sull'alpha diviso il supersampling, 1160 / 4.
+    #
+    # Era 299 (1196 / 4) e adesso e' 290, per il marciapiede tolto dal modello.
+    # Qui il conto resta quello del netto — a differenza della schiera, questo
+    # era gia' calcolato bene — e cambia anche la LARGHEZZA, da 645 a 631: la
+    # lastra era larga 28,8 m contro i 21,6 dell'edificio, quindi sbordava di
+    # tre metri e mezzo per parte. E' per quello che `click` in `city_map.gd`
+    # doveva essere piu' corto dello sprite; adesso non piu'.
+    ("render_magazzino.png", "wholesale", None, 290),
     # Le strutture del campo da football abbandonato. Non sono edifici: entrano
     # in città come props (vedi `CityMap.field_props()`). L'erba del campo non
     # è qui perché non è un PNG — la disegna uno shader di Godot.
@@ -100,6 +135,69 @@ ASSETS = [
     # cento; su una porta da calcio alta tre metri il margine e' un quarto
     # dell'inquadratura, e la porta veniva fuori larga undici metri invece di
     # sette. Questi tre numeri vengono dall'ingombro NETTO.
+    # L'isolato cinese: quattro unita' di uno stesso fabbricato, renderizzate
+    # separate da `blender_isolato_cinese.py` perche' in gioco alcune si
+    # cliccano e altre no (vedi la nota su `costruisci()` li' dentro).
+    #
+    # Qui si scrive la LARGHEZZA e non l'altezza, e i numeri non si scelgono:
+    # sono la larghezza del lotto in metri per 22,3 px/m — 8,2 / 6,6 / 5,4 /
+    # 9,2 metri. E' quello che le fa ricombaciare quando in citta' si rimettono
+    # una di fianco all'altra: cambiarne uno "a occhio" sfalsa la fila di
+    # qualche pixel, e il muro in comune si vede doppio o si sovrappone.
+    #
+    # L'altezza viene dietro da se', ed e' giusto che sia diversa: il render di
+    # ogni unita' ha lo stesso margine sotto, quindi i quattro PNG hanno la
+    # riga di terra alla stessa quota e in citta' basta dare a tutte la stessa
+    # `base.y`.
+    ("render_cinese_ristorante.png", "chineseRestaurant", 183, None),
+    ("render_cinese_vestiti.png", "clothesShop", 147, None),
+    ("render_cinese_cellulari.png", "phoneShop", 120, None),
+    ("render_cinese_condominio.png", "smallApartments", 205, None),
+    # I due grattacieli di DOWNTOWN. Oltre al disegno e alle luci hanno un
+    # terzo scatto, `vetro_*.png`: la maschera che dice allo shader dove il
+    # vetro guarda a est, a sud e a ovest. Vedi `blender_grattacieli.py`.
+    ("render_meridian.png", "meridianTower", 305, None),
+    ("render_harbor.png", "harborHeights", 272, None),
+    # HOLLY LOFTS, il condominio d'angolo accanto ai grattacieli
+    # (`blender_holly_lofts.py`). 597 non e' scelto: e' il ritaglio netto del
+    # render diviso il supersampling (2390 / 4), cioe' i 26,6 m dell'edificio
+    # (tetto a sbalzo compreso) a 22,3 px/m.
+    ("render_holly.png", "hollyLofts", 597, None),
+    # La casa gialla di CROSS STREET. L'altezza e' il ritaglio NETTO del render
+    # diviso il supersampling (1348 / 4), non quella che stampa lo script. Ha anche
+    # le strisce delle cose che si muovono (girandola, bandiera): vedi
+    # `animazioni()` qui sotto.
+    ("render_casa_gialla.png", "yellowHouse", None, 337),
+    # Il negozio di videogiochi e il cinema del COMMERCIAL DISTRICT: due unita'
+    # di uno stesso fabbricato, come l'isolato cinese
+    # (`blender_cinema_videogiochi.py`). La LARGHEZZA e' il lotto a 22,3 px/m —
+    # 8,6 e 11,4 m — ed e' quella che le fa ricombaciare in citta'.
+    ("render_videogiochi.png", "gameShop", 192, None),
+    ("render_cinema.png", "cinema", 254, None),
+    # Lo STAR CASINO (`blender_casino.py`): largo l'isolato intero fra EAST
+    # STREET e HILL DRIVE, 27,2 m a 22,3 px/m.
+    ("render_casino.png", "casino", 606, None),
+    # L'isolato commerciale di DOWNTOWN, quattro unita' di un fabbricato solo
+    # (`blender_isolato_downtown.py`): le larghezze sono i lotti a 22,3 px/m e
+    # fanno 656, l'isolato intero fra LOCK STREET e SEVENTH STREET.
+    ("render_dt_agenzia.png", "primeRealty", 192, None),
+    ("render_dt_lavanderia.png", "laundromat", 152, None),
+    ("render_dt_vestiti.png", "clothingStore", 170, None),
+    ("render_dt_diner.png", "diner", 142, None),
+    # L'officina e' una STRISCIA di fotogrammi e non un PNG solo: la stella nel
+    # nome sorgente e' quello che lo dice. Dodici scatti della stessa
+    # inquadratura con la serranda a diverse altezze — vedi
+    # `blender_officina.py` — che in gioco scorrono con l'ora
+    # (`shop_shutter.gd`). La taglia scritta qui e' quella del SINGOLO
+    # fotogramma; il PNG finito e' dodici volte piu' largo.
+    ("render_officina_*.png", "autoShop", 272, None),
+    # Lo stadio di CIVIC CENTER, da `blender_stadio.py`. Qui si scrive la
+    # LARGHEZZA e non l'altezza, ed e' l'unico edificio per cui ha senso: di
+    # tutti gli altri conta quanto svettano, di questo conta che stia
+    # nell'isolato. 646 px e' il ritaglio netto del render diviso il
+    # supersampling (2584 / 4), quindi non e' una taglia scelta — e' l'ingombro
+    # vero a 22,3 px/m. L'altezza viene dietro da se': 628.
+    ("render_stadio.png", "stadium", 646, None),
     ("render_gradinata.png", "terrace", None, 124),
     ("render_torre_faro.png", "floodlight", None, 356),
     ("render_porta_campo.png", "goal", None, 63),
@@ -205,8 +303,90 @@ def alone(im):
     return Image.alpha_composite(velo, im)
 
 
+def riquadro_comune(immagini):
+    """Il ritaglio buono per TUTTI i fotogrammi di una striscia.
+
+    Uno per fotogramma non va: la serranda che scende cambia di poco l'ingombro
+    opaco, e ogni fotogramma verrebbe ritagliato e scalato in modo diverso. In
+    gioco l'edificio si metterebbe a ballare di un pixel mentre la serranda si
+    chiude. Si prende l'unione, e vale per tutti.
+    """
+    box = None
+    for im in immagini:
+        b = riquadro(im)
+        box = b if box is None else (min(box[0], b[0]), min(box[1], b[1]),
+                                     max(box[2], b[2]), max(box[3], b[3]))
+    return box
+
+
+def striscia(sorgenti, width, height):
+    """Mette i fotogrammi uno di fianco all'altro, tutti della stessa taglia."""
+    interi = [Image.open(f).convert("RGBA") for f in sorgenti]
+    box = riquadro_comune(interi)
+    pezzi = [scale(im.crop(box), width, height) for im in interi]
+    w, h = pezzi[0].size
+    tela = Image.new("RGBA", (w * len(pezzi), h), (0, 0, 0, 0))
+    for i, pezzo in enumerate(pezzi):
+        tela.paste(pezzo, (i * w, 0))
+    return tela, box, (w, h)
+
+
+def animazioni(source, name, box, art):
+    """Le cose che si muovono sopra a un edificio: girandola, bandiera.
+
+    `render_buildings.py` le fotografa da sole, fotogramma per fotogramma, con
+    la stessa camera del disegno (`anim_<edificio>_<cosa>_NN.png`). Qui ogni
+    fotogramma passa dallo STESSO ritaglio e dalla stessa riduzione del
+    disegno — o in gioco la girandola girerebbe un pixel a fianco del suo palo
+    — e poi si tiene solo il riquadro in cui la cosa si muove, comune a tutti i
+    fotogrammi, messi in fila in una striscia `<nome><Cosa>.png`.
+
+    Stampa la voce da mettere in `anims` in `city_map.gd`: `at` e' l'angolo in
+    alto a sinistra della striscia rispetto alla base dell'edificio.
+    """
+    base = source.replace("render_", "anim_").replace(".png", "")
+    gruppi = {}
+    for f in sorted(glob.glob(os.path.join(SOURCE, base + "_*_[0-9][0-9].png"))):
+        cosa = os.path.basename(f)[len(base) + 1:-7]
+        gruppi.setdefault(cosa, []).append(f)
+    for cosa, fotogrammi in gruppi.items():
+        pezzi = [scale(Image.open(f).convert("RGBA").crop(box), art.width, art.height)
+                 for f in fotogrammi]
+        riq = riquadro_comune(pezzi)
+        pezzi = [p.crop(riq) for p in pezzi]
+        w, h = pezzi[0].size
+        tela = Image.new("RGBA", (w * len(pezzi), h), (0, 0, 0, 0))
+        for i, p in enumerate(pezzi):
+            tela.paste(p, (i * w, 0))
+        file = name + cosa[:1].upper() + cosa[1:]
+        tela.save(os.path.join(BUILDINGS, file + ".png"))
+        print('%-16s   anim %-10s {"texture": "res://assets/sprites/buildings/%s.png", '
+              '"at": Vector2(%d, %d), "frames": %d}'
+              % (name, cosa, file, -art.width // 2 + riq[0], -art.height + riq[1],
+                 len(pezzi)))
+
+
 def main():
     for source, name, width, height in ASSETS:
+        if "*" in source:
+            sorgenti = sorted(glob.glob(os.path.join(SOURCE, source)))
+            if not sorgenti:
+                print("%-16s nessun fotogramma per %s" % (name, source))
+                continue
+            art, box, (fw, fh) = striscia(sorgenti, width, height)
+            art.save(os.path.join(BUILDINGS, name + ".png"))
+            acceso = os.path.join(
+                SOURCE, source.replace("render_", "luci_").replace("_*", ""))
+            if os.path.isfile(acceso):
+                lit = luci(Image.open(acceso).convert("RGB").crop(box))
+                lit = alone(scale(lit, fw, fh))
+                if np.asarray(lit.getchannel("A")).max() >= TRIM_ALPHA:
+                    lit.save(os.path.join(BUILDINGS, name + "Lit.png"))
+            print('%-16s %3dx%-3d x%d  "offset": Vector2(%d, %d), '
+                  '"click": Rect2(%d, %d, %d, %d), "frames": %d'
+                  % (name, fw, fh, len(sorgenti), -fw // 2, -fh,
+                     -fw // 2, -fh, fw, fh, len(sorgenti)))
+            continue
         path = os.path.join(SOURCE, source)
         intero = Image.open(path).convert("RGBA")
         box = riquadro(intero)
@@ -221,6 +401,20 @@ def main():
             lit = alone(scale(lit, art.width, art.height))
             if np.asarray(lit.getchannel("A")).max() >= TRIM_ALPHA:
                 lit.save(os.path.join(BUILDINGS, name + "Lit.png"))
+        # La maschera del vetro, se c'e': stesso ritaglio e stessa taglia del
+        # disegno, come per le luci. Qui pero' NON si passa da `luci()` ne' da
+        # `alone()`: quelli servono a trasformare del nero in trasparenza e ad
+        # aggiungere un alone, e questo file non e' un'immagine da guardare —
+        # e' un dato che lo shader legge canale per canale. Sfumarlo vorrebbe
+        # dire dire allo shader che il vetro guarda un po' dappertutto.
+        vetro = os.path.join(SOURCE, source.replace("render_", "vetro_"))
+        if os.path.isfile(vetro):
+            maschera = scale(Image.open(vetro).convert("RGBA").crop(box),
+                             art.width, art.height)
+            maschera.save(os.path.join(BUILDINGS, name + "Glass.png"))
+
+        animazioni(source, name, box, art)
+
         # Le coordinate da incollare in `city_map.gd`: l'origine di un edificio
         # e' il punto a terra al centro della facciata, quindi il disegno sta
         # tutto sopra e mezzo per parte.

@@ -149,6 +149,13 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 ## intatto ricaricando, un contatore va tenuto in vita da qualcuno.
 @export var power_billed_day := 1
 
+# --- L'organizzazione -----------------------------------------------------
+## Il nome dell'attività. Vuoto finché Brian non lo chiede, al primo assunto:
+## è lì che da uno che vende si diventa un'organizzazione. Vedi `Prestige`.
+@export var org_name := ""
+## I punti prestigio. Come si guadagnano non è ancora deciso: vedi `Prestige`.
+@export var prestige := 0
+
 # --- Attenzione della polizia ---------------------------------------------
 ## 0-100. Sale vendendo in strada, scende ogni notte. Vedi `Economy`.
 @export var heat := 0.0
@@ -289,6 +296,8 @@ func to_dict() -> Dictionary:
 		"chat_log": chat_log,
 		"power_billed_day": power_billed_day,
 		"heat": heat,
+		"org_name": org_name,
+		"prestige": prestige,
 		"properties": properties,
 		"reputation": reputation,
 		"npc_state": npc_state,
@@ -342,6 +351,8 @@ static func from_dict(raw: Dictionary) -> SaveData:
 	data.chat_log = _chat_from_array(source.get("chat_log", []))
 	data.power_billed_day = int(source.get("power_billed_day", source.get("day", 1)))
 	data.heat = float(source.get("heat", 0.0))
+	data.org_name = str(source.get("org_name", ""))
+	data.prestige = int(source.get("prestige", 0))
 	data.properties = _restore_ints(source.get("properties", {}))
 	data.reputation = _restore_ints(source.get("reputation", {}))
 	data.npc_state = _restore_ints(source.get("npc_state", {}))

@@ -19,6 +19,32 @@ cespuglio fatto di scatole e' un segnaposto, e un segnaposto dentro a un
 disegno finito e' la cosa che si nota per prima. Lo stesso vale per alberi,
 siepi e arredo urbano: vedi la nota in `clinica_base()`.
 
+**E niente marciapiede** (2026-09-21). Ogni edificio di schiera si portava
+dentro allo sprite una lastra di marciapiede profonda 2,70 m, e il magazzino
+una di 1,70: servivano ad appoggiare l'edificio e a dare a tutti lo stesso
+bordo inferiore. Sono uscite tutte, ed e' la stessa regola del verde applicata
+al suolo — **quello che sta a terra e' citta', non edificio.**
+
+Tre cose che non tornavano:
+
+1. **Erano un secondo marciapiede.** Quello vero lo disegna `city_ground.gd`
+   lungo ogni strada, col suo grigio; la lastra ne aveva uno suo, appoggiato
+   sopra. Il bordo fra i due si vedeva, ed essendo dentro a un PNG non c'era
+   modo di farli combaciare una volta per tutte.
+2. **Falsavano la riga di terra.** Il bordo inferiore dello sprite era la
+   lastra e non il muro, cioe' un metro e mezzo piu' AVANTI. Siccome `offset`
+   si calcola sul PNG, l'edificio finiva disegnato qualche pixel sotto alla
+   sua quota, e il `click` in `city_map.gd` andava accorciato a mano per non
+   far risultare l'edificio appoggiato sul marciapiede su cui si cammina
+   (c'e' ancora la nota, sul magazzino).
+3. **Il gioco ci deve camminare sopra.** Il marciapiede e' terreno a costo 1,0
+   nella griglia di `city_navigation.gd`: e' un dato, non un disegno.
+
+Cosa NON e' marciapiede e resta dov'e': il cortile recintato del condominio e
+della casa (`lotto()`, `casa_lotto()`) e il piazzale della clinica
+(`clinica_base()`). Quelli sono il LOTTO dell'edificio, stanno dentro alla sua
+recinzione o ai suoi pilastri, e non hanno niente a che fare con la strada.
+
 **Perche' generare invece di modellare.** Il quartiere deve avere edifici diversi
 ma riconoscibilmente dello stesso posto. Modellandoli a mano la coerenza e' una
 questione di disciplina e si perde al terzo edificio; generandoli dalla stessa
@@ -536,9 +562,6 @@ def palette():
     righe("QP_Tenda_Rossa", "#9A4438", "#C8BBA6", 0.26, rilievo=0.40, rough=0.85)
     righe("QP_Tenda_Verde", "#3F6147", "#C8BBA6", 0.26, rilievo=0.40, rough=0.85)
     righe("QP_Tenda_Blu", "#3A5A72", "#C8BBA6", 0.26, rilievo=0.40, rough=0.85)
-    # Il marciapiede fa parte dello sprite dell'edificio di schiera: e' quello
-    # che da' a tutti lo stesso bordo inferiore e li fa allineare in fila.
-    piatto("QP_Marciapiede_Sprite", "#8B857B", 0.93)
     righe("QP_Mattone_Facciata", "#8A5340", "#6C3E2E", 0.11, sporco="#7E6E5C",
           macchie=0.34, rilievo=0.78, rough=0.93)
     righe("QP_Tegole", "#5A6154", "#41473D", 0.16, sporco="#6B6353",
@@ -561,6 +584,25 @@ def palette():
     # caldo del metallo arrugginito, cosi' la torre stacca sul cielo.
     piatto("QP_Zincato", "#8C9096", 0.42, 0.65)
     piatto("QP_Faro_Lampada", "#C8C6BA", 0.30, 0.20)
+
+    # --- roba della casa gialla ----------------------------------------------
+    # Giallo stinto e non limone: la casa della foto e' ridipinta da anni, e
+    # un giallo pieno in mezzo ai marroni del quartiere si leggerebbe come
+    # un segnaposto. Lo sporco e' lo stesso dell'assito della casa bianca.
+    righe("QP_Assito_Giallo", "#D9C27A", "#B49E5E", 0.18, sporco="#A69260",
+          macchie=0.34, rilievo=0.60, rough=0.88, grana=0.20)
+    piatto("QP_Bianco_Trim", "#E4DFD0", 0.80)
+    righe("QP_Tegole_Grigie", "#6E7171", "#555858", 0.16, sporco="#6A665C",
+          macchie=0.45, rilievo=0.70, rough=0.93, grana=0.25)
+    piatto("QP_Infisso_Scuro", "#2A2B2A", 0.70)
+    piatto("QP_Porta_Gialla", "#CFC6B0", 0.75)
+    # Le tende tirate della finestrona: chiare di giorno, accese la sera.
+    piatto("QP_Tende_Accese", "#BDB39C", 0.90, emissivo="#E6C890", forza=0.55)
+    piatto("QP_Bandiera", "#5E2226", 0.90)
+    piatto("QP_Girandola_Rossa", "#C0392B", 0.60)
+    piatto("QP_Girandola_Gialla", "#E6B82E", 0.60)
+    piatto("QP_Girandola_Blu", "#2E6DB4", 0.60)
+    piatto("QP_Girandola_Verde", "#3E9A4A", 0.60)
 
 
 def palette_qb():
@@ -669,8 +711,6 @@ def palette_dt():
     piatto("DT_Asfalto", "#4B4B49", 0.95)
     piatto("DT_Asfalto_Rosso", "#8E4A3C", 0.92)
     piatto("DT_Vernice", "#C6BFAB", 0.86)
-    piatto("DT_Cordolo", "#B4AEA0", 0.88)
-    piatto("DT_Marciapiede", "#A9A397", 0.90)
 
 
 # ----------------------------------------------------------------------
@@ -1460,6 +1500,423 @@ def casa_lotto(S):
 
 
 # ----------------------------------------------------------------------
+#  la casa gialla: vittoriana di legno, col portico e la girandola
+# ----------------------------------------------------------------------
+
+def _capanna(tag, cx, y0, W, D, h, pendenza, sporto, muro, falda, pezzi):
+    """Timpano e due falde col colmo lungo Y, su un corpo largo W e profondo D
+    che comincia in `y0` (il suo fronte). Stessa costruzione di `casa_corpo()`,
+    riusabile per l'ala laterale."""
+    p = math.radians(pendenza)
+    salita = (W / 2.0) * math.tan(p)
+    y1 = y0 + D
+    punti = [
+        (cx - W / 2, y0, h), (cx - W / 2, y1, h), (cx + W / 2, y1, h), (cx + W / 2, y0, h),
+        (cx, y0, h + salita), (cx, y1, h + salita),
+    ]
+    facce = [(0, 1, 5, 4), (2, 5, 4, 3), (0, 4, 3), (1, 5, 2), (0, 3, 2, 1)]
+    poligoni(tag + "_Timpano", punti, facce, muro, raccolta=pezzi)
+    lung = (W / 2.0) / math.cos(p) + sporto
+    t = 0.16
+    for s in (-1.0, 1.0):
+        n = (s * math.sin(p), 0.0, math.cos(p))
+        giu = (-math.cos(p), 0.0, s * math.sin(p))
+        centro = (cx + s * W / 4.0 + n[0] * t / 2.0 + giu[0] * sporto / 2.0,
+                  (y0 + y1) / 2.0,
+                  h + salita / 2.0 + n[2] * t / 2.0 + giu[2] * sporto / 2.0)
+        box("%s_Falda_%d" % (tag, int(s)), centro, (lung, D + 2 * sporto, t),
+            falda, rot=(0, s * p, 0), raccolta=pezzi)
+    return salita
+
+
+def casa_gialla_corpo(S):
+    """Il corpo principale col timpano ripido sulla strada, e l'ala di lato.
+
+    Le cose che fanno riconoscere la casa della foto, in ordine di quanto si
+    vedono da lontano: il giallo dell'assito contro il bianco delle cornici, il
+    timpano ripido con la grata di ventilazione in punta, i due risvolti di
+    cornicione agli angoli del timpano, e l'ala piu' bassa a destra col suo
+    tetto grigio.
+    """
+    W, D = S["larghezza"], S["profondita"]
+    h = S["h_terra"] + S["h_primo"]
+    yf = -D / 2.0
+    pezzi = []
+    box("CG_Muri", (0, 0, h / 2.0), (W, D, h), "QP_Assito_Giallo", raccolta=pezzi)
+    box("CG_Fondazione", (0, 0, 0.3), (W + 0.16, D + 0.16, 0.6), "QP_Cemento_Scuro",
+        raccolta=pezzi)
+    # Cantonali bianchi: le tavole d'angolo che chiudono l'assito.
+    for s in (-1, 1):
+        box("CG_Cantonale_%d" % s, (s * (W / 2 + 0.02), yf + 0.06, h / 2.0 + 0.3),
+            (0.2, 0.2, h - 0.6), "QP_Bianco_Trim", raccolta=pezzi)
+    box("CG_Marcapiano", (0, 0, S["h_terra"] + 0.05), (W + 0.12, D + 0.12, 0.16),
+        "QP_Bianco_Trim", raccolta=pezzi)
+    salita = _capanna("CG", 0.0, yf, W, D, h, S["pendenza"], S["sporto"],
+                      "QP_Assito_Giallo", "QP_Tegole_Grigie", pezzi)
+    # Le tavole bianche lungo i due spioventi del timpano, sul bordo dello
+    # sporto: vedi la nota in `casa_corpo()`.
+    p = math.radians(S["pendenza"])
+    lung = (W / 2.0) / math.cos(p) + S["sporto"]
+    for s in (-1.0, 1.0):
+        n = (s * math.sin(p), 0.0, math.cos(p))
+        giu = (-math.cos(p), 0.0, s * math.sin(p))
+        alza = 0.18
+        cb = (s * W / 4.0 + n[0] * alza + giu[0] * S["sporto"] / 2.0,
+              yf - S["sporto"] + 0.14,
+              h + salita / 2.0 + n[2] * alza + giu[2] * S["sporto"] / 2.0)
+        box("CG_Bordo_%d" % int(s), cb, (lung, 0.26, 0.30), "QP_Bianco_Trim",
+            rot=(0, s * p, 0), raccolta=pezzi)
+        # Il risvolto di cornicione all'angolo del timpano: la mensola bianca
+        # che nella foto spunta a tutti e due i lati, sotto alla falda.
+        box("CG_Risvolto_%d" % int(s), (s * (W / 2 + 0.05), yf - 0.05, h + 0.05),
+            (0.75, 0.55, 0.3), "QP_Bianco_Trim", raccolta=pezzi)
+        box("CG_Gronda_%d" % int(s), (s * (W / 2.0 + S["sporto"] * 0.75), 0.0, h - 0.05),
+            (0.2, D + 2 * S["sporto"], 0.2), "QP_Bianco_Trim", raccolta=pezzi)
+    # La grata di ventilazione in punta al timpano.
+    zg = h + salita * 0.66
+    box("CG_Grata_Cornice", (0, yf - 0.04, zg), (0.95, 0.1, 0.62), "QP_Bianco_Trim",
+        raccolta=pezzi)
+    box("CG_Grata_Fondo", (0, yf - 0.08, zg), (0.75, 0.04, 0.44), "QP_Infisso_Scuro",
+        raccolta=pezzi)
+    for k in range(4):
+        box("CG_Grata_Lama%d" % k, (0, yf - 0.1, zg - 0.16 + k * 0.1), (0.75, 0.05, 0.04),
+            "QP_Bianco_Trim", raccolta=pezzi)
+    # Il camino di mattoni, dietro al colmo, un po' a sinistra.
+    cx, cy = S["camino"]
+    zc = h + salita + 0.7
+    box("CG_Camino", (cx, cy, zc / 2.0), (0.62, 0.62, zc), "QP_Mattoni", raccolta=pezzi)
+    box("CG_Camino_Cap", (cx, cy, zc + 0.05), (0.74, 0.74, 0.12), "QP_Cemento", raccolta=pezzi)
+
+    # L'ala di destra: un piano e mezzo, arretrata, col suo tettuccio.
+    AW, AD, AH = S["ala_l"], S["ala_p"], S["ala_h"]
+    ax = W / 2.0 + AW / 2.0
+    ay0 = yf + S["ala_arretro"]
+    box("CG_Ala", (ax, ay0 + AD / 2.0, AH / 2.0), (AW, AD, AH), "QP_Assito_Giallo",
+        raccolta=pezzi)
+    box("CG_Ala_Fondazione", (ax, ay0 + AD / 2.0, 0.3), (AW + 0.12, AD + 0.12, 0.6),
+        "QP_Cemento_Scuro", raccolta=pezzi)
+    box("CG_Ala_Cantonale", (W / 2.0 + AW - 0.02, ay0 + 0.06, AH / 2.0 + 0.3),
+        (0.2, 0.2, AH - 0.6), "QP_Bianco_Trim", raccolta=pezzi)
+    _capanna("CG_Ala", ax, ay0, AW, AD, AH, S["ala_pendenza"], 0.3,
+             "QP_Assito_Giallo", "QP_Tegole_Grigie", pezzi)
+    return unisci(pezzi, "CG_Corpo")
+
+
+def casa_gialla_portico(S):
+    """Il portico su tutta la facciata, ala compresa.
+
+    Colonnine bianche con le mensole ad arco, ringhiera bianca a colonnine, i
+    gradini a sinistra. La profondita' e' quella della casa del giocatore (vedi
+    `casa_portico()`): con la camera a 27 gradi un portico piu' profondo si
+    mangerebbe porta e finestre.
+
+    Le colonnine della ringhiera sono una ogni 20 cm e non ogni 10 come in una
+    ringhiera vera: a 22 px/m quelle vere cadrebbero a due pixel e ridotte
+    diventerebbero una fascia bianca piena.
+    """
+    W, D = S["larghezza"], S["profondita"]
+    yf = -D / 2.0
+    pd, quota, hp = S["portico_p"], S["quota"], S["h_terra"]
+    x0 = -W / 2.0 - 0.1
+    x1 = W / 2.0 + S["ala_l"]
+    y_est = yf - pd
+    pezzi = []
+    box("CGP_Piano", ((x0 + x1) / 2, yf - pd / 2.0 + 0.3, quota - 0.08),
+        (x1 - x0, pd + 0.6, 0.16), "QP_Assito_Portico", raccolta=pezzi)
+    box("CGP_Zoccolo", ((x0 + x1) / 2, y_est + 0.12, (quota - 0.16) / 2.0),
+        (x1 - x0, 0.24, quota - 0.16), "QP_Cemento_Scuro", raccolta=pezzi)
+    box("CGP_Fascia", ((x0 + x1) / 2, y_est + 0.02, quota - 0.1),
+        (x1 - x0, 0.06, 0.2), "QP_Bianco_Trim", raccolta=pezzi)
+
+    # Il tetto del portico: una falda sola che scende verso la strada. Alto: col
+    # bordo davanti sotto ai tre metri si mangiava porta e finestrona, perche'
+    # da 27 gradi un tetto profondo un metro e mezzo copre un metro di muro.
+    z_die, z_dav = hp + 0.5, hp + 0.08
+    sp = 0.3
+    ya, yb = yf, y_est - sp
+    t = 0.14
+    punti = [(x0 - sp, ya, z_die), (x1 + sp, ya, z_die), (x1 + sp, yb, z_dav), (x0 - sp, yb, z_dav),
+             (x0 - sp, ya, z_die + t), (x1 + sp, ya, z_die + t), (x1 + sp, yb, z_dav + t),
+             (x0 - sp, yb, z_dav + t)]
+    facce = [(0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6), (3, 0, 4, 7)]
+    poligoni("CGP_Tetto", punti, facce, "QP_Tegole_Grigie", raccolta=pezzi)
+    box("CGP_Gronda", ((x0 + x1) / 2, yb + 0.06, z_dav - 0.06), (x1 - x0 + 2 * sp, 0.12, 0.22),
+        "QP_Bianco_Trim", raccolta=pezzi)
+    # La trave sopra alle colonnine.
+    z_trave = z_dav - 0.3
+    box("CGP_Trave", ((x0 + x1) / 2, y_est + 0.1, z_trave), (x1 - x0, 0.18, 0.26),
+        "QP_Bianco_Trim", raccolta=pezzi)
+
+    # Colonnine e mensole ad arco.
+    n_col = S["colonnine"]
+    xs = [x0 + 0.1 + (x1 - x0 - 0.2) * i / (n_col - 1) for i in range(n_col)]
+    for i, cx in enumerate(xs):
+        box("CGP_Col%d" % i, (cx, y_est + 0.1, (quota + z_trave) / 2.0),
+            (0.18, 0.18, z_trave - quota), "QP_Bianco_Trim", raccolta=pezzi)
+        for s in (-1, 1):
+            if (i == 0 and s < 0) or (i == n_col - 1 and s > 0):
+                continue
+            # Due tavolette a quarto di cerchio fanno l'arco: a questa scala
+            # un arco vero e un triangolo smussato sono lo stesso pixel.
+            for k, (dx, dz, ang) in enumerate(((0.22, -0.12, 35), (0.48, -0.03, 12))):
+                box("CGP_Mensola%d_%d_%d" % (i, s, k), (cx + s * dx, y_est + 0.1, z_trave + dz),
+                    (0.34, 0.1, 0.07), "QP_Bianco_Trim",
+                    rot=(0, math.radians(s * ang), 0), raccolta=pezzi)
+
+    # La ringhiera, interrotta davanti ai gradini.
+    gx = S["gradini_x"]
+    zr = quota + 0.9
+    for i in range(n_col - 1):
+        a, b = xs[i] + 0.09, xs[i + 1] - 0.09
+        if a < gx < b:
+            continue
+        box("CGP_Corr%d" % i, ((a + b) / 2, y_est + 0.1, zr), (b - a, 0.1, 0.08),
+            "QP_Bianco_Trim", raccolta=pezzi)
+        box("CGP_Bass%d" % i, ((a + b) / 2, y_est + 0.1, quota + 0.1), (b - a, 0.08, 0.06),
+            "QP_Bianco_Trim", raccolta=pezzi)
+        n = int((b - a) / 0.2)
+        for k in range(1, n):
+            x = a + (b - a) * k / n
+            box("CGP_Bal%d_%d" % (i, k), (x, y_est + 0.1, (quota + zr) / 2.0),
+                (0.05, 0.05, zr - quota), "QP_Bianco_Trim", raccolta=pezzi)
+
+    # I gradini di cemento.
+    for k in range(3):
+        box("CGP_Grad%d" % k, (gx, y_est - 0.18 - k * 0.3, quota - 0.1 - k * 0.2 - 0.05),
+            (1.4, 0.34, 0.2 + 0.0), "QP_Cemento", raccolta=pezzi)
+        box("CGP_GradS%d" % k, (gx, y_est - 0.18 - k * 0.3, (quota - 0.2 - k * 0.2) / 2.0),
+            (1.4, 0.34, max(0.05, quota - 0.2 - k * 0.2)), "QP_Cemento_Scuro", raccolta=pezzi)
+    return unisci(pezzi, "CG_Portico")
+
+
+def casa_gialla_infissi(S):
+    """Porte e finestre: tutte con la cornice bianca sporgente.
+
+    Al primo piano la coppia di finestre col pannello a croce in mezzo e la
+    cimasa sopra, che e' il pezzo piu' "vittoriano" della facciata. Al piano
+    terra la porta a sinistra, la finestrona con le tende e la porta dell'ala.
+    """
+    W, D = S["larghezza"], S["profondita"]
+    yf = -D / 2.0
+    quota = S["quota"]
+    pezzi = []
+
+    def cornice(tag, cx, zc, w, h, y=yf):
+        for dx, dz, sx, sz in ((0, h / 2 + 0.07, w + 0.28, 0.14),
+                               (0, -h / 2 - 0.07, w + 0.28, 0.14),
+                               (-w / 2 - 0.07, 0, 0.14, h + 0.28),
+                               (w / 2 + 0.07, 0, 0.14, h + 0.28)):
+            box("cgc_%s_%d_%d" % (tag, int(dx * 100), int(dz * 100)),
+                (cx + dx, y - 0.05, zc + dz), (sx, 0.1, sz), "QP_Bianco_Trim",
+                raccolta=pezzi)
+
+    def finestra(tag, cx, zbase, w, h, vetro="QP_Vetro_Scuro", y=yf, traverso=True):
+        zc = zbase + h / 2.0
+        box("cgf_v_" + tag, (cx, y - 0.03, zc), (w, 0.04, h), vetro, raccolta=pezzi)
+        if traverso:
+            box("cgf_t_" + tag, (cx, y - 0.07, zc + h * 0.08), (w, 0.04, 0.06),
+                "QP_Bianco_Trim", raccolta=pezzi)
+        cornice(tag, cx, zc, w, h, y)
+        box("cgf_d_" + tag, (cx, y - 0.1, zbase - 0.12), (w + 0.36, 0.2, 0.08),
+            "QP_Bianco_Trim", raccolta=pezzi)
+
+    # --- piano terra ---------------------------------------------------------
+    px = S["porta_x"]
+    box("cg_porta", (px, yf - 0.03, quota + 1.08), (0.95, 0.06, 2.16), "QP_Porta_Gialla",
+        raccolta=pezzi)
+    box("cg_porta_vetro", (px, yf - 0.07, quota + 1.45), (0.55, 0.04, 0.95), "QP_Vetro_Scuro",
+        raccolta=pezzi)
+    cornice("porta", px, quota + 1.08, 0.95, 2.16)
+    box("cg_cassetta", (px + 0.85, yf - 0.08, quota + 1.3), (0.34, 0.12, 0.22), "QP_Infisso_Scuro",
+        raccolta=pezzi)
+    box("cg_lampada", (px - 0.75, yf - 0.08, quota + 1.9), (0.14, 0.12, 0.2), "QP_Vetro_Acceso",
+        raccolta=pezzi)
+    # La finestrona con le tende tirate: la luce di casa sta li'.
+    finestra("salotto", 1.05, quota + 0.55, 2.3, 1.75, vetro="QP_Tende_Accese", traverso=False)
+    for k in range(1, 4):
+        box("cg_sal_mont%d" % k, (1.05 - 1.15 + 2.3 * k / 4, yf - 0.07, quota + 0.55 + 0.875),
+            (0.06, 0.04, 1.75), "QP_Bianco_Trim", raccolta=pezzi)
+    # L'ala: porta con la finestra a lato.
+    ay = yf + S["ala_arretro"]
+    ax = W / 2.0 + S["ala_l"] / 2.0
+    box("cg_ala_porta", (ax - 0.45, ay - 0.03, quota + 1.05), (0.85, 0.06, 2.1),
+        "QP_Porta_Gialla", raccolta=pezzi)
+    box("cg_ala_porta_v", (ax - 0.45, ay - 0.07, quota + 1.35), (0.55, 0.04, 1.2),
+        "QP_Tende_Accese", raccolta=pezzi)
+    cornice("ala_porta", ax - 0.45, quota + 1.05, 0.85, 2.1, ay)
+    finestra("ala_fin", ax + 0.95, quota + 0.8, 0.7, 1.3, y=ay)
+
+    # --- primo piano: la coppia col pannello a croce -------------------------
+    z1 = S["h_terra"] + 0.7
+    wf, hf = 0.8, 1.5
+    for tag, cx, vetro in (("p1_sx", -1.0, "QP_Vetro_Scuro"), ("p1_dx", 1.0, "QP_Vetro_Acceso")):
+        finestra(tag, cx, z1, wf, hf, vetro=vetro)
+    # Il pannello fra le due, con la croce di Sant'Andrea.
+    zc = z1 + hf / 2.0
+    box("cg_pann", (0, yf - 0.03, zc), (0.95, 0.05, hf), "QP_Assito_Giallo", raccolta=pezzi)
+    cornice("pann", 0.0, zc, 0.95, hf)
+    diag = math.hypot(0.95, hf)
+    ang = math.atan2(hf, 0.95)
+    for s in (-1, 1):
+        box("cg_croce_%d" % s, (0, yf - 0.08, zc), (diag, 0.06, 0.1), "QP_Bianco_Trim",
+            rot=(0, s * ang, 0), raccolta=pezzi)
+    # La cimasa: una cornice orizzontale su tutte e tre, un frontoncino basso
+    # e il pinnacolo in mezzo.
+    ztop = z1 + hf + 0.2
+    box("cg_cimasa", (0, yf - 0.1, ztop), (3.2, 0.2, 0.16), "QP_Bianco_Trim", raccolta=pezzi)
+    for s in (-1, 1):
+        box("cg_front_%d" % s, (s * 0.8, yf - 0.1, ztop + 0.22), (1.7, 0.14, 0.12),
+            "QP_Bianco_Trim", rot=(0, s * math.radians(15), 0), raccolta=pezzi)
+    box("cg_pinnacolo", (0, yf - 0.12, ztop + 0.5), (0.14, 0.12, 0.34), "QP_Bianco_Trim",
+        raccolta=pezzi)
+    # Il condizionatore sotto alla finestra di destra, come nella foto.
+    box("cg_clima", (1.3, yf - 0.2, z1 - 0.05), (0.45, 0.35, 0.3), "QP_Lavatrice",
+        raccolta=pezzi)
+    # L'ala: finestrella sotto al tetto.
+    finestra("ala_su", ax, S["ala_h"] - 0.2, 0.6, 0.75, y=ay)
+    return unisci(pezzi, "CG_Infissi")
+
+
+def casa_gialla_lotto(S):
+    """Il giardinetto davanti: terra battuta e la recinzione della foto, pali
+    di legno e rete, con il varco davanti ai gradini. Niente verde (la
+    vegetazione la mette il gioco): il palo della girandola e la bandiera sul
+    portico sono l'unica cosa in piu', e si muovono (`casa_gialla_animati`)."""
+    x0, x1 = S["lotto_x"]
+    y0 = S["lotto_y0"]
+    D = S["profondita"]
+    yf = -D / 2.0
+    pezzi = []
+    box("CGL_Suolo", ((x0 + x1) / 2, (y0 + yf) / 2, -0.05), (x1 - x0, yf - y0 + 0.4, 0.12),
+        "QP_Suolo_Lotto", raccolta=pezzi)
+    gx = S["gradini_x"]
+    box("CGL_Vialetto", (gx, (y0 + yf - S["portico_p"]) / 2 - 0.3, 0.02),
+        (1.2, yf - S["portico_p"] - y0 - 0.6, 0.06), "QP_Cemento", raccolta=pezzi)
+    # La recinzione: pali ogni due metri e mezzo, traverso in cima, tre fili.
+    tratti = ((x0, gx - 0.75), (gx + 0.75, x1))
+    for t, (a, b) in enumerate(tratti):
+        n = max(1, int(round((b - a) / 2.4)))
+        for i in range(n + 1):
+            x = a + (b - a) * i / n
+            box("CGL_Palo%d_%d" % (t, i), (x, y0, 0.6), (0.14, 0.14, 1.2), "QP_Legno_Vecchio",
+                raccolta=pezzi)
+        box("CGL_Trav%d" % t, ((a + b) / 2, y0, 1.12), (b - a, 0.07, 0.07), "QP_Rete",
+            raccolta=pezzi)
+        for k, z in enumerate((0.25, 0.55, 0.85)):
+            box("CGL_Filo%d_%d" % (t, k), ((a + b) / 2, y0, z), (b - a, 0.025, 0.025), "QP_Rete",
+                raccolta=pezzi)
+    # I due fianchi, corti.
+    for s, x in ((0, x0), (1, x1)):
+        box("CGL_Fianco%d" % s, (x, (y0 + yf) / 2, 1.12), (0.07, yf - y0, 0.07), "QP_Rete",
+            raccolta=pezzi)
+        box("CGL_PaloF%d" % s, (x, yf - 0.2, 0.6), (0.14, 0.14, 1.2), "QP_Legno_Vecchio",
+            raccolta=pezzi)
+    # I pali fermi delle due cose che si muovono.
+    gx2, gy2 = S["girandola"]
+    # Piu' alta della rete (1,2 m): sotto, la recinzione le passa davanti.
+    box("CGL_PaloGirandola", (gx2, gy2 + 0.04, 0.78), (0.05, 0.05, 1.56), "QP_Legno_Vecchio",
+        raccolta=pezzi)
+    bx0, by0, bz0 = S["bandiera"]
+    lung = S["asta"]
+    d = Vector(S["asta_dir"]).normalized()
+    c = Vector((bx0, by0, bz0)) + d * (lung / 2)
+    asta = cilindro("CGL_Asta", tuple(c), 0.025, lung, "QP_Metallo_Ruggine", lati=6,
+                    raccolta=pezzi)
+    asta.rotation_euler = d.to_track_quat("Z", "Y").to_euler()
+    bpy.context.view_layer.update()
+    return unisci(pezzi, "CG_Lotto")
+
+
+def casa_gialla_animati(S):
+    """Le due cose che si muovono col vento, fuori dallo sprite dell'edificio.
+
+    Stanno in oggetti a se' e **non** finiscono nel disegno: `main()` le
+    nasconde per lo scatto della casa e delle luci, poi le fotografa da sole,
+    fotogramma per fotogramma, con tutto il resto della casa in "holdout" —
+    invisibile ma ancora li' a coprirle dove ci passa davanti. Cosi' i
+    fotogrammi escono gia' allineati al disegno, e in gioco si appoggiano sopra
+    (`scripts/components/wind_prop.gd`).
+
+    Torna una lista di animazioni: nome, oggetti, funzione di posa (0..1, a
+    ciclo chiuso) e numero di fotogrammi.
+    """
+    anims = []
+
+    # --- la girandola: quattro pale colorate che girano intorno al perno ----
+    gx, gy = S["girandola"]
+    zc = 1.56
+    perno_g = bpy.data.objects.new("CGA_Girandola", None)
+    bpy.context.scene.collection.objects.link(perno_g)
+    perno_g.location = (gx, gy - 0.02, zc)
+    r = 0.40
+    colori = ["QP_Girandola_Rossa", "QP_Girandola_Gialla", "QP_Girandola_Blu",
+              "QP_Girandola_Verde"]
+    pale = []
+    for i in range(4):
+        a = math.radians(90 * i)
+        ca, sa = math.cos(a), math.sin(a)
+
+        def ruota(x, z):
+            return (x * ca - z * sa, 0.0, x * sa + z * ca)
+        # La pala classica: un triangolo che parte dal perno e piega di lato.
+        punti = [ruota(0.0, 0.0), ruota(r, 0.02), ruota(r * 0.55, r * 0.72)]
+        punti = [(p[0], p[1] - 0.005 * i, p[2]) for p in punti]
+        pala = poligoni("CGA_Pala%d" % i, punti + [(p[0], p[1] - 0.02, p[2]) for p in punti],
+                        [(0, 1, 2), (5, 4, 3), (0, 3, 4, 1), (1, 4, 5, 2), (2, 5, 3, 0)],
+                        colori[i])
+        pala.parent = perno_g
+        pale.append(pala)
+    mozzo = cilindro("CGA_Mozzo", (0, -0.04, 0), 0.045, 0.06, "QP_Bianco_Trim", lati=8,
+                     rot=(math.radians(90), 0, 0))
+    mozzo.parent = perno_g
+
+    def posa_girandola(t):
+        # Quattro pale uguali: dopo novanta gradi il disegno si ripete, quindi
+        # il ciclo e' un quarto di giro e non un giro intero.
+        perno_g.rotation_euler = (0.0, math.radians(90.0 * t), 0.0)
+    anims.append(("girandola", pale + [mozzo], posa_girandola, 6))
+
+    # --- la bandiera: il telo appeso all'asta, che sventola ---------------
+    bx0, by0, bz0 = S["bandiera"]
+    lung = S["asta"]
+    d = Vector(S["asta_dir"]).normalized()
+    cima = Vector((bx0, by0, bz0)) + d * lung
+    lato_asta = d * 0.85                # il telo e' cucito sull'ultimo tratto
+    NU, NV = 9, 5
+    lung_telo = 1.3
+    bm = bmesh.new()
+    riposo = []
+    for j in range(NV):
+        v = j / (NV - 1)
+        attacco = cima - lato_asta * v
+        for i in range(NU):
+            u = i / (NU - 1)
+            # Il telo esce di lato dall'asta e cade un po' verso terra.
+            p = attacco + Vector((-lung_telo * u, -0.05 * u, -0.25 * u * u))
+            riposo.append((p.copy(), u, v))
+            bm.verts.new(p)
+    bm.verts.ensure_lookup_table()
+    for j in range(NV - 1):
+        for i in range(NU - 1):
+            a = j * NU + i
+            bm.faces.new((bm.verts[a], bm.verts[a + 1], bm.verts[a + NU + 1], bm.verts[a + NU]))
+    me = bpy.data.meshes.new("CGA_Bandiera")
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(M["QP_Bandiera"])
+    telo = bpy.data.objects.new("CGA_Bandiera", me)
+    bpy.context.scene.collection.objects.link(telo)
+
+    def posa_bandiera(t):
+        for vtx, (p, u, v) in zip(telo.data.vertices, riposo):
+            onda = math.sin(2 * math.pi * (t - u * 0.9))
+            vtx.co = (p.x, p.y + 0.16 * u * onda, p.z + 0.07 * u * math.cos(2 * math.pi * (t - u)))
+        telo.data.update()
+    anims.append(("bandiera", [telo], posa_bandiera, 8))
+    return anims
+
+
+# ----------------------------------------------------------------------
 #  edifici di schiera: botteghe, uffici, garage
 # ----------------------------------------------------------------------
 
@@ -1736,20 +2193,36 @@ def commerciale(S):
                                                      zc + 0.1),
                     (0.66, 0.34, 0.46), "QP_Infisso", raccolta=pezzi)
 
-    # --- marciapiede davanti, largo quanto l'edificio ---------------------
-    # Fa da base allo sprite e allinea gli edifici fra loro: senza, uno con la
-    # tenda e uno senza avrebbero il bordo inferiore a due quote diverse.
-    box("com_marciapiede", (0, yf - 1.35, -0.06), (W, 2.70, 0.16),
-        "QP_Marciapiede_Sprite", raccolta=pezzi)
-    for i in range(rnd.randint(0, 3)):
-        r = rnd.uniform(0.20, 0.34)
-        cilindro("com_sacco%d" % i, (rnd.uniform(-W / 2 + 0.6, W / 2 - 0.6),
-                                     yf - rnd.uniform(0.4, 1.0), r * 0.75),
-                 r, r * 1.5, "QP_Sacco", lati=8, raccolta=pezzi)
-    if rnd.random() < 0.5:
-        cilindro("com_bidone", (rnd.uniform(-W / 2 + 0.8, W / 2 - 0.8),
-                                yf - 0.75, 0.46), 0.34, 0.92, "QP_Bidone",
-                 raccolta=pezzi)
+    # --- niente marciapiede ------------------------------------------------
+    # Qui c'era una lastra di marciapiede larga quanto l'edificio e profonda
+    # 2,70 m, dentro allo sprite. E' stata tolta (2026-09-21) e la regola
+    # adesso vale per tutti i modelli: **il marciapiede lo disegna il gioco.**
+    #
+    # Non e' una ripulita di stile, e' che un marciapiede disegnato dentro
+    # all'edificio e' un marciapiede in piu' appoggiato sopra a quello vero di
+    # `city_ground.gd`, con un grigio suo che non combacia e un bordo che si
+    # vede. Ed e' anche terreno su cui il gioco crede che si cammini mentre lo
+    # sprite dice un'altra cosa.
+    #
+    # Resta fuori il cortile recintato del condominio (`lotto()`): quello non
+    # e' marciapiede, e' il lotto dell'edificio — sta dentro alla sua
+    # recinzione e non c'entra con la strada.
+    #
+    # Conseguenza da sapere: senza la lastra il bordo inferiore dello sprite e'
+    # la riga di terra del muro, e le ombre non hanno piu' niente su cui
+    # cadere. E' giusto cosi' — l'ombra a terra la fara' il gioco, che e'
+    # l'unico posto in cui puo' girare con il sole.
+    #
+    # Sono usciti con la lastra anche i sacchi della spazzatura e il bidone,
+    # che ci stavano sopra, e non e' un di piu': erano arredo urbano dentro a
+    # un edificio, cioe' la cosa che questo progetto non mette nei modelli
+    # (vedi la nota in cima al file). E ci sarebbe stato anche un guaio
+    # pratico — piazzati fino a un metro DAVANTI alla facciata, restavano il
+    # punto piu' basso dello sprite e tiravano giu' il bordo inferiore di
+    # sette-otto pixel sotto alla riga di terra del muro. Cioe' esattamente il
+    # problema che si toglie via col marciapiede, in piccolo, e per giunta a
+    # caso: quanti sacchi ci fossero lo decideva un `random`, quindi l'errore
+    # era diverso per ogni edificio.
 
     return unisci(pezzi, "COM_Dettagli")
 
@@ -2682,40 +3155,21 @@ def magazzino_tetto(S):
     return unisci(p, "MG_Tetto")
 
 
-def magazzino_terra(S):
-    """Il marciapiede davanti alla facciata, e nient'altro.
-
-    Qui prima c'era tutto il parcheggio — marciapiede, passaggio pedonale,
-    corsia e una fila di posti auto — dentro allo sprite. Adesso il parcheggio
-    sta DIETRO, ed e' un pezzo di citta' e non un pezzo di disegno: un lotto
-    "asphalt" in `LOTS` che disegna `city_ground.gd`, coi lampioni sopra che
-    sono nodi veri (`street_lamp.gd`) e si accendono la sera da soli.
-
-    La differenza non e' di stile, e' che un lampione disegnato nello sprite
-    non puo' accendersi: lo sprite e' una texture, e di notte il
-    `CanvasModulate` della citta' la moltiplica per il blu della notte come
-    tutto il resto. Vedi la nota in cima a `street_lamp.gd`.
-
-    Resta il marciapiede perche' senza l'edificio galleggia: e' il filo
-    inferiore che lo appoggia a terra, lo stesso che hanno gli edifici di
-    schiera del quartiere povero.
-    """
-    q = _mag_quote(S)
-    p = []
-    yf = q["yf"]
-    x0, x1 = S["lotto_x"]
-    y_marc = yf - S["marciapiede"]
-
-    box("mg_marciapiede", ((x0 + x1) / 2.0, (y_marc + yf) / 2.0, 0.07),
-        (x1 - x0, yf - y_marc, 0.26), "DT_Marciapiede", raccolta=p)
-    box("mg_cordolo", ((x0 + x1) / 2.0, y_marc + 0.09, 0.09),
-        (x1 - x0, 0.18, 0.30), "DT_Cordolo", raccolta=p)
-    # Davanti all'ala il marciapiede prosegue fino al suo fronte arretrato.
-    box("mg_marciapiede_ala",
-        (q["xa"], q["yfa"] - S["ala_arretramento"] / 2.0, 0.07),
-        (q["Wa"], S["ala_arretramento"] + 0.10, 0.26), "DT_Marciapiede",
-        raccolta=p)
-    return unisci(p, "MG_Terra")
+# Il magazzino non ha nessun pezzo di terra dentro allo sprite, e per due
+# potature successive che hanno lo stesso motivo: **quello che sta a terra e'
+# citta', non edificio.**
+#
+# Prima e' uscito il parcheggio — marciapiede, passaggio pedonale, corsia e
+# una fila di posti auto — che adesso e' un lotto "asphalt" in `LOTS` disegnato
+# da `city_ground.gd`, coi lampioni sopra che sono nodi veri
+# (`street_lamp.gd`) e si accendono la sera da soli. Un lampione disegnato
+# nello sprite non puo' accendersi: lo sprite e' una texture, e di notte il
+# `CanvasModulate` della citta' la moltiplica per il blu come tutto il resto.
+#
+# Poi e' uscito anche il marciapiede (2026-09-21, vedi la nota in cima al
+# file): davanti al muro restava una striscia di 17 px con un grigio suo,
+# appoggiata sopra a quella vera di MAIN STREET, che e' fatta di un altro
+# grigio. Si vedeva il bordo.
 
 
 # ----------------------------------------------------------------------
@@ -3041,6 +3495,34 @@ EDIFICI = {
         seme=7717,
     ),
 
+    # La casa gialla di CROSS STREET, a sinistra del garage in vendita: una
+    # vittoriana di legno presa da una foto, col timpano ripido sulla strada,
+    # il portico a colonnine bianche su tutta la facciata e l'ala bassa a
+    # destra. E' la prima casa del quartiere con qualcosa che si muove: la
+    # girandola nel giardinetto e la bandiera appesa al portico
+    # (`casa_gialla_animati()`).
+    "casa_gialla": dict(
+        tipo="casa_gialla",
+        larghezza=7.2, profondita=8.0,
+        h_terra=3.2, h_primo=2.75,
+        # 50 gradi, piu' ripido della casa del giocatore: nella foto il timpano
+        # e' alto quasi quanto i due piani sotto, ed e' la sagoma che la fa
+        # riconoscere.
+        pendenza=50.0, sporto=0.35,
+        camino=(-1.3, 1.8),
+        ala_l=3.4, ala_p=6.0, ala_h=4.3, ala_arretro=0.5, ala_pendenza=34.0,
+        portico_p=1.5, quota=0.6, colonnine=5,
+        gradini_x=-2.45, porta_x=-2.3,
+        # Il giardinetto e' corto: due metri fra i gradini e la rete. Vedi la
+        # nota sul cortile della casa del giocatore.
+        lotto_x=(-4.3, 7.6), lotto_y0=-7.5,
+        girandola=(6.3, -6.75),
+        # L'asta parte dalla seconda colonnina, a mezza altezza, e punta fuori
+        # verso sinistra passando SOTTO alla gronda del portico.
+        bandiera=(-0.975, -5.42, 1.8), asta=1.7, asta_dir=(-0.55, -0.6, 0.58),
+        seme=2604,
+    ),
+
     # --- la schiera -------------------------------------------------------
     # Questi non hanno lotto e sono a filo sui fianchi: si affiancano a
     # distanza pari alla loro larghezza e formano una fila continua. Le
@@ -3208,9 +3690,10 @@ EDIFICI = {
         # due condizionatori, e da lontano sembrava un buco nell'edificio.
         ala_larghezza=6.40, ala_profondita=7.20, ala_altezza=6.40,
         ala_arretramento=1.10,
-        # Il marciapiede davanti: il parcheggio sta dietro ed e' un lotto della
-        # citta', non un pezzo di questo disegno. Vedi `magazzino_terra`.
-        lotto_x=(-14.40, 14.40), marciapiede=1.70,
+        # Niente misure di terra: il magazzino non porta piu' nessun pezzo di
+        # suolo dentro allo sprite. Il parcheggio e' un lotto della citta' e il
+        # marciapiede lo disegna `city_ground.gd`. Vedi la nota sopra
+        # `magazzino_corpo`.
         seme=5501,
     ),
 
@@ -3275,7 +3758,6 @@ def costruisci(nome):
         magazzino_corpo(S)
         magazzino_fronte(S)
         magazzino_tetto(S)
-        magazzino_terra(S)
         return S
     palette()
     # Le strutture del campo pescano dalla palette del quartiere povero: il
@@ -3288,6 +3770,15 @@ def costruisci(nome):
         return S
     if S.get("tipo") == "porta":
         porta_campo(S)
+        return S
+    if S.get("tipo") == "casa_gialla":
+        S["altezza"] = S["h_terra"] + S["h_primo"] + \
+            (S["larghezza"] / 2.0) * math.tan(math.radians(S["pendenza"]))
+        casa_gialla_corpo(S)
+        casa_gialla_portico(S)
+        casa_gialla_infissi(S)
+        casa_gialla_lotto(S)
+        S["animati"] = casa_gialla_animati(S)
         return S
     if S.get("tipo") == "casa":
         # Il colmo e' lungo Y, quindi la salita del timpano si misura sulla
@@ -3311,12 +3802,67 @@ def costruisci(nome):
     return S
 
 
+def _nascondi_animati(S, nascosti=True):
+    for _, oggetti, _, _ in S.get("animati", []):
+        for obj in oggetti:
+            obj.hide_render = nascosti
+
+
+def fotografa_animati(nome):
+    """I fotogrammi delle cose che si muovono (vedi `casa_gialla_animati()`).
+
+    L'edificio si ricostruisce da zero — `modo_luci()` ha riscritto i
+    materiali — e si rinquadra con le parti mobili nascoste, esattamente come
+    per il disegno: stessa camera, stesso ritaglio, e i fotogrammi cadono al
+    pixel sopra allo sprite. Poi tutto quello che non e' l'animazione diventa
+    "holdout": non si vede, ma buca l'immagine dove ci sta davanti.
+
+    Anche le linee Freestyle vanno ristrette alla sola animazione, o si
+    disegnerebbero i contorni di tutta la casa invisibile.
+    """
+    S = costruisci(nome)
+    cam = scena()
+    _nascondi_animati(S)
+    inquadra(cam)
+    sc = bpy.context.scene
+    fs = bpy.context.view_layer.freestyle_settings
+    for tag, oggetti, posa, n in S["animati"]:
+        coll = bpy.data.collections.new("ANIM_" + tag)
+        sc.collection.children.link(coll)
+        for obj in oggetti:
+            coll.objects.link(obj)
+        for ls in fs.linesets:
+            ls.select_by_collection = True
+            ls.collection = coll
+            ls.collection_negation = "INCLUSIVE"
+        for obj in bpy.data.objects:
+            if obj.type == "MESH":
+                obj.is_holdout = obj not in oggetti
+                obj.hide_render = obj not in oggetti and obj.hide_render
+        _nascondi_animati(S)
+        for obj in oggetti:
+            obj.hide_render = False
+        for i in range(n):
+            posa(i / float(n))
+            sc.render.filepath = os.path.join(OUT, "anim_%s_%s_%02d.png" % (nome, tag, i))
+            bpy.ops.render.render(write_still=True)
+        posa(0.0)
+    print("%-12s animazioni: %s" % (nome, ", ".join(
+        "%s x%d" % (tag, n) for tag, _, _, n in S["animati"])))
+
+
 def main():
     if not os.path.isdir(OUT):
         os.makedirs(OUT)
-    for nome in EDIFICI:
+    # Dopo `--` si possono dare i nomi degli edifici da rifare: rifarli tutti
+    # vuol dire riscrivere una ventina di PNG per cambiarne uno.
+    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    nomi = [n for n in argv if n in EDIFICI] or list(EDIFICI)
+    for nome in nomi:
         S = costruisci(nome)
         cam = scena()
+        # Le parti mobili non stanno nel disegno: hanno i loro fotogrammi.
+        _nascondi_animati(S)
         larg, alt, h_sprite = inquadra(cam)
         sc = bpy.context.scene
         sc.render.filepath = os.path.join(OUT, "render_%s.png" % nome)
@@ -3336,6 +3882,8 @@ def main():
               "(\"render_%s.png\", \"<nome>\", None, %d)"
               % (nome, larg, alt, sc.render.resolution_x, sc.render.resolution_y,
                  facce, nome, h_sprite))
+        if S.get("animati"):
+            fotografa_animati(nome)
 
 
 if __name__ == "__main__":

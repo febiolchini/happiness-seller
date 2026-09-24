@@ -141,6 +141,18 @@ static func sun_height(hour: float) -> float:
 		return 0.0
 	return sin((hour - SUNRISE) / (SUNSET - SUNRISE) * PI)
 
+## Dove sta il sole sull'orizzonte: +1 all'alba (est, a destra sulla mappa),
+## 0 a mezzogiorno, -1 al tramonto (ovest, a sinistra).
+##
+## Sta qui e non dentro a `shadow()` perché adesso lo leggono in due: le ombre,
+## che ci girano intorno, e il vetro dei grattacieli, che ci riflette il sole
+## (`scripts/components/sun_glass.gd`). Se ognuno se lo ricalcolasse per conto
+## suo, basterebbe cambiare idea su un segno perché le torri riflettessero da
+## una parte mentre la città fa ombra dall'altra — e sarebbe l'unica cosa in
+## tutto il gioco a dire l'ora sbagliata.
+static func sun_across(hour: float) -> float:
+	return cos((hour - SUNRISE) / (SUNSET - SUNRISE) * PI)
+
 ## L'ombra che c'è adesso: da che parte cade, quanto è lunga, quanto è marcata.
 ##
 ## La direzione punta sempre un po' verso il basso, anche a mezzogiorno: la
@@ -164,7 +176,7 @@ static func shadow(data: SaveData) -> Dictionary:
 
 	# Il sole nasce a est e tramonta a ovest: l'ombra parte lunga verso ovest,
 	# si accorcia passando sotto, e riparte allungandosi verso est.
-	var across := cos((hour - SUNRISE) / (SUNSET - SUNRISE) * PI)
+	var across := sun_across(hour)
 	return {
 		"direction": Vector2(-across, 0.45 + 0.35 * height).normalized(),
 		"length": lerpf(SHADOW_LONG, SHADOW_SHORT, height),

@@ -1,0 +1,88 @@
+{
+  "stanza": "ingresso",
+  "animazioni": [
+    {
+      "nome": "lampadario",
+      "tipo": "dondolo",
+      "periodo": 1.5,
+      "smorza": 3.0,
+      "pausa": [
+        10.0,
+        24.0
+      ],
+      "spinta": [
+        0.45,
+        1.0
+      ],
+      "fotogrammi": 11
+    },
+    {
+      "nome": "cappotto",
+      "tipo": "dondolo",
+      "periodo": 1.2,
+      "smorza": 1.6,
+      "pausa": [
+        14.0,
+        30.0
+      ],
+      "spinta": [
+        0.45,
+        1.0
+      ],
+      "fotogrammi": 7
+    },
+    {
+      "nome": "pendolo",
+      "tipo": "ciclo",
+      "fps": 8,
+      "fotogrammi": 16
+    },
+    {
+      "nome": "tenda",
+      "tipo": "evento",
+      "fps": 8,
+      "pausa": [
+        8.0,
+        20.0
+      ],
+      "fotogrammi": 16
+    }
+  ],
+  "punti": {
+    "finestra": [
+      53,
+      88,
+      68,
+      98
+    ],
+    "finestra_angoli": [
+      [
+        53.2,
+        88.2
+      ],
+      [
+        120.8,
+        88.2
+      ],
+      [
+        120.8,
+        185.9
+      ],
+      [
+        53.2,
+        185.9
+      ]
+    ],
+    "personaggio": {
+      "piedi": [
+        277.1,
+        291.8
+      ],
+      "scala": 4.27,
+      "posizione": [
+        277,
+        208
+      ]
+    }
+  }
+}

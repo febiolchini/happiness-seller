@@ -1,0 +1,94 @@
+{
+  "stanza": "cucina",
+  "animazioni": [
+    {
+      "nome": "lampadario",
+      "tipo": "dondolo",
+      "periodo": 1.9,
+      "smorza": 3.2,
+      "pausa": [
+        12.0,
+        26.0
+      ],
+      "spinta": [
+        0.45,
+        1.0
+      ],
+      "fotogrammi": 11
+    },
+    {
+      "nome": "strofinaccio",
+      "tipo": "dondolo",
+      "periodo": 1.0,
+      "smorza": 1.4,
+      "pausa": [
+        15.0,
+        35.0
+      ],
+      "spinta": [
+        0.45,
+        1.0
+      ],
+      "fotogrammi": 7
+    },
+    {
+      "nome": "vapore",
+      "tipo": "ciclo",
+      "fps": 6,
+      "fotogrammi": 12
+    },
+    {
+      "nome": "falena",
+      "tipo": "ciclo",
+      "fps": 10,
+      "fotogrammi": 12
+    },
+    {
+      "nome": "goccia",
+      "tipo": "evento",
+      "fps": 10,
+      "pausa": [
+        2.5,
+        7.0
+      ],
+      "fotogrammi": 10
+    }
+  ],
+  "punti": {
+    "finestra": [
+      350,
+      83,
+      67,
+      87
+    ],
+    "finestra_angoli": [
+      [
+        350.2,
+        83.0
+      ],
+      [
+        417.4,
+        83.0
+      ],
+      [
+        417.4,
+        170.3
+      ],
+      [
+        350.2,
+        170.3
+      ]
+    ],
+    "personaggio": {
+      "piedi": [
+        158.2,
+        293.9
+      ],
+      "scala": 4.54,
+      "posizione": [
+        158,
+        205
+      ]
+    }
+  }
+}

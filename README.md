@@ -25,7 +25,9 @@ prologo si chiude e si può **assumere personale** che coltiva e vende da solo.
 Vedi "Il negozio online", "La fine del prologo" e "Il personale".
 
 Il mondo non si ferma quando si chiude il gioco: riaprendolo, il personale ha
-lavorato e le piante sono cresciute. Vedi "Il tempo a gioco chiuso".
+lavorato e le piante sono cresciute — tutto a resa piena, fino a un massimo di
+sette giorni di gioco. Chi preferisce che a gioco chiuso non si muova niente,
+spese comprese, lo spegne dalle impostazioni. Vedi "Il tempo a gioco chiuso".
 
 Sopra a tutto questo scorre una giornata vera: la luce cambia con l'ora, le
 ombre girano col sole, al tramonto si accendono i lampioni, e ogni
@@ -107,9 +109,9 @@ cambiando due numeri.
 ### Il reticolo
 
 Tutto è allineato alla griglia da 32 px. Le strade sono definite dal rettangolo
-del loro **asfalto**; marciapiedi (32 px) e cordoli li disegna
-`city_ground.gd` intorno. Sei strade orizzontali e cinque verticali formano
-quarantadue isolati.
+del loro **asfalto**, largo `CityMap.ROAD_WIDTH` = 96 px; la fascia di
+marciapiede (32 px per lato) la disegna `city_ground.gd` intorno, il cordolo lo
+porta la piastrella stradale. Vedi "Le strade sono piastrelle" e "Le curve".
 
 | Strada | Asfalto | |
 |---|---|---|
@@ -138,6 +140,138 @@ Dove si cammina lo dicono `CityMap.SIDEWALK_N/S/W/E` (le quote dei marciapiedi,
 una per strada) e `CityMap.CROSS_X` (le ascisse su cui cadono le strisce
 pedonali). Sono i numeri con cui si scrivono i percorsi degli NPC.
 
+### Le strade sono piastrelle
+
+L'asfalto non è più disegnato a mano: sono le piastrelle del **city kit roads
+di Kenney** (CC0, in `assets/sprites/kenney_city-kit-roads`), che è un kit 3D.
+`scripts_tools/render_road_tiles.py` prende gli OBJ, li guarda **dritti
+dall'alto** e ne scrive un PNG per ciascuno in `assets/sprites/roads/`:
+
+```
+python scripts_tools/render_road_tiles.py
+```
+
+**Dall'alto e non a 27 gradi** come gli edifici, perché il pavimento della città
+è disegnato in pianta: una strada orizzontale e una verticale sono larghe 96 px
+tutte e due, e con la camera inclinata una delle due si schiaccerebbe. Vista
+dall'alto invece la stessa piastrella serve per tutti e quattro i versi
+girandola di novanta gradi, ed è il motivo per cui in `city_ground.gd` ce ne
+sono sei e non ventiquattro.
+
+**Non passa da Blender**, unico pezzo d'arte del progetto a non farlo. Una
+piastrella stradale è piatta — due centesimi di unità di spessore, tutto il
+disegno sta nella texture — e vista da sopra un renderer vero non ha niente da
+fare che un rasterizzatore di cinquanta righe non faccia uguale. In cambio gira
+senza avere Blender aperto e dà lo stesso risultato ogni volta.
+
+**La scala è 120 px per piastrella**, e il numero viene dall'asfalto: la
+piastrella del kit è 0,8 di carreggiata e 0,1 di cordolo per lato, e 0,8 = 96 px
+dà 120. Il cordolo esce quindi 12 px e si appoggia sul bordo interno della fascia
+di marciapiede da 32, cioè dove il gioco disegnava la sua riga di cordolo. Le
+proporzioni del kit non coincidono con quelle del gioco e si è scelto di tenere
+**l'asfalto**, perché è quello scritto nei dati: `ROAD_WIDTH`, le corsie del
+traffico, le quote dei marciapiedi. Tenere invece la piastrella intera sui 160 px
+avrebbe dato una carreggiata di 128, cioè più larga di quella che il gioco crede
+di avere.
+
+Mezzeria, strisce pedonali e cordolo stanno **dentro al disegno**, quindi da
+`city_ground.gd` sono spariti insieme al codice che li tracciava.
+
+### Il bordo della mappa: colline, montagne e quattro uscite
+
+Il reticolo **non ha curve**, ed è una scelta: ogni strada attraversa tutta la
+mappa da un bordo all'altro. Ci sono state per mezza giornata — qualche strada
+si fermava prima e dove due finivano sullo stesso incrocio restava un gomito —
+e sono uscite tutte perché non piacevano.
+
+Quello che resta è **come la città finisce**. Allo scatto di zoom più lontano
+la mappa finiva, e si vedeva che finiva: l'ultimo isolato, il colore del
+terreno, e poi niente. Un bordo dritto non è un paesaggio, è il limite di un
+disegno.
+
+Adesso intorno c'è un **paesaggio di colline e montagne** profondo `CityMap.FRAME_DEPTH`
+= 1024 px, e quattro strade che ci passano in mezzo per andarsene: una per lato,
+a formare una croce. Sono il prolungamento delle due strade che passano più
+vicino al centro della mappa — scelte e non scritte a mano, così la croce resta
+in mezzo anche se un giorno la città cresce da una parte sola. Le altre
+ventitré si fermano contro le montagne, che è quello che fa una strada di
+città.
+
+**Le strade non finiscono nel nulla.** A nord e a ovest la città è chiusa da
+due strade di cornice lungo il bordo del mondo, HILLTOP ROAD e WESTGATE
+AVENUE, che raccolgono tutte le altre. A sud e a est le strade si fermano
+sull'ultima parallela, COUNTY LINE e COUNTY ROAD, invece di proseguire per un
+pezzetto fino al bordo; arrivano fino in fondo solo le due d'uscita, LOWER MAIN
+e PORT STREET, che continuano nelle montagne. Le due strade di cornice stanno
+**in fondo** a `ROADS_H`/`ROADS_V`, non in testa, perché gli indici delle
+strade sono scritti anche altrove (marciapiedi, percorsi degli NPC).
+
+Agli incroci del bordo la strada non continua da tutti e quattro i lati:
+`CityMap.junction_sides()` dice da quali, e `city_ground.gd` ci mette la
+piastrella giusta del kit di Kenney — il quadrivio, la T (`tjunction.png`) o la
+curva degli angoli (`bend.png`) — con le strisce pedonali solo sui lati aperti.
+Le auto, dove la corsia finisce contro un'altra strada, svaniscono dentro
+all'incrocio invece di sparire di colpo (`car.gd`, `fade_from`/`fade_to` della
+corsia).
+
+**Due rettangoli, non uno.** `CityMap.WORLD_BOUNDS` è la città e non cambia;
+`CityMap.view_bounds()` è la città più la cornice, ed è quello che la camera usa
+come limite. La distinzione è il punto: la cornice si guarda e basta. La griglia
+dei percorsi resta su `WORLD_BOUNDS`, perché nelle montagne non ci si cammina e
+spargerci sopra centomila celle di A* per non andarci mai non è un affare. Per
+la stessa ragione le strade di uscita stanno **fuori** da `ROADS_H`/`ROADS_V`:
+quelle sono le strade del gioco — ci camminano gli NPC, ci passano le auto, ci si
+dà appuntamento — e queste sono disegno. Metterle lì vorrebbe dire lampioni in
+mezzo ai monti e appuntamenti con Brian a un chilometro dall'ultima casa.
+
+Di conseguenza un click nelle montagne **non è un ordine**: la griglia finisce
+prima, e chi ci clicca veniva accostato alla cella di bordo più vicina mentre la
+destinazione restava quella cliccata — il protagonista usciva dalla mappa e si
+incamminava dentro a un monte. Adesso quel click cade a vuoto.
+
+Il paesaggio è uno **shader**, `assets/shaders/landscape.gdshader`, su un
+`Polygon2D` grande quanto la vista della camera che `city_ground.gd` si mette
+come figlio (`_build_landscape()`). Ha preso il posto della vecchia cornice di
+triangoli grigi con la punta bianca, che si leggeva come una decorazione messa
+intorno a un disegno e non come un posto.
+
+È un **rilievo**: ogni punto ha una quota, bassa subito fuori dall'ultimo
+isolato e sempre più alta verso il bordo. Dalla quota viene il resto:
+
+- **la forma.** Il gioco si guarda da sud e dall'alto, come gli edifici: un
+  punto alto H si vede H pixel più su. Lo shader, per ogni pixel, cerca verso
+  sud il primo terreno abbastanza alto da arrivarci, quindi le montagne si
+  alzano davvero e coprono la valle che hanno dietro;
+- **il colore.** Prato e boschi sulle colline (il prato vicino al verde dei
+  quartieri, così la città sfuma nella campagna), roccia più in alto, neve
+  sulle cime. Tre tinte piatte per materiale, a soglia: è pixel art, non una
+  carta in rilievo;
+- **la luce**, da nord-ovest come ovunque: versanti illuminati e in ombra;
+- **la foschia**, che sale con la distanza fino al bordo. È lei a dire che le
+  ultime creste sono lontane, cioè che il mondo continua ma lì non ci si va.
+
+Tre regole che tengono in piedi il tutto:
+
+- **nessuna quota entra in città.** Una quota è al massimo 0,55 volte la
+  distanza dal bordo della città, quindi nessuna montagna, proiettata verso
+  l'alto, arriva sopra all'ultimo isolato. Per questo lo strato può stare
+  sopra al terreno della città senza coprirne niente;
+- **le strade d'uscita passano in valle.** Vicino alle quattro strade la quota
+  va a zero, con una banchina di terra ai lati. L'asfalto resta quello delle
+  piastrelle di Kenney, disegnato da `city_ground.gd` sotto al paesaggio, che
+  lì è trasparente;
+- **il rumore sta in due texture** (`NoiseTexture2D` senza cuciture, seme fisso
+  `LANDSCAPE_SEED`): la stessa mappa dà le stesse montagne a ogni avvio, e
+  ogni pixel legge la quota una sessantina di volte, cosa che con un rumore
+  calcolato a seni costerebbe troppo.
+
+Da lontano gli alberi singoli sarebbero più piccoli di un pixel e
+brulicherebbero muovendo la camera: sopra i tre pixel di mondo per pixel di
+schermo lo shader li sostituisce con la tinta media del bosco.
+
+Per guardarlo: `scripts_tools/BorderShot.tscn` (con la finestra) fotografa il
+bordo dalla vista d'insieme, di tre quarti e da vicino, di giorno e di notte.
+
 ### I cinque quartieri
 
 | Quartiere | Area | Cosa c'è |
@@ -145,7 +279,7 @@ pedonali). Sono i numeri con cui si scrivono i percorsi degli NPC.
 | THE FLATS | x -352→1856, y -352→2240 | il quartiere povero, **l'unico costruito**: un centinaio di edifici, tutti disegnati, fitti lungo ogni fronte stradale e dentro agli isolati. Gli otto punti di riferimento (casa iniziale, campo roulotte, palazzo occupato, bifamiliare, retro del minimarket, bottiglieria, officina, alimentari) più le file generate con gli stessi otto disegni; campo da football, lotti abbandonati, parcheggi e un paio di centinaia di cespugli |
 | INDUSTRIAL PARK | x 1952→3488, y -352→2240 | terreno, strade e lampioni: aspetta i suoi disegni. Restano lo sfasciacarrozze, il deposito container e gli altri piazzali |
 | DOWNTOWN | x 3584→4960, y -352→2240 | terreno, strade e lampioni, più **il grossista dei semi**: il magazzino all'ingrosso fra HILL DRIVE e PORT STREET, col suo parcheggio dietro (lotto `asphalt` in `LOTS`, lampioni compresi). È il primo edificio disegnato del quartiere, e quello che ne fissa la tavolozza (`DT_`) |
-| CIVIC CENTER | x -352→1856, y 2336→4160 | parco centrale, giardino con **due fontane**, piazza e cortile della scuola. Gli edifici pubblici arriveranno col disegno |
+| CIVIC CENTER | x -352→1856, y 2336→4160 | parco centrale, giardino con **due fontane**, piazza e cortile della scuola, e **UNION PARK**: lo stadio, nell'isolato d'angolo fra EAST STREET e SOUTH GATE, che guarda DOWNTOWN dall'altra parte della strada. È il primo edificio disegnato del quartiere e quello che ne fissa la tavolozza (`ST_`). Gli altri edifici pubblici arriveranno col disegno |
 | HILLSIDE | x 1952→4960, y 2336→4160 | prati, campo da tennis e piscine della zona benestante, in attesa delle ville |
 
 La divisione è quella di sempre — tre quartieri sopra `DIVISION AVENUE`, due
@@ -296,6 +430,30 @@ cespugli — si leggevano come cubi sparsi davanti agli edifici. Quando il verde
 tornerà sarà roba disegnata e piazzata dal gioco, non geometria dentro
 all'edificio: vedi la nota in cima a `render_buildings.py`.
 
+**E il marciapiede non sta nei modelli** (2026-09-21). Ogni edificio di schiera
+se ne portava dentro allo sprite una lastra profonda quasi tre metri, il
+magazzino e le due torri una più corta, l'isolato cinese una per unità.
+Servivano ad appoggiare l'edificio e a dargli tutte lo stesso bordo inferiore.
+Sono uscite tutte, ed è la stessa regola del verde applicata al suolo: **quello
+che sta a terra è città, non edificio.**
+
+Erano un secondo marciapiede col suo grigio, appoggiato sopra a quello che
+disegna `city_ground.gd`, e il bordo fra i due si vedeva. Ma soprattutto
+falsavano la riga di terra: il bordo inferiore del PNG era la lastra e non il
+muro, cioè un metro e mezzo più *avanti*, e siccome `offset` si calcola sul PNG
+l'edificio finiva disegnato una trentina di pixel sotto alla sua quota. È il
+motivo per cui il `click` del magazzino andava accorciato a mano — correzione
+che adesso non serve più.
+
+Non sono marciapiede, e restano dove sono: il cortile recintato del condominio
+e della casa, e il piazzale della clinica. Quelli sono il **lotto**
+dell'edificio, stanno dentro alla sua recinzione, e con la strada non c'entrano.
+
+Le altezze in `ASSETS` degli edifici toccati sono cambiate di conseguenza, e
+**non sono taglie nuove**: sono le stesse taglie senza la striscia sotto. Il
+conto è a proporzione sul ritaglio, così le larghezze restano identiche al
+pixel — che è quello che tiene il muro dell'agenzia attaccato a quello di casa.
+
 Un edificio disegnato ha l'origine **a terra, al centro della facciata**, quindi
 lo sprite vuole `centered = false` e
 `offset = Vector2(-larghezza / 2, -altezza)`.
@@ -326,10 +484,13 @@ sono disegnati piatti sul terreno (come il campo da football), quindi per ora il
 giocatore ci cammina sopra; diventando sprite andranno spostati fra i nodi
 Y-sortati.
 
-Un dettaglio di `city_ground.gd` che sembra un caso ma non lo è: disegna
-**prima tutti i marciapiedi e solo dopo tutto l'asfalto**. Così agli incroci i
-marciapiedi restano sotto e le due strade si fondono in una piazzola, senza
-dover calcolare nessuna intersezione.
+L'ordine di disegno di `city_ground.gd` sembra un caso e non lo è: prima tutti i
+**marciapiedi**, poi tutto l'**asfalto**, poi le **strisce pedonali**, e per
+ultimi gli **incroci**. I marciapiedi per primi è la vecchia regola e vale
+ancora — così agli incroci restano sotto e le due strade si fondono senza
+calcolare nessuna intersezione. Gli incroci per ultimi è la regola nuova: la
+piastrella dell'incrocio è il pezzo che sa che forma ha quel crocevia, e deve
+andare sopra alle due dritte che ci arrivano.
 
 ## Chi c'è per strada
 
@@ -893,8 +1054,8 @@ lo stesso mestiere con gli stessi due attrezzi — un `CanvasModulate` e
   due cose a far sentire che si è rientrati;
 - dalla finestra entra un **taglio di luce** che cade nella stessa direzione
   delle ombre di fuori, quindi la stanza e la strada raccontano la stessa ora;
-- **fuori dalla finestra c'è l'ora che è.** Il fondale è un disegno fisso, e nel
-  disegno fuori è sempre giorno: alle dieci di sera si vedeva un cortile
+- **fuori dalla finestra c'è l'ora che è.** Il fondale è un render fisso, e nel
+  render fuori è sempre giorno: alle dieci di sera si vedeva un cortile
   assolato dietro ai vetri, ed era la cosa che rompeva di più l'illusione in
   tutta la stanza. Adesso sopra al vetro va il cielo di quest'ora, e di notte si
   accendono tre finestre nel palazzo di fronte;
@@ -1683,49 +1844,111 @@ all'arrivo se lo ricordano `_talking_to` / `_entering` e lo esegue
 
 `scenes/rooms/Room.tscn` è la stanza base; `Entrance`, `Kitchen`, `Basement` e
 `Garage` sono **scene ereditate** che cambiano solo `room_name`,
-`background_color`, `exits`, e i due campi della luce — `daylight` e
-`window_rect`. La logica sta
-tutta in `scripts/rooms/room.gd`, una volta sola.
+`background_color`, `exits`, `art` (quale fondale animato è) e i campi della
+luce — `daylight`, `window_rect` e, per le finestre viste di sbieco,
+`window_quad`. La logica sta tutta in `scripts/rooms/room.gd`, una volta sola.
 
-`window_rect` dice dove sta la finestra **come si vede a schermo**, non sul PNG:
-il `Backdrop` ritaglia l'immagine (`keep_aspect_covered`), quindi va misurato su
-uno screenshot e non sul file. Un rettangolo vuoto vuol dire nessuna finestra.
-`daylight = false` è la cantina, che sottoterra non ha né ora né tempo. Cosa ne
-segue sta in "Luce, ore e meteo" → "Dentro casa".
+`window_rect` dice dove sta la finestra **come si vede a schermo**.
+Un rettangolo vuoto vuol dire nessuna finestra. `window_quad` sono gli stessi
+quattro angoli quando la finestra è un trapezio (quella del garage, vista sul
+muro di lato): di notte `room_ambience.gd` ci stende sopra il colore del cielo,
+e col solo rettangolo il cielo finirebbe anche sul muro intorno. `daylight =
+false` è la cantina, che sottoterra non ha né ora né tempo. Cosa ne segue sta in
+"Luce, ore e meteo" → "Dentro casa".
 
 Sopra a `Background` (il colore pieno di ripiego) c'è `Backdrop`, un
-`TextureRect` in `keep_aspect_covered`: gli si assegna il PNG del fondale nella
-scena ereditata e riempie i 640x360 ritagliando quel che avanza. Senza texture
-resta invisibile e si vede il colore, come prima.
+`TextureRect` in `keep_aspect_covered` col PNG del fondale. I fondali sono
+**640x360 esatti**, quindi il `Backdrop` non ritaglia niente e **un pixel del
+fondale è un pixel di schermo**: le coordinate si leggono direttamente sul PNG.
+Senza texture resta invisibile e si vede il colore.
 
-Il `Basement` è la prima stanza con fondale vero
-(`assets/sprites/buildings/basementBack.png`, 1254x1254 isometrico): il
-personaggio sta a scala 4.6x sul pavimento libero a destra del tavolo, con un
-`modulate` leggermente scuro/caldo per stare nella luce della stanza. Il nodo `Shadow` sotto a `Character` (un `Polygon2D` ellittico con
-`z_index = -1`) gli fa da ombra a terra e lo « appoggia » sul pavimento.
+### I fondali si costruiscono in Blender
 
-È anche il posto di lavoro: ci stanno i **sei vasi** (`Plot0`..`Plot5`,
-istanze di `scenes/components/GrowPlot.tscn` con l'indice del vaso in `index`) e
-il **PC** del gestionale.
+I quattro fondali (`assets/sprites/rooms/ingresso.png`, `cucina.png`,
+`cantina.png`, `garage.png`) non sono disegni: li costruisce e li renderizza
+`scripts_tools/blender_stanze.py`, una funzione per stanza, con la stessa
+regola degli edifici — **una stanza è codice, non un file**. Hanno preso il posto
+dei quattro disegni di partenza (`buildings/ingressoback.png`,
+`kitchenBack.png`, `basementBack.png`, `garageBack.png`), da cui riprendono
+arredo, luce calda e inquadrature: di fronte e in bolla per ingresso e cucina,
+isometrica per la cantina, dall'alto per il garage. Il contorno scuro è
+Freestyle, come negli edifici.
 
-I vasi sono appoggiati **sul tavolo del fondale**, due file da tre. Il piano del
-tavolo è un parallelogramma in prospettiva isometrica, misurato sul disegno:
-angolo sinistro in (135, 235), asse verso il fondo-destra (180, -50), asse verso
-il davanti-destra (117, 40). Le posizioni dei sei vasi sono calcolate su quei due
-assi, non messe a occhio — è il motivo per cui le file seguono la prospettiva
-invece di essere orizzontali, e la formula è quella da rifare se il fondale
-cambia.
+```
+blender --background --factory-startup --python scripts_tools/blender_stanze.py -- tutte
+python scripts_tools/import_room_art.py
+```
 
-Le due file si sovrappongono in verticale, com'è giusto in prospettiva: la fila
-davanti (`Plot3`..`Plot5`) deve stare **dopo** nell'albero della scena, altrimenti
-verrebbe disegnata dietro a quella di fondo. Per lo stesso motivo le etichette
-hanno un contorno scuro, e lo stato "bloccato" è appena accennato invece che
-pieno: tre riquadri grigi opachi su un tavolo coprirebbero mezzo fondale.
+(`-- cucina` per una stanza sola, `--solo-fondale` per provare senza
+animazioni.) Blender scrive in `assets/sprites/rooms/_source/<stanza>/` (c'è
+un `.gdignore`) i render a 1280x720; l'importatore li riduce a 640x360 e scrive
+anche **`scripts/data/room_art.gd`**, la tabella che il gioco legge. È un file
+generato: non si tocca a mano.
 
-`Entrance` e `Kitchen` hanno anche loro il fondale vero
-(`ingressoback.png` 1254x1254, `kitchenBack.png` 1402x1122). Le stanze senza
-fondale mostrano solo il protagonista in grande e fermo, il nome della stanza in
-alto e le uscite in basso.
+Una stanza costruita **sa dove stanno le sue cose**. Blender proietta dalla
+camera i punti che servono alla scena e li mette in
+`RoomArt.ROOMS[stanza]["points"]`: la finestra, il punto del pavimento su cui
+sta il protagonista (con la scala giusta perché sia alto 1,75 m lì dove sta),
+le posizioni dei vasi sul piano dei tavoli, il monitor del PC. I numeri delle
+quattro scene vengono da lì. Cambiando una stanza in Blender si rilancia, si
+leggono i nuovi `points` e si ricopiano nella scena — non si misura più niente
+su uno screenshot.
+
+Per vederle dentro al gioco, di giorno e di notte, coi vasi pieni e col
+lampadario nelle due pose estreme: `scripts_tools/RoomShot.tscn` (si lancia con
+la finestra, come gli altri strumenti di scatto).
+
+### Il fondale si muove
+
+Ogni stanza ha qualche cosa che si muove, ed è quello che le toglie l'aria di
+fotografia:
+
+| Stanza | Cosa si muove |
+|---|---|
+| ingresso | il lampadario dondola ogni tanto, il pendolo dell'orologio batte, il cappotto appeso ondeggia, la tenda della stanza accanto si gonfia a uno spiffero |
+| cucina | il lampadario dondola, il vapore sale dalla pentola, la falena gira intorno alla lampadina, il rubinetto gocciola, lo strofinaccio sul forno ondeggia |
+| cantina | il lampadario dondola, la fiamma della caldaia e la lanterna tremolano, il tubo gocciola nel secchio, ogni tanto un topo corre lungo il muro |
+| garage | il lampadario dondola, un ragno scende dal soffitto e risale, uno spiffero sotto la serranda spinge dentro qualche foglia |
+
+In Blender ogni cosa che si muove è un oggetto (o un perno con dei figli) che
+una funzione mette in posa. Per ogni posa si renderizza **tutta la stanza**, e
+l'importatore tiene solo i pixel che cambiano rispetto al fondale fermo: così
+nel fotogramma c'è anche quello che il movimento si porta dietro — la pozza di
+luce del lampadario che scivola sul pavimento, le ombre delle sedie che girano.
+Ogni animazione diventa una striscia `assets/sprites/rooms/<stanza>_<nome>.png`,
+ritagliata al rettangolo in cui succede qualcosa e trasparente dove non cambia
+niente. Funziona perché il render di Eevee è deterministico: due render della
+stessa posa differiscono al massimo di un livello.
+
+`room.gd::_build_backdrop_animations()` le appoggia sopra al fondale come figli
+del `Backdrop` — si disegnano subito dopo di lui e prima di protagonista e vasi,
+e non spostano gli indici dei nodi delle scene ereditate. Le muove
+`scripts/rooms/backdrop_animation.gd`, in tre modi:
+
+- **`loop`** — fotogrammi in fila, sempre (fiamma, vapore, pendolo);
+- **`event`** — fotogrammi in fila una volta, poi una pausa a caso (goccia,
+  ragno, topo, tenda);
+- **`swing`** — i fotogrammi sono **pose**, dalla più a sinistra alla più a
+  destra. Ogni tanto la cosa riceve una spinta e l'angolo segue
+  un'oscillazione smorzata, da cui si prende la posa più vicina: undici pose
+  bastano per dondolii di qualunque forza, e ogni volta il lampadario parte e
+  si ferma in modo diverso.
+
+Le pause sono in secondi veri e non in ore di gioco, come i lampi: sono cose da
+guardare mentre succedono.
+
+Due accortezze in `blender_stanze.py`, trovate a spese proprie: gli effetti
+(vapore, gocce, falena) **non fanno ombra** — una falena a un palmo dalla
+lampadina proiettava una macchia grande come il tavolo, e la sua striscia
+diventava tutto lo schermo — e le luci che tremolano hanno una **portata**
+tagliata, per lo stesso motivo. Il lampadario invece deve cambiare tutta la
+stanza, ed è la striscia più pesante (circa due mega per stanza).
+
+### Il protagonista e i vasi
+
+Il nodo `Shadow` sotto a `Character` (un `Polygon2D` ellittico con
+`z_index = -1`) gli fa da ombra a terra e lo « appoggia » sul pavimento, e un
+`modulate` leggermente scuro/caldo lo mette nella luce della stanza.
 
 **Il `Character` delle stanze è centrato su `position`**, a differenza del Player
 in città che ha l'origine ai piedi. I piedi cadono quindi a
@@ -1733,37 +1956,32 @@ in città che ha l'origine ai piedi. I piedi cadono quindi a
 sopra alla fila delle uscite (y 308-340). Sbagliare questo conto mette il
 personaggio con le scarpe dentro ai tasti.
 
-La mappatura fra pixel del disegno e pixel di schermo dipende dal formato del
-PNG, perché `Backdrop` è in `keep_aspect_covered`:
+La scala non è più scelta a occhio: è quella per cui la figura è alta 1,75 m nel
+punto in cui sta, e la dà Blender. Per questo cambia da stanza a stanza — 4,3 e
+4,5 in ingresso e cucina, che si guardano da vicino, 3,2 e 3,1 in cantina e
+garage, che si guardano dall'alto e da più lontano.
 
-| Fondale | Formato | Da immagine a schermo |
-|---|---|---|
-| `basementBack.png` | 1254x1254 | `img * 0.5104 - (0, 140)` |
-| `ingressoback.png` | 1254x1254 | `img * 0.5104 - (0, 140)` |
-| `kitchenBack.png` | 1402x1122 | `img * 0.4565 - (0, 76)` |
-| `garageBack.png` | 1448x1086 | `img * 0.4420 - (0, 60)` |
+La cantina è il posto di lavoro: ci stanno i **sei vasi** (`Plot0`..`Plot5`,
+istanze di `scenes/components/GrowPlot.tscn` con l'indice del vaso in `index`),
+le loro lampade (`Lamp0`..`Lamp5`) e il **PC** del gestionale. I vasi sono
+appoggiati **sul tavolo lungo**, due file da tre: le posizioni sono punti del
+piano del tavolo proiettati dalla camera, quindi le file seguono l'isometria da
+sole. Il punto proiettato è il fondo del vaso: la cornice va da `x - 26` a
+`x + 26` e da `y - 40` a `y + 2`, la lampada sopra parte da `y - 114`.
 
-È la formula da usare per piazzare qualcosa su un dettaglio preciso del disegno.
-Il modo più rapido per ricavarla su un fondale nuovo è sovrapporre una griglia di
-coordinate e misurare.
+Le due file si sovrappongono in verticale, com'è giusto in prospettiva: la fila
+davanti (`Plot3`..`Plot5`) deve stare **dopo** nell'albero della scena, altrimenti
+verrebbe disegnata dietro a quella di fondo. Per lo stesso motivo le etichette
+hanno un contorno scuro, e lo stato "bloccato" è appena accennato invece che
+pieno: tre riquadri grigi opachi su un tavolo coprirebbero mezzo fondale.
 
 #### I due banconi del garage
 
-`garageBack.png` non è un fondale muto: i **due banconi** sono i vasi, sei per
-bancone su **due file da tre**. Il disegno li mostra dall'alto, quindi il piano
-è un parallelogramma con profondità vera, e le sei posizioni non si scrivono a
-mano: si prendono i **quattro angoli** del piano e si interpola.
-
-| Bancone | angoli del piano (dietro-sx, dietro-dx, davanti-dx, davanti-sx) |
-|---|---|
-| sinistro | (154,181) (290,168) (297,222) (152,229) |
-| destro | (332,168) (492,179) (487,216) (326,223) |
-
-Le colonne stanno a `u = 1/6, 1/2, 5/6`, le due file a `v = 0.30` e `v = 0.86`.
-Interpolare invece di scrivere dodici coppie di numeri vuol dire che se il
-disegno cambia si rimisurano **quattro punti per tavolo** e le sei posizioni
-escono da sé — ed è già successo una volta, quando il fondale è stato
-ridisegnato dalla vista frontale a quella dall'alto.
+Nel garage i **due banconi** sono i vasi, sei per bancone su **due file da
+tre** (`Plot6`..`Plot17`: prima il bancone di sinistra, fila dietro e fila
+davanti, poi quello di destra). Le colonne stanno a `u = 1/6, 1/2, 5/6` del
+piano, le file a `v = 0.30` e `v = 0.86`, e anche qui i punti li proietta la
+camera. La cornice è più stretta (44 px), quindi va da `x - 22` a `x + 22`.
 
 Nella scena la fila **dietro viene prima**: i nodi si disegnano nell'ordine in
 cui stanno, e un vaso davanti deve coprire quello dietro, non il contrario.
@@ -1798,25 +2016,26 @@ lettere attaccate. Quello che serve a colpo d'occhio resta disegnato — la pian
 cresce, la barra si riempie, quella pronta pulsa d'oro, quella assetata ha la
 goccia — e l'elenco per esteso sta nella scheda GROW del PC.
 
-Il **PC** è sul banco degli attrezzi a sinistra (x 120-176, y 76-102), sopra la
-riga dei vasi e senza toccarla: apre lo stesso `ManagementWindow.tscn` di quello
+Il **PC** è sul banco degli attrezzi in fondo a sinistra (x 147-203, y 67-91,
+sopra al monitor), sopra la riga dei vasi e senza toccarla: apre lo stesso `ManagementWindow.tscn` di quello
 in cantina. Non è una copia, è lo stesso gestionale: da qualunque PC si vedono
 tutti i vasi, di tutte e due le proprietà.
 
-Il protagonista sta apposta a destra (x 556), davanti alla serranda, e non in
+Il protagonista sta apposta a destra (x 528), davanti alla serranda, e non in
 mezzo alla stanza: i vasi si disegnano **sopra** di lui — sono nodi aggiunti dopo
 `Character` nella scena — e uno in mezzo ai banconi si ritroverebbe le piante
-davanti alla faccia. È la stessa ragione per cui in cantina sta a x 478 mentre i
-vasi stanno fra 162 e 408.
+davanti alla faccia. È la stessa ragione per cui in cantina sta a x 470, ai
+piedi della scala, mentre i vasi stanno fra 177 e 360.
 
 A differenza della cantina il garage **vede la luce**: la finestra rotta in alto a
-sinistra (`window_rect`) e i vetri della serranda, quindi `daylight` resta acceso
+sinistra (`window_rect` e `window_quad`) e i vetri della serranda, quindi `daylight` resta acceso
 e la stanza cambia colore con l'ora. Non è solo atmosfera: è anche il motivo per
 cui lì **le lampade non si appendono** (vedi "Dove si coltiva").
 
-Aggiungere una stanza: duplica una delle tre scene ereditate, cambia i tre campi
-(più la texture di `Backdrop` e posizione/scala di `Character`, se ha un
-fondale) e aggiungila alle `exits` delle altre. Le uscite sono un dizionario
+Aggiungere una stanza: scrivila in `blender_stanze.py` (una funzione in
+`STANZE`), renderizzala e importala; poi duplica una delle scene ereditate,
+cambia i campi (più la texture di `Backdrop`, `art` e posizione/scala di
+`Character` dai `points` della tabella) e aggiungila alle `exits` delle altre. Le uscite sono un dizionario
 `etichetta -> scena`, e l'ordine mostrato è quello di inserimento.
 
 Le scritte delle stanze sono in inglese e di sole lettere, quindi possono usare
@@ -2775,45 +2994,77 @@ centinaio di giri per un'assenza normale: non si sente. Il controllo automatico
 verifica proprio questo — che in quarantotto ore i vasi vengano **ripiantati** e
 non seminati una volta sola.
 
-### Niente tetto: si conta tutta l'assenza, ma rende la metà
+### Tutto per intero, ma non più di sette giorni
 
-C'era un tetto e valeva quarantotto ore di gioco: oltre, si trovava sempre
-quello, e tornare dopo una settimana dava quanto tornare dopo un quarto d'ora.
-Non c'è più. Si conta **tutto** il tempo passato fuori.
+Quello che succede a gioco spento vale **per intero**: se in quel tempo si
+sarebbero piazzati cinquanta grammi se ne trovano cinquanta, le piante fanno
+tutti i loro cicli, e per intero sono anche le paghe e le bollette. In
+`offline.gd` non c'è nessun moltiplicatore, ed è il punto: il mondo a gioco
+chiuso è lo stesso di quello a gioco aperto.
 
-Al suo posto c'è la resa: `Offline.CLOSED_RATE` vale **0,5**, e a gioco spento
-tutto rende la metà. Se in quel tempo si sarebbero piazzati cinquanta grammi se
-ne trovano venticinque, le piante fanno metà dei cicli, e metà sono anche le
-paghe e le bollette — è tutto il mondo ad andare a metà velocità, non solo la
-parte che frutta. Il conto si fa in un punto solo: `catch_up()` accredita metà
-delle ore e da lì in poi nessuno sa più niente dello sconto.
+Quello che lo limita è un **tetto**: `Offline.MAX_GAME_DAYS` vale **7**, e oltre
+a sette giorni di gioco l'assenza non conta più, per quanto sia durata. Chi
+torna dopo un mese trova esattamente quello che trova chi torna dopo una
+settimana.
 
-**Perché a metà e non per intero.** L'orologio della partita corre
-**duecentoquaranta volte** più veloce del nostro: a `GAME_MINUTES_PER_SECOND` =
-4 una giornata di gioco dura sei minuti veri, e una notte di sonno vale due mesi
-di gioco. Contarla tutta per intero vorrebbe dire dire al giocatore che il modo
-migliore di giocare è non aprire il gioco. A metà resta conveniente **esserci**
-— chi gioca produce il doppio di chi aspetta — e chi torna dopo una settimana
-trova comunque una settimana di roba, che è quello che uno si aspetta.
+**Perché un tetto e non una resa ridotta.** Prima la resa a gioco spento era
+dimezzata e l'assenza si contava tutta. Diceva al giocatore due cose poco
+simpatiche: che il suo tempo lontano valeva metà di quello di chi restava, e che
+il conto delle bollette che si trovava al ritorno non era il conto vero. Il
+tetto dice invece l'unica cosa che serve dire — il mondo va avanti **come
+sempre**, ma non all'infinito — e la dice una volta sola, senza sporcare nessun
+numero.
 
-**Il freno vero non è un numero.** Sono i semi: a gioco chiuso non si comprano,
-quindi la produzione si ferma da sola quando finiscono (vedi qui sotto). Un mese
-di assenza non dà un mese di raccolto, dà quello che i semi rimasti permettevano
-— e in compenso un mese di paghe e di bollette lo scala per intero, che è il
-motivo per cui si torna col personale andato via e la cassa vuota. È una
-conseguenza voluta di contare tutto, non un effetto collaterale.
+**Perché sette giorni.** L'orologio della partita corre **duecentoquaranta
+volte** più veloce del nostro: a `GAME_MINUTES_PER_SECOND` = 4 una giornata di
+gioco dura sei minuti veri, quindi il tetto si riempie in poco meno di tre
+quarti d'ora di assenza. È voluto: chi chiude il gioco per la notte o per la
+giornata di lavoro trova sempre la settimana piena, e chi lo lascia chiuso per
+un mese trova la stessa settimana — non un anno di paghe arretrate che gli
+svuota la cassa e gli manda via il personale mentre non c'era. Resta comunque
+conveniente **esserci**: una settimana è il massimo che l'assenza può dare,
+mentre chi gioca non ha nessun massimo.
 
-**Il passo si allarga sulle assenze lunghissime.** Senza tetto un anno di
-assenza sarebbe un milione di giri da mezz'ora: `MAX_STEPS` tiene il recupero
-sotto ai seimila passi allargando il passo, e l'errore che ne viene è sempre in
-difetto — qualche ciclo di raccolto non contato, mai uno in più. Un anno di
-assenza si recupera in meno di un secondo.
+**Il freno vero però non è il tetto.** Sono i semi: a gioco chiuso non si
+comprano, quindi la produzione si ferma da sola quando finiscono (vedi qui
+sotto). Sette giorni di assenza non danno sette giorni di raccolto, danno quello
+che i semi rimasti permettevano.
+
+**Il tetto tiene anche il conto corto.** Sette giorni di gioco a mezz'ora per
+passo sono trecentotrentasei giri, sempre, anche per chi riapre il gioco dopo un
+anno: per questo in `offline.gd` non c'è più niente che allarghi il passo per non
+piantare il gioco all'avvio.
 
 Sotto al minuto non succede niente: chi riapre il gioco subito dopo averlo
 chiuso non deve beccarsi un riquadro a tutto schermo per venti secondi.
 Un salvataggio nel **futuro** — orologio di sistema spostato indietro, file
 copiato da un'altra macchina — dà zero e non un numero negativo, o l'orologio
 della partita camminerebbe all'indietro.
+
+### Si può spegnere
+
+Nelle impostazioni, accanto alla lingua, c'è **mondo offline**: *va avanti*
+oppure *resta fermo*. Spento, riaprendo il gioco si ritrova tutto com'era —
+stessa ora, stesse piante, stessa cassa — e il tempo passato fuori non è mai
+esistito.
+
+È una scelta e non un numero da bilanciare perché a gioco chiuso non lavora solo
+la parte che frutta: corrono anche le paghe, le bollette e le tasse. Chi ha
+messo in piedi una cantina e la lascia andare da sola ci guadagna; chi invece
+non può aprire il gioco per qualche giorno non vuole rientrare e trovare la
+cassa svuotata dalle spese e il personale andato via. Sono due modi di giocare
+legittimi, quindi decide chi gioca.
+
+Sta in `GameSettings.offline_progress`, in `user://settings.cfg` e non nel
+salvataggio, per la stessa ragione della lingua: è una preferenza di chi gioca,
+non una proprietà della partita. Di ripiego è **acceso**, anche per i file
+scritti prima che la voce esistesse.
+
+Il collegamento sta tutto in `GameState._catch_up_offline()`, che con la voce
+spenta non chiama nemmeno `Offline.catch_up()`: `catch_up()` non sa che questa
+scelta esiste, ed è giusto così — è un conto, non una politica. Il tempo
+saltato non si accumula per la volta dopo, perché il primo salvataggio riscrive
+`saved_at`: riaccendendo la voce non arriva nessun conto arretrato.
 
 ### Cosa NON succede a gioco chiuso
 
@@ -2822,8 +3073,8 @@ non seguono, non vende in strada a mano, e soprattutto **non compra semi** —
 quelli si prendono solo da Brian, di persona. Finiti i semi i vasi restano vuoti
 e la produzione si ferma da sola.
 
-È questo il freno che conta davvero, più di qualunque numero: la resa dimezzata
-rallenta tutto, ma sono i semi finiti a fermare la produzione per davvero.
+È questo il freno che conta davvero, più di qualunque numero: il tetto dice
+quanto tempo si conta, ma sono i semi finiti a fermare la produzione.
 Un coltivatore segue due vasi, gli altri restano a secco, e la sete si porta via
 un pezzo di raccolto esattamente come a gioco aperto (mai sotto a
 `Grow.MIN_QUALITY`: una notte via non azzera niente).
@@ -2838,12 +3089,11 @@ non sapere perché.
 
 Rientrando arriva un messaggio sul telefono (`MENTRE ERI VIA`). Le prime due
 righe ci sono sempre e servono a spiegare il salto dell'orologio — senza, si
-riaprirebbe il gioco al giorno 5 ricordandosi di averlo chiuso al giorno 3:
+riaprirebbe il gioco al giorno 10 ricordandosi di averlo chiuso al giorno 3:
 
 ```
 Sei stato via 45m.
-GIORNO 3 21:24  ->  GIORNO 5 21:24
-A gioco spento tutto rende il 50% in meno.
+GIORNO 3 21:24  ->  GIORNO 10 21:24
 
 Raccolto: 40 g
 Piazzato: 35 g per 294 $
@@ -2852,8 +3102,11 @@ Paghe: -162 $
 Vasi da annaffiare: 1
 ```
 
-Le altre righe compaiono solo quando hanno qualcosa da dire, come i segmenti
-dell'HUD. Sono scritte come **etichetta: valore** e non come frasi ("2 vasi sono
+La riga del tetto (`Sei stato via di piu': si contano al massimo 7 giorni di
+gioco.`) compare solo a chi è rimasto fuori oltre i sette giorni, e serve
+perché il conto torni: senza, sembrerebbe che il gioco si sia perso qualcosa per
+strada. Le altre righe compaiono solo quando hanno qualcosa da dire, come i
+segmenti dell'HUD. Sono scritte come **etichetta: valore** e non come frasi ("2 vasi sono
 rimasti a secco") apposta: così non c'è nessun singolare da sbagliare quando il
 numero è 1, in nessuna delle tre lingue.
 
@@ -2928,6 +3181,9 @@ chi gioca, non della partita: dentro a `SaveData` vorrebbe dire che caricare un
 salvataggio vecchio rimette il gioco nella lingua in cui era stato iniziato, e
 che una partita nuova non sa in che lingua leggevi un minuto prima. Al primo
 avvio si parte dalla lingua del sistema, se è una delle tre.
+
+Nello stesso file, e per la stessa ragione, sta anche `offline_progress` — se
+il mondo va avanti a gioco chiuso. Vedi "Si può spegnere".
 
 Chi ha del testo già composto a schermo si aggancia a
 `GameSettings.locale_changed`: le Label dei `Control` le ritraduce Godot, ma una
@@ -3018,9 +3274,11 @@ che dieci ore sono due minuti e mezzo, che è esattamente com'era finita.
 
 Controlla anche il **tempo passato a gioco chiuso**: che riaprire subito non
 faccia scattare niente, che un salvataggio nel futuro non regali tempo, che due
-minuti veri diventino otto ore di gioco, che il tetto tenga (una settimana vale
-quanto un quarto d'ora), che il personale pianti, raccolga, venda e si prenda le
-paghe, che senza semi non si pianti niente e i semi non compaiano da soli, che
+minuti veri diventino otto ore di gioco per intero, che il tetto tenga (una
+settimana vera e un mese vero valgono gli stessi sette giorni di gioco), che col
+mondo offline spento si riapra all'ora in cui si era chiuso e riaccendendolo non
+arrivi nessun conto arretrato, che il personale pianti, raccolga, venda e si
+prenda le paghe, che senza semi non si pianti niente e i semi non compaiano da soli, che
 l'appuntamento con Brian scada, e che i vasi lasciati soli restino a secco senza
 però scendere sotto alla resa minima. Gira senza aspettare: i secondi veri sono
 un parametro di `Offline.catch_up()`, non l'orologio del sistema.

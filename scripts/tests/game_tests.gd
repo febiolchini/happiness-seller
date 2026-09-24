@@ -77,6 +77,7 @@ func _ready() -> void:
 		["il tempo a gioco chiuso", _test_offline],
 		["l'agenzia immobiliare", _test_real_estate],
 		["il grossista dei semi", _test_seed_run],
+		["il nome e il prestigio", _test_org_prestige],
 	]:
 		print("- %s" % test[0])
 		var started := Time.get_ticks_msec()
@@ -760,6 +761,17 @@ func _test_meet_spots() -> void:
 	_check_empty(too_close, "nessun appuntamento sotto casa")
 	_check_empty(too_far, "nessun appuntamento a mezza città di distanza")
 	_check_empty(nameless, "ogni posto ha un nome da dire al giocatore")
+
+	# Ogni posto deve cadere su una strada, e non basta che sia camminabile:
+	# il nome dell'appuntamento si ricava dalla strada su cui cade il punto
+	# (`street_at()`), quindi un posto fuori da ogni strada arriverebbe al
+	# giocatore senza indirizzo. Terreno calpestabile lo e' lo stesso, quindi i
+	# due controlli qui sotto non se ne accorgerebbero.
+	var off_street: Array = []
+	for point: Vector2 in spots:
+		if CityMap.street_at(point).is_empty():
+			off_street.append(str(point))
+	_check_empty(off_street, "ogni posto sta su una strada, non sul prolungamento di una")
 
 	# E soprattutto: ci si deve poter arrivare a piedi, e stare in piedi lì.
 	var nav := CityNavigation.new()
@@ -1586,6 +1598,28 @@ func _test_save_roundtrip() -> void:
 ## `to_dict()`: qui si vede se il file viene scritto davvero, se "l'ultima
 ## partita" è quella giusta, e se torna indietro tutto quello che il giocatore
 ## si aspetta di ritrovare.
+## Al primo assunto Brian chiede il nome; col nome compare il prestigio, che
+## parte dai pivelli e sopravvive al salvataggio.
+func _test_org_prestige() -> void:
+	GameState.new_game()
+	var data := GameState.current
+	_check(not Prestige.active(data), "senza nome niente prestigio")
+	GameState._check_milestones()
+	_check(not bool(data.get_flag(GameState.ORG_NAME_FLAG, false)), "da soli non si chiede il nome")
+	data.cash = 100000
+	Staff.hire(data, "grower", GameState.total_hours())
+	GameState._check_milestones()
+	_check(bool(data.get_flag(GameState.ORG_NAME_FLAG, false)), "al primo assunto brian chiede il nome")
+	data.org_name = "Los Cugini"
+	_check(Prestige.active(data), "col nome c'e' il prestigio")
+	_check_eq(Prestige.level_name(data), "PRESTIGE_ROOKIES", "si parte pivelli")
+	Prestige.add(data, 25)
+	_check(is_equal_approx(Prestige.progress(data), 0.25), "la barra si riempie coi punti")
+	Prestige.add(data, -100)
+	_check_eq(data.prestige, 0, "il prestigio non va sotto zero")
+	var back := SaveData.from_dict(data.to_dict())
+	_check_eq(back.org_name, "Los Cugini", "il nome si salva")
+
 func _test_continue_last() -> void:
 	_wipe_saves()
 
@@ -1878,51 +1912,56 @@ func _test_offline() -> void:
 		Offline.away_seconds(data, Time.get_unix_time_from_system()), 0.0,
 		"un salvataggio nel futuro non regala tempo")
 
-	# --- L'orologio avanza di meta' di quanto deve -------------------------
+	# --- L'orologio avanza per intero, senza nessuno sconto ----------------
 	#
-	# A 4 minuti di gioco al secondo, due minuti veri sarebbero 480 minuti di
-	# gioco, cioe' otto ore. A gioco spento pero' tutto rende la meta', e il
-	# modo in cui lo si dice e' accreditare meta' delle ore: quattro.
+	# A 4 minuti di gioco al secondo, due minuti veri sono 480 minuti di gioco,
+	# cioe' otto ore. A gioco spento il mondo e' lo stesso di quello a gioco
+	# aperto: quelle otto ore si contano tutte.
 	data = _fresh()
 	data.time_of_day = 8.0
 	data.day = 1
 	var report := Offline.catch_up(data, 120.0, RATE)
 	_check(Offline.happened(report), "due minuti veri fanno scattare il recupero")
 	_check(
-		is_equal_approx(float(report["game_hours"]), 8.0 * Offline.CLOSED_RATE),
-		"e valgono meta' delle otto ore di gioco che varrebbero")
+		is_equal_approx(float(report["game_hours"]), 8.0),
+		"e valgono per intero le otto ore di gioco che valgono")
 	_check(
-		data.day == 1 and is_equal_approx(data.time_of_day, 12.0),
-		"quindi l'orologio della partita arriva a mezzogiorno, non alle sedici")
+		data.day == 1 and is_equal_approx(data.time_of_day, 16.0),
+		"quindi l'orologio della partita arriva alle sedici, non a mezzogiorno")
 	_check(
-		is_equal_approx(float(report["rate"]), Offline.CLOSED_RATE),
-		"e il resoconto dice di quanto ha reso il tempo passato fuori")
+		not bool(report["capped"]),
+		"e un'assenza che sta sotto al tetto non lo dice nemmeno")
 
-	# --- Niente tetto: una settimana vale una settimana --------------------
+	# --- Il tetto: sette giorni di gioco, e non uno di piu' ----------------
 	#
-	# Il tetto c'era, valeva quarantotto ore, e voleva dire che tornare dopo una
-	# settimana dava quanto tornare dopo un quarto d'ora. Adesso si conta tutto
-	# e a fare da freno c'e' solo la resa dimezzata, quindi una settimana deve
-	# valere piu' di due ore — e di preciso la meta' di quello che varrebbe.
+	# Sotto al tetto ogni ora vera vale le ore di gioco che vale, senza tagli:
+	# mezz'ora vera fa 120 ore di gioco, che stanno dentro ai sette giorni.
 	data = _fresh()
 	data.time_of_day = 8.0
-	var long_away := Offline.catch_up(data, 2.0 * HOUR, RATE)
+	var long_away := Offline.catch_up(data, 0.5 * HOUR, RATE)
 	_check(
-		is_equal_approx(
-			float(long_away["game_hours"]),
-			2.0 * HOUR * RATE / 60.0 * Offline.CLOSED_RATE),
-		"due ore vere valgono meta' delle ore che varrebbero")
+		is_equal_approx(float(long_away["game_hours"]), 0.5 * HOUR * RATE / 60.0),
+		"sotto al tetto l'assenza vale per intero")
+	_check(not bool(long_away["capped"]), "e non e' tagliata")
+	# Sopra, invece, si ferma li' per sempre: una settimana vera e un mese vero
+	# devono dare la stessa identica settimana di gioco.
 	var week := _fresh()
 	week.time_of_day = 8.0
 	var week_report := Offline.catch_up(week, 24.0 * 7.0 * HOUR, RATE)
 	_check(
-		float(week_report["game_hours"]) > float(long_away["game_hours"]) * 10.0,
-		"e una settimana vale molto piu' di due ore, non lo stesso numero fisso")
+		is_equal_approx(float(week_report["game_hours"]), Offline.MAX_GAME_HOURS),
+		"una settimana vera vale il tetto, sette giorni di gioco")
+	_check(bool(week_report["capped"]), "e il resoconto dice che e' stata tagliata")
+	var month := _fresh()
+	month.time_of_day = 8.0
+	var month_report := Offline.catch_up(month, 24.0 * 30.0 * HOUR, RATE)
 	_check(
 		is_equal_approx(
-			float(week_report["game_hours"]),
-			24.0 * 7.0 * HOUR * RATE / 60.0 * Offline.CLOSED_RATE),
-		"anche lei dimezzata, e nient'altro")
+			float(month_report["game_hours"]), float(week_report["game_hours"])),
+		"e un mese vero non vale niente di piu': oltre al tetto non si conta")
+	_check(
+		week.day == month.day and is_equal_approx(week.time_of_day, month.time_of_day),
+		"quindi le due partite riaprono alla stessa ora dello stesso giorno")
 
 	# --- Il personale lavora davvero ---------------------------------------
 	data = _fresh()
@@ -1937,9 +1976,9 @@ func _test_offline() -> void:
 	# Semi in mano: senza, i coltivatori non hanno niente da piantare.
 	data.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 6)
 	var cash_before := data.cash
-	# Ventiquattro minuti veri: novantasei ore di gioco che, dimezzate, fanno le
-	# quarantotto che servono a vedere un ciclo intero piu' mezzo.
-	var worked := Offline.catch_up(data, 24.0 * 60.0, RATE)
+	# Dodici minuti veri: le quarantotto ore di gioco che servono a vedere un
+	# ciclo intero piu' mezzo.
+	var worked := Offline.catch_up(data, 12.0 * 60.0, RATE)
 	_check(int(worked["planted"]) > 0, "i coltivatori piantano mentre il gioco e' chiuso")
 	_check(int(worked["grams"]) > 0, "e raccolgono")
 	_check(int(worked["sold"]) > 0, "i dealer piazzano la merce")
@@ -1961,10 +2000,10 @@ func _test_offline() -> void:
 	Staff.hire(stepped, "grower", 0.0)
 	stepped.staff_checked_at = 0.0
 	stepped.add_item(Economy.seed_item(Economy.DEFAULT_STRAIN), 8)
-	# Mezz'ora vera: centoventi ore di gioco che, dimezzate, fanno sessanta —
-	# sopra a un ciclo e mezzo di 29 ore.
+	# Un quarto d'ora vero: sessanta ore di gioco, sopra a un ciclo e mezzo di
+	# 29 ore.
 	var tended_pots := mini(Staff.POTS_PER_GROWER, stepped.plots.size())
-	var many := Offline.catch_up(stepped, 30.0 * 60.0, RATE)
+	var many := Offline.catch_up(stepped, 15.0 * 60.0, RATE)
 	_check(
 		int(many["planted"]) > tended_pots,
 		"in due giornate di gioco i vasi vengono ripiantati, non seminati una volta sola")
@@ -2005,9 +2044,7 @@ func _test_offline() -> void:
 	meeting.day = 1
 	meeting.time_of_day = 8.0
 	SeedDeal.ask(meeting, 8.0)
-	# Piu' della finestra dell'incontro: Brian non aspetta in pausa. Sono
-	# ventiquattro minuti veri e non dodici perche' le ore accreditate sono
-	# meta' di quelle che il tempo vale (vedi `Offline.CLOSED_RATE`).
+	# Piu' della finestra dell'incontro: Brian non aspetta in pausa.
 	var missed := Offline.catch_up(meeting, 24.0 * 60.0, RATE)
 	_check_eq(str(missed["deal"]), "gone", "un appuntamento lasciato in sospeso scade")
 	_check(not SeedDeal.is_active(meeting), "e l'appuntamento viene chiuso")
@@ -2027,6 +2064,50 @@ func _test_offline() -> void:
 	_check(
 		Grow.quality(thirsty.plot(0)) >= Grow.MIN_QUALITY,
 		"ma non sotto al minimo: una notte via non azzera un raccolto")
+
+	# --- Chi spegne il mondo offline riapre dove aveva lasciato ------------
+	#
+	# Qui si passa da `GameState`, e non da `Offline`, perche' la scelta e' un
+	# collegamento e non un pezzo del conto: `catch_up()` non sa nemmeno che
+	# esiste. Si prova quello che il giocatore vede — riaprire la partita.
+	var was_offline := GameSettings.offline_progress
+	_wipe_saves()
+	_fresh()
+	GameState.current.day = 3
+	GameState.current.time_of_day = 21.0
+	GameState.save_game()
+	var slot := GameState.current_slot
+	# Un salvataggio di ieri. `save_game()` riscrive sempre `saved_at` con
+	# adesso, quindi la data si mette a mano nel file: e' l'unico modo di
+	# fingere un'assenza senza aspettarla davvero.
+	var path := GameState.save_dir.path_join(slot + GameState.EXTENSION)
+	var raw := FileAccess.get_file_as_string(path)
+	var parsed: Dictionary = JSON.parse_string(raw)
+	parsed["saved_at"] = Time.get_unix_time_from_system() - 24.0 * HOUR
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(parsed))
+	file.close()
+
+	GameSettings.offline_progress = false
+	GameState.current = null
+	GameState.current_slot = ""
+	_check(GameState.load_slot(slot), "la partita si ricarica")
+	_check(
+		GameState.current.day == 3 and is_equal_approx(GameState.current.time_of_day, 21.0),
+		"col mondo offline spento si riapre all'ora in cui si era chiuso")
+
+	# E riaccendendolo NON si recupera anche il tempo saltato: il salvataggio
+	# appena fatto ha riscritto `saved_at`, quindi l'assenza riparte da adesso.
+	GameSettings.offline_progress = true
+	GameState.save_game()
+	GameState.current = null
+	GameState.current_slot = ""
+	_check(GameState.load_slot(slot), "e si ricarica di nuovo")
+	_check(
+		GameState.current.day == 3 and is_equal_approx(GameState.current.time_of_day, 21.0),
+		"riaccendendolo il tempo saltato non torna indietro a presentare il conto")
+	GameSettings.offline_progress = was_offline
+	_wipe_saves()
 
 # ---------------------------------------------------------------------------
 
@@ -2587,7 +2668,7 @@ func _test_real_estate() -> void:
 		ids.append(str(entry["id"]))
 	var orfani: Array = []
 	for listing in RealEstate.all():
-		if not str(listing["id"]) in ids:
+		if not RealEstate.building_of(listing) in ids:
 			orfani.append(str(listing["id"]))
 	_check_empty(orfani, "ogni annuncio ha il suo edificio sulla pianta")
 
@@ -2617,6 +2698,11 @@ func _test_real_estate() -> void:
 	var aperte_a_sbafo: Array = []
 	for listing in RealEstate.all():
 		var id := str(listing["id"])
+		# Gli appartamenti dentro a un edificio (la torre) non hanno ancora una
+		# porta loro: si comprano e basta. Il controllo vale per le proprieta'
+		# che SONO un edificio.
+		if listing.has("edificio"):
+			continue
 		var entry := {}
 		for candidate in CityMap.BUILDINGS:
 			if str(candidate["id"]) == id:
@@ -2665,8 +2751,20 @@ func _test_real_estate() -> void:
 	var righe: Node = finestra.get_node_or_null("Root/Window/Scroll/Content")
 	_check(righe != null, "la finestra trova le sue righe")
 	if righe != null:
-		_check_eq(righe.get_child_count(), RealEstate.all().size(),
+		_check_eq(righe.get_child_count(), RealEstate.for_agency("flats").size(),
 			"c'e' una riga per ogni annuncio")
+	# L'agenzia di DOWNTOWN mostra i suoi, e solo i suoi: i due appartamenti.
+	var scena_dt: PackedScene = load("res://scenes/ui/RealEstateDowntownWindow.tscn")
+	_check(scena_dt != null, "la finestra di downtown si carica")
+	var finestra_dt: Node = scena_dt.instantiate()
+	citta.add_child(finestra_dt)
+	var righe_dt: Node = finestra_dt.get_node_or_null("Root/Window/Scroll/Content")
+	if righe_dt != null:
+		_check_eq(righe_dt.get_child_count(), 2, "a downtown ci sono i due appartamenti")
+	data.cash = 350000
+	_check(RealEstate.buy("MeridianApt5"), "l'appartamento al quinto piano si compra")
+	_check_eq(data.cash, 50000, "costa trecentomila")
+	_check(not RealEstate.buy("MeridianApt21"), "quello al ventunesimo costa di piu'")
 	citta.queue_free()
 
 ## Scrive un salvataggio finto con un istante deciso da noi. Serve a provare

@@ -64,6 +64,13 @@ const BRAKE_WIDTH := 14.0
 var _horizontal := true
 var _from := 0.0
 var _to := 0.0
+## I capi della corsia che finiscono contro un'altra strada (i bordi della
+## citta'): li' l'auto svanisce invece di sparire di colpo, perche' non puo'
+## proseguire nel nulla. Vedi `CityMap._blind_ends()`.
+var _fade_from := false
+var _fade_to := false
+## Su quanti pixel l'auto svanisce.
+const FADE_LENGTH := 70.0
 var _fixed := 0.0
 var _dir := 1
 var _speed := 60.0
@@ -87,6 +94,8 @@ func setup(lane: Dictionary, offset: float, vehicle: String) -> void:
 	_horizontal = str(lane["axis"]) == "h"
 	_from = float(lane["from"])
 	_to = float(lane["to"])
+	_fade_from = bool(lane.get("fade_from", false))
+	_fade_to = bool(lane.get("fade_to", false))
 	_fixed = float(lane["pos"])
 	_dir = int(lane["dir"])
 	_speed = float(lane["speed"])
@@ -122,6 +131,12 @@ func _process(delta: float) -> void:
 
 func _place() -> void:
 	position = Vector2(_along, _fixed) if _horizontal else Vector2(_fixed, _along)
+	var alpha := 1.0
+	if _fade_from:
+		alpha = minf(alpha, clampf((_along - _from) / FADE_LENGTH, 0.0, 1.0))
+	if _fade_to:
+		alpha = minf(alpha, clampf((_to - _along) / FADE_LENGTH, 0.0, 1.0))
+	modulate.a = alpha
 
 ## Il protagonista è davanti al muso, dentro alla larghezza dell'auto?
 ##

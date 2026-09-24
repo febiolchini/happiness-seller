@@ -32,6 +32,11 @@ extends CanvasLayer
 
 const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
 
+## Quale agenzia e': "flats" (accanto a casa) o "downtown". Decide quali annunci
+## mostrare e il titolo. La scena di DOWNTOWN (`RealEstateDowntownWindow.tscn`)
+## e' questa stessa con questo campo cambiato.
+@export var agency := "flats"
+
 const CAPTION_COLOR := UiTheme.INK_SOFT
 const VALUE_COLOR := UiTheme.INK
 const OWNED_COLOR := UiTheme.GOOD
@@ -51,6 +56,8 @@ func _ready() -> void:
 	# notava poco, adesso e' una pastiglia di carta e si vede benissimo.
 	add_to_group("modal")
 	_dress()
+	if agency == "downtown":
+		_title.text = "RE_TITLE_DOWNTOWN"
 	_close.pressed.connect(queue_free)
 	_rebuild()
 
@@ -89,7 +96,7 @@ func _rebuild() -> void:
 	var cash := 0 if data == null else int(data.cash)
 	_cash.text = UiFormat.money(cash)
 
-	var listings := RealEstate.all()
+	var listings := RealEstate.for_agency(agency)
 	if listings.is_empty():
 		_content.add_child(_label(tr("RE_EMPTY"), CAPTION_COLOR, 13))
 		return

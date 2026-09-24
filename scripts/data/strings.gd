@@ -60,6 +60,13 @@ const TEXT := {
 	"MENU_AUDIO": ["audio", "audio", "audio"],
 	"MENU_COMMANDS": ["commands", "comandi", "controles"],
 	"MENU_LANGUAGE": ["language", "lingua", "idioma"],
+	# La voce delle impostazioni che decide se il mondo va avanti a gioco
+	# chiuso. I due bottoni dicono cosa fa il mondo e non "acceso/spento":
+	# la domanda non e' se una voce e' attiva, e' cosa succede mentre non ci
+	# sei, e la risposta si legge meglio scritta cosi'.
+	"MENU_OFFLINE": ["world offline", "mondo offline", "mundo offline"],
+	"MENU_OFFLINE_ON": ["keeps going", "va avanti", "sigue"],
+	"MENU_OFFLINE_OFF": ["stays still", "resta fermo", "se detiene"],
 	"MENU_LOAD": ["load", "carica", "cargar"],
 	"MENU_DELETE": ["delete", "cancella", "borrar"],
 	"MENU_SURE": ["sure", "sicuro", "seguro"],
@@ -109,8 +116,25 @@ const TEXT := {
 	"RE_NO_CASH": ["NOT ENOUGH", "SOLDI CORTI", "SIN FONDOS"],
 	"RE_CASH": ["CASH", "CONTANTI", "EFECTIVO"],
 	"RE_EMPTY": ["NOTHING ON THE BOOKS", "NIENTE IN ELENCO", "NADA EN LISTA"],
+	"RE_TITLE_DOWNTOWN": ["DOWNTOWN HOMES", "CASE A DOWNTOWN", "CASAS EN DOWNTOWN"],
+	"RE_MERIDIAN_5_NAME": [
+		"Meridian Tower, 5th floor", "Meridian Tower, 5 piano", "Meridian Tower, piso 5",
+	],
+	"RE_MERIDIAN_5_DESC": [
+		"Two rooms, city view, doorman downstairs.",
+		"Due locali, vista sulla citta', portiere all'ingresso.",
+		"Dos ambientes, vista a la ciudad, portero en la entrada.",
+	],
+	"RE_MERIDIAN_21_NAME": [
+		"Meridian Tower, 21st floor", "Meridian Tower, 21 piano", "Meridian Tower, piso 21",
+	],
+	"RE_MERIDIAN_21_DESC": [
+		"Penthouse-level corner flat, glass on two sides.",
+		"Attico d'angolo, vetrate su due lati.",
+		"Atico en esquina, ventanales en dos lados.",
+	],
 	"RE_GARAGE_NAME": ["GARAGE ON CROSS STREET", "GARAGE IN CROSS STREET", "GARAJE EN CROSS STREET"],
-	## Diceva "NIENTE FINESTRE", e il disegno dell'interno (`garageBack.png`) ne
+	## Diceva "NIENTE FINESTRE", e il fondale dell'interno (`rooms/garage.png`) ne
 	## ha una rotta a sinistra piu' quelle della serranda: l'annuncio descrive un
 	## posto che si va a vedere, e le due cose devono dire la stessa roba. I due
 	## banconi sono anche quello che serve sapere, perche' e' li' che ci andranno
@@ -659,6 +683,22 @@ const TEXT := {
 		"Un chilo tutto insieme cugino\nServe un furgone e vai all ingrosso\nPagano meno ma prendono tutto",
 		"Un kilo de golpe primo\nConsigue una furgoneta y ve al mayoreo\nPagan menos pero se lo llevan todo",
 	],
+	# Al primo assunto. PIXEL: si legge col font del gioco, solo lettere.
+	"MSG_ORG_NAME_BODY": [
+		"Cousin you are not alone anymore\nThis is a real business now\nIt needs a name",
+		"Cugino ora non sei piu solo\nQuesta e una vera attivita\nLe serve un nome",
+		"Primo ya no estas solo\nEsto es un negocio de verdad\nNecesita un nombre",
+	],
+	"ORG_NAME_TITLE": ["NAME YOUR CREW", "DAI UN NOME ALLA BANDA", "NOMBRA A TU BANDA"],
+	"ORG_NAME_HINT": [
+		"From now on this is how the street will know you.",
+		"Da adesso la strada vi conoscera' con questo nome.",
+		"Desde ahora la calle os conocera' con este nombre.",
+	],
+	"ORG_NAME_PLACEHOLDER": ["Crew name", "Nome della banda", "Nombre de la banda"],
+	"ORG_NAME_OK": ["That's the name", "Questo e' il nome", "Ese es el nombre"],
+	# Il primo livello di prestigio. PIXEL.
+	"PRESTIGE_ROOKIES": ["ROOKIES", "PIVELLI", "NOVATOS"],
 	"MSG_EXPAND_BODY": [
 		"Look at the numbers cousin\nWalk the streets and look at the old\nplaces for sale or rent",
 		"Guarda i numeri cugino\nGira il quartiere e guarda i posti\nvecchi in vendita o in affitto",
@@ -742,11 +782,11 @@ Te hara falta para seguir el ritmo",
 		"Sei stato via %s.",
 		"Has estado fuera %s.",
 	],
-	## %d di quanto e' ridotta la resa, in percentuale
-	"AWAY_SLOW": [
-		"With the game closed everything yields %d%% less.",
-		"A gioco spento tutto rende il %d%% in meno.",
-		"Con el juego cerrado todo rinde un %d%% menos.",
+	## %d quanti giorni di gioco al massimo vale un'assenza
+	"AWAY_CAPPED": [
+		"You were away longer: at most %d game days are counted.",
+		"Sei stato via di piu': si contano al massimo %d giorni di gioco.",
+		"Estuviste fuera mas tiempo: se cuentan como maximo %d dias de juego.",
 	],
 	"AWAY_HARVEST": ["Harvested: %d g", "Raccolto: %d g", "Cosechado: %d g"],
 	"AWAY_SOLD": ["Moved: %d g for %s", "Piazzato: %d g per %s", "Colocado: %d g por %s"],
@@ -1150,12 +1190,13 @@ const PIXEL_FONT_CHARS := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 const PIXEL_KEYS := [
 	"MENU_NEW_GAME", "MENU_SAVES", "MENU_SETTINGS", "MENU_BACK", "MENU_VIDEO",
 	"MENU_AUDIO", "MENU_COMMANDS", "MENU_LANGUAGE", "MENU_LOAD", "MENU_DELETE",
+	"MENU_OFFLINE", "MENU_OFFLINE_ON", "MENU_OFFLINE_OFF",
 	"MENU_SURE",
 	"ROOM_ENTRANCE", "ROOM_KITCHEN", "ROOM_BASEMENT", "ROOM_GARAGE", "ROOM_GENERIC",
 	"ROOM_EXIT",
 	"PC_TITLE", "PC_CLOSE",
 	"RE_TITLE", "RE_CLOSE", "RE_BUY", "RE_OWNED", "RE_NO_CASH", "RE_CASH",
-	"RE_EMPTY", "RE_GARAGE_NAME", "RE_GARAGE_DESC",
+	"RE_EMPTY", "RE_GARAGE_NAME", "RE_GARAGE_DESC", "RE_TITLE_DOWNTOWN",
 	"PC_TAB_OVERVIEW", "PC_TAB_GROW", "PC_TAB_SHOP", "PC_TAB_MARKET", "PC_TAB_STAFF",
 	"PC_CASH", "PC_DAY", "PC_STOCK", "PC_SEEDS", "PC_POTS_IN_USE", "PC_READY_TO_CUT",
 	"PC_ATTENTION", "PC_GRAMS_HARVESTED", "PC_GRAMS_SOLD", "PC_TOTAL_EARNED",
@@ -1168,6 +1209,7 @@ const PIXEL_KEYS := [
 	# I corpi delle vignette: si leggono col font del gioco, non con quello di
 	# sistema come gli avvisi. Vedi `phone.gd`.
 	"MSG_INTRO_BODY", "MSG_KILO_BODY", "MSG_EXPAND_BODY", "MSG_COUSIN_BODY",
+	"MSG_ORG_NAME_BODY", "ORG_NAME_TITLE", "PRESTIGE_ROOKIES",
 	"MSG_SEED_WHOLESALE_BODY", "MSG_DRIVER_BODY", "MSG_DRIVER_HELLO", "SW_TITLE",
 	"MSG_DRIVER_SPEAKER",
 	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE", "CHAT_TITLE",

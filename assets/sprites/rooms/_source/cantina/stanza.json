@@ -1,0 +1,97 @@
+{
+  "stanza": "cantina",
+  "animazioni": [
+    {
+      "nome": "lampadario",
+      "tipo": "dondolo",
+      "periodo": 2.0,
+      "smorza": 3.5,
+      "pausa": [
+        10.0,
+        24.0
+      ],
+      "spinta": [
+        0.45,
+        1.0
+      ],
+      "fotogrammi": 11
+    },
+    {
+      "nome": "caldaia",
+      "tipo": "ciclo",
+      "fps": 10,
+      "fotogrammi": 12
+    },
+    {
+      "nome": "lanterna",
+      "tipo": "ciclo",
+      "fps": 8,
+      "fotogrammi": 12
+    },
+    {
+      "nome": "goccia",
+      "tipo": "evento",
+      "fps": 10,
+      "pausa": [
+        3.0,
+        8.0
+      ],
+      "fotogrammi": 10
+    },
+    {
+      "nome": "topo",
+      "tipo": "evento",
+      "fps": 12,
+      "pausa": [
+        40.0,
+        90.0
+      ],
+      "fotogrammi": 20
+    }
+  ],
+  "punti": {
+    "personaggio": {
+      "piedi": [
+        469.8,
+        294.8
+      ],
+      "scala": 3.17,
+      "posizione": [
+        470,
+        233
+      ]
+    },
+    "vasi": [
+      [
+        300.4,
+        189.9
+      ],
+      [
+        251.5,
+        218.1
+      ],
+      [
+        202.6,
+        246.4
+      ],
+      [
+        333.5,
+        209.0
+      ],
+      [
+        284.5,
+        237.2
+      ],
+      [
+        235.6,
+        265.4
+      ]
+    ],
+    "pc": [
+      210,
+      73,
+      55,
+      29
+    ]
+  }
+}

@@ -73,6 +73,71 @@ const ROAD_WIDTH := 96.0
 ## il protagonista.
 const WORLD_BOUNDS := Rect2(-480, -608, 10880, 9536)
 
+# --- La cornice ------------------------------------------------------------
+## Quanto è profonda la fascia di colline e montagne intorno alla città
+## (il paesaggio di `city_ground.gd::_build_landscape()`).
+##
+## Serve allo scatto di zoom più lontano. Fino a lì la città riempie lo schermo
+## e i bordi non si vedono; in vista d'insieme invece la mappa **finiva**, e si
+## vedeva che finiva: l'ultimo isolato, poi il colore del terreno, poi niente.
+## Un bordo dritto, che non è un paesaggio ma il limite di un disegno.
+##
+## Mille e ventiquattro px sono circa centocinquanta px di schermo alla vista
+## più larga: abbastanza perché si legga come un orizzonte e non come una riga
+## di decorazione. Più di così e la città comincia a stare stretta in mezzo.
+const FRAME_DEPTH := 1024.0
+
+## Il rettangolo che la camera può inquadrare: la città più la cornice.
+##
+## **Non** è lo stesso di `WORLD_BOUNDS`, ed è la distinzione che conta: la
+## cornice si guarda e basta. La griglia dei percorsi resta su `WORLD_BOUNDS`
+## (vedi `CityNavigation.build()`), perché nelle montagne non ci si cammina, e
+## spargerci sopra centomila celle di A* per non andarci mai non è un affare.
+static func view_bounds() -> Rect2:
+	return WORLD_BOUNDS.grow(FRAME_DEPTH)
+
+## Le quattro strade che se ne vanno dalla città, una per lato.
+##
+## Sono il prolungamento di due strade sole — quella orizzontale e quella
+## verticale più vicine al centro della mappa — quindi formano una croce che
+## attraversa tutta la città ed esce dai quattro lati. Le altre ventitré si
+## fermano contro le montagne, che è quello che fa una strada di città.
+##
+## Stanno **fuori** da `ROADS_H`/`ROADS_V` di proposito: quelle sono le strade
+## del gioco — ci camminano gli NPC, ci passano le auto, ci si dà appuntamento
+## — e queste sono disegno. Metterle lì dentro vorrebbe dire lampioni in mezzo
+## ai monti e appuntamenti con Brian a un chilometro dall'ultima casa.
+##
+## Quale strada esce da quale lato non è scritto a mano: si sceglie quella che
+## passa più vicino al centro del lato, così la croce resta in mezzo anche se un
+## giorno la città cresce da una parte sola.
+static func exit_roads() -> Array:
+	var view := view_bounds()
+	var across: Rect2 = ROADS_H[_nearest_road(ROADS_H, WORLD_BOUNDS.get_center().y, true)]
+	var down: Rect2 = ROADS_V[_nearest_road(ROADS_V, WORLD_BOUNDS.get_center().x, false)]
+	return [
+		{"rect": Rect2(view.position.x, across.position.y,
+			WORLD_BOUNDS.position.x - view.position.x, across.size.y), "horizontal": true},
+		{"rect": Rect2(WORLD_BOUNDS.end.x, across.position.y,
+			view.end.x - WORLD_BOUNDS.end.x, across.size.y), "horizontal": true},
+		{"rect": Rect2(down.position.x, view.position.y,
+			down.size.x, WORLD_BOUNDS.position.y - view.position.y), "horizontal": false},
+		{"rect": Rect2(down.position.x, WORLD_BOUNDS.end.y,
+			down.size.x, view.end.y - WORLD_BOUNDS.end.y), "horizontal": false},
+	]
+
+## L'indice della strada il cui asse passa più vicino a `at`.
+static func _nearest_road(roads: Array, at: float, horizontal: bool) -> int:
+	var best := 0
+	var best_gap := INF
+	for i in roads.size():
+		var center: Vector2 = (roads[i] as Rect2).get_center()
+		var gap := absf((center.y if horizontal else center.x) - at)
+		if gap < best_gap:
+			best_gap = gap
+			best = i
+	return best
+
 # --- Strade ----------------------------------------------------------------
 ## Rettangoli dell'asfalto. Orizzontali e verticali stanno separate perché la
 ## segnaletica (mezzeria, strisce) va disegnata lungo l'asse giusto.
@@ -80,35 +145,64 @@ const WORLD_BOUNDS := Rect2(-480, -608, 10880, 9536)
 ## MAIN STREET resta dov'era (y 272): tutto il quartiere povero originale è
 ## costruito intorno a quella quota, casa iniziale compresa, e spostarla
 ## vorrebbe dire rifare le posizioni buone che ci sono già.
+##
+## ## Come finisce il reticolo ai bordi
+##
+## A NORD e a OVEST la citta' e' chiusa da due strade di cornice, HILLTOP ROAD
+## e WESTGATE AVENUE, che corrono lungo il bordo del mondo e raccolgono tutte le
+## altre: nessuna strada finisce nel nulla. Stanno IN FONDO agli elenchi e non
+## in testa, perche' gli indici delle strade sono scritti anche altrove
+## (`SIDEWALK_N`, i percorsi degli NPC, `ROADS_H[0]` = MAIN STREET).
+##
+## A SUD e a EST le strade si fermano sull'ultima parallela — COUNTY LINE e
+## COUNTY ROAD — invece di proseguire per quel pezzetto fino al bordo, dove non
+## portavano a niente. Fanno eccezione le due da cui si esce dalla citta'
+## (LOWER MAIN verso est, PORT STREET verso sud: vedi `exit_roads()`), che
+## arrivano al bordo e proseguono nelle montagne.
+##
+## Agli incroci del bordo quindi la strada non continua da tutti e quattro i
+## lati: `junction_sides()` dice da quali, e `city_ground.gd` ci mette la T o la
+## curva giusta invece del quadrivio.
 const ROADS_H := [
-	Rect2(-480, 272, 10880, 96),   # MAIN STREET
-	Rect2(-480, 976, 10880, 96),   # CROSS STREET
-	Rect2(-480, 1680, 10880, 96),  # FOUNDRY ROW
-	Rect2(-480, 2240, 10880, 96),  # DIVISION AVENUE
-	Rect2(-480, 2944, 10880, 96),  # PARK LANE
-	Rect2(-480, 3552, 10880, 96),  # SOUTH BOULEVARD
-	Rect2(-480, 4256, 10880, 96),  # LOWER MAIN
-	Rect2(-480, 4960, 10880, 96),  # CANAL ROAD
-	Rect2(-480, 5664, 10880, 96),  # RIVER ROW
-	Rect2(-480, 6368, 10880, 96),  # SOUTH GATE
-	Rect2(-480, 7072, 10880, 96),  # QUARRY LANE
-	Rect2(-480, 7776, 10880, 96),  # OLD MILL ROAD
-	Rect2(-480, 8480, 10880, 96),  # COUNTY LINE
+	Rect2(-480, 272, 10544, 96),   # MAIN STREET
+	Rect2(-480, 976, 10544, 96),   # CROSS STREET
+	Rect2(-480, 1680, 10544, 96),  # FOUNDRY ROW
+	Rect2(-480, 2240, 10544, 96),  # DIVISION AVENUE
+	Rect2(-480, 2944, 10544, 96),  # PARK LANE
+	Rect2(-480, 3552, 10544, 96),  # SOUTH BOULEVARD
+	Rect2(-480, 4256, 10880, 96),  # LOWER MAIN — arriva al bordo: esce a est
+	Rect2(-480, 4960, 10544, 96),  # CANAL ROAD
+	Rect2(-480, 5664, 10544, 96),  # RIVER ROW
+	Rect2(-480, 6368, 10544, 96),  # SOUTH GATE
+	Rect2(-480, 7072, 10544, 96),  # QUARRY LANE
+	Rect2(-480, 7776, 10544, 96),  # OLD MILL ROAD
+	Rect2(-480, 8480, 10544, 96),  # COUNTY LINE
+	Rect2(-480, -608, 10544, 96),  # HILLTOP ROAD — la cornice a nord
 ]
 const ROADS_V := [
-	Rect2(752, -608, 96, 9536),   # MILL ROAD
-	Rect2(1856, -608, 96, 9536),  # DOCK STREET
-	Rect2(2672, -608, 96, 9536),  # FURNACE STREET
-	Rect2(3488, -608, 96, 9536),  # EAST STREET
-	Rect2(4256, -608, 96, 9536),  # HILL DRIVE
-	Rect2(5072, -608, 96, 9536),  # PORT STREET
-	Rect2(5888, -608, 96, 9536),  # LOCK STREET
-	Rect2(6704, -608, 96, 9536),  # SEVENTH STREET
-	Rect2(7520, -608, 96, 9536),  # EIGHTH STREET
-	Rect2(8336, -608, 96, 9536),  # NINTH STREET
-	Rect2(9152, -608, 96, 9536),  # TENTH STREET
-	Rect2(9968, -608, 96, 9536),  # COUNTY ROAD
+	Rect2(752, -608, 96, 9184),   # MILL ROAD
+	Rect2(1856, -608, 96, 9184),  # DOCK STREET
+	Rect2(2672, -608, 96, 9184),  # FURNACE STREET
+	Rect2(3488, -608, 96, 9184),  # EAST STREET
+	Rect2(4256, -608, 96, 9184),  # HILL DRIVE
+	Rect2(5072, -608, 96, 9536),  # PORT STREET — arriva al bordo: esce a sud
+	Rect2(5888, -608, 96, 9184),  # LOCK STREET
+	Rect2(6704, -608, 96, 9184),  # SEVENTH STREET
+	Rect2(7520, -608, 96, 9184),  # EIGHTH STREET
+	Rect2(8336, -608, 96, 9184),  # NINTH STREET
+	Rect2(9152, -608, 96, 9184),  # TENTH STREET
+	Rect2(9968, -608, 96, 9184),  # COUNTY ROAD
+	Rect2(-480, -608, 96, 9184),  # WESTGATE AVENUE — la cornice a ovest
 ]
+
+## **Il reticolo non ha curve, ed è una scelta.** Ci sono state per mezza
+## giornata: qualche strada si fermava prima e dove due finivano sullo stesso
+## incrocio restava un gomito. Federico le ha guardate e non gli piacevano, e
+## sono uscite tutte — curve, vicolo aggiunto e strade accorciate. Ogni strada
+## attraversa di nuovo tutta la mappa da un bordo all'altro.
+##
+## Quello che ne resta è il modo in cui le strade escono dalla città: quattro,
+## una per lato, passano dentro alle montagne del bordo. Vedi `EXIT_ROADS`.
 
 ## Nomi delle strade, nello stesso ordine di `ROADS_H`/`ROADS_V`. Finora
 ## stavano solo nei commenti qui sopra, che va benissimo finché servono a chi
@@ -121,13 +215,14 @@ const ROAD_NAMES_H := [
 	"DIVISION AVENUE", "PARK LANE", "SOUTH BOULEVARD",
 	"LOWER MAIN", "CANAL ROAD", "RIVER ROW",
 	"SOUTH GATE", "QUARRY LANE", "OLD MILL ROAD",
-	"COUNTY LINE",
+	"COUNTY LINE", "HILLTOP ROAD",
 ]
 const ROAD_NAMES_V := [
 	"MILL ROAD", "DOCK STREET", "FURNACE STREET",
 	"EAST STREET", "HILL DRIVE", "PORT STREET",
 	"LOCK STREET", "SEVENTH STREET", "EIGHTH STREET",
 	"NINTH STREET", "TENTH STREET", "COUNTY ROAD",
+	"WESTGATE AVENUE",
 ]
 
 # --- Dove si cammina -------------------------------------------------------
@@ -137,26 +232,29 @@ const ROAD_NAMES_V := [
 const SIDEWALK_N := [
 	256.0, 960.0, 1664.0, 2224.0, 2928.0, 3536.0,
 	4240.0, 4944.0, 5648.0, 6352.0, 7056.0, 7760.0,
-	8464.0,
+	8464.0, -624.0,
 ]
 const SIDEWALK_S := [
 	384.0, 1088.0, 1792.0, 2352.0, 3056.0, 3664.0,
 	4368.0, 5072.0, 5776.0, 6480.0, 7184.0, 7888.0,
-	8592.0,
+	8592.0, -496.0,
 ]
 const SIDEWALK_W := [
 	736.0, 1840.0, 2656.0, 3472.0, 4240.0, 5056.0,
 	5872.0, 6688.0, 7504.0, 8320.0, 9136.0, 9952.0,
+	-496.0,
 ]
 const SIDEWALK_E := [
 	864.0, 1968.0, 2784.0, 3600.0, 4368.0, 5184.0,
 	6000.0, 6816.0, 7632.0, 8448.0, 9264.0, 10080.0,
+	-368.0,
 ]
 ## Ascisse su cui cadono le strisce pedonali che attraversano le strade
 ## orizzontali: è lì che le pattuglie devono cambiare lato.
 const CROSS_X := [
 	744.0, 1848.0, 2664.0, 3480.0, 4248.0, 5064.0,
 	5880.0, 6696.0, 7512.0, 8328.0, 9144.0, 9960.0,
+	-488.0,
 ]
 
 # --- Quartieri -------------------------------------------------------------
@@ -167,9 +265,39 @@ const CROSS_X := [
 ## `names` sono le insegne generiche del quartiere: quelle di cui in giro ce n'è
 ## più d'una, e che quindi non valgono come indicazione stradale (vedi
 ## `_is_generic()`). Ce l'ha solo THE FLATS perché è l'unico quartiere
-## costruito: negli altri quattro ci sono al massimo dei punti di riferimento
-## singoli — la clinica in HILLSIDE, il grossista in DOWNTOWN — e un edificio
+## costruito: negli altri ci sono al massimo dei punti di riferimento singoli —
+## la clinica in HILLSIDE, il grossista nel COMMERCIAL DISTRICT — e un edificio
 ## solo non ha bisogno di insegne generiche per non essere confuso con altri.
+##
+## ## La colonna a est: tre quartieri e non due
+##
+## Il fronte est della città era diviso in due soli pezzi: una fascia sottile
+## in alto (DOWNTOWN, con dentro il grossista) e un blocco enorme sotto
+## (HILLSIDE, con dentro la clinica). Federico li ha guardati e non tornavano:
+## il grossista non è un grattacielo, è un magazzino — quello è un quartiere
+## COMMERCIALE, non il centro città. E sotto la fascia commerciale non viene
+## subito il quartiere alto — vengono prima le case dei benestanti, e solo più
+## in basso, in fondo, il vero DOWNTOWN con i suoi grattacieli e i suoi parchi.
+##
+## Quindi la colonna est adesso è tre quartieri impilati, non due:
+##
+##   1. **COMMERCIAL DISTRICT** — la vecchia fascia DOWNTOWN, ma più bassa: le
+##      tolgono due file di isolati (FOUNDRY ROW e DIVISION AVENUE), che vanno
+##      a HILLSIDE qui sotto. Ci resta il grossista dei semi.
+##   2. **HILLSIDE** — le case dei benestanti, IDENTICA come id e come nome
+##      (la clinica di Brian non si sposta, e il dieci per cento in più che si
+##      paga vendendo lassù — `Economy.DISTRICT_PRICE` — è ancora lo stesso
+##      quartiere), solo spostata più in alto per prendersi le due file che
+##      COMMERCIAL DISTRICT ha ceduto.
+##   3. **DOWNTOWN** — nuovo, in fondo alla colonna, in basso a destra sulla
+##      mappa. Grattacieli e parchi: per ora è terreno vuoto come INDUSTRIAL
+##      PARK e CIVIC CENTER, in attesa del suo disegno.
+##
+## I confini seguono la stessa regola di tutti gli altri: finiscono
+## sull'inizio di una strada e ricominciano sulla sua fine, così la strada
+## stessa riempie lo spazio fra un quartiere e l'altro senza lasciare terreno
+## scoperto (vedi il commento sopra `ROADS_H`/`ROADS_V` e come lo sfrutta
+## `city_ground.gd`, disegnando prima i quartieri e poi le strade sopra).
 const DISTRICTS := [
 	{
 		"id": "flats",
@@ -190,9 +318,13 @@ const DISTRICTS := [
 		"label_at": Vector2(2100, -232),
 	},
 	{
-		"id": "downtown",
-		"name": "DOWNTOWN",
-		"rect": Rect2(3584, -608, 6816, 2848),
+		# Era "downtown": la fascia col grossista, che è sempre stata una zona
+		# commerciale nei fatti (vedi il commento su `SeedSupplier`) e adesso
+		# lo è anche nel nome. Finisce sull'inizio di FOUNDRY ROW — due file di
+		# isolati in meno rispetto a prima, cedute a HILLSIDE qui sotto.
+		"id": "commercial",
+		"name": "COMMERCIAL DISTRICT",
+		"rect": Rect2(3584, -608, 6816, 2288),
 		"color": Color(0.251, 0.278, 0.341),
 		"label_at": Vector2(3700, -232),
 	},
@@ -204,11 +336,27 @@ const DISTRICTS := [
 		"label_at": Vector2(-176, 2376),
 	},
 	{
+		# Le case dei benestanti. Stesso id, stesso nome, stessa clinica di
+		# prima — solo più alta: comincia sulla fine di FOUNDRY ROW, dove
+		# COMMERCIAL DISTRICT si è fermato, e finisce sull'inizio di RIVER ROW,
+		# dove comincia DOWNTOWN.
 		"id": "hillside",
 		"name": "HILLSIDE",
-		"rect": Rect2(3584, 2336, 6816, 6592),
+		"rect": Rect2(3584, 1776, 6816, 3888),
 		"color": Color(0.322, 0.392, 0.216),
-		"label_at": Vector2(4500, 2376),
+		"label_at": Vector2(4500, 1816),
+	},
+	{
+		# Nuovo: grattacieli e parchi, in fondo alla colonna est — è il
+		# quartiere che sulla mappa finisce davvero in basso a destra. Comincia
+		# sulla fine di RIVER ROW e arriva al bordo del mondo. Per ora è
+		# terreno vuoto come INDUSTRIAL PARK e CIVIC CENTER: nessun punto di
+		# riferimento ci abita ancora, in attesa del suo disegno.
+		"id": "downtown",
+		"name": "DOWNTOWN",
+		"rect": Rect2(3584, 5760, 6816, 3168),
+		"color": Color(0.235, 0.271, 0.298),
+		"label_at": Vector2(3700, 5800),
 	},
 ]
 
@@ -238,6 +386,12 @@ const LOTS := [
 	# saprebbe mai che c'è. Così invece i primi 171 px spuntano sopra alla
 	# sagoma dell'edificio, ed è lì che stanno i lampioni.
 	{"rect": Rect2(4400, -230, 624, 330), "kind": "asphalt"},
+	# Il parcheggio del cinema, ACCANTO e non dietro: sul fronte di CROSS
+	# STREET, fra il muro destro del cinema (5646) e il marciapiede di LOCK
+	# STREET (5856), dieci pixel di respiro dal muro. Accanto si vede tutto, a
+	# differenza di quello del grossista, quindi basta la profondita' di un
+	# isolato normale.
+	{"rect": Rect2(5656, 614, 200, 330), "kind": "asphalt"},
 ]
 
 ## Quanti pixel di lato stanno fra un lampione e l'altro dentro a un piazzale.
@@ -306,9 +460,10 @@ const FOUNTAINS := [Vector2(160, 2660), Vector2(1700, 3350)]
 ##
 ## Erano tutti in THE FLATS, l'unico quartiere costruito; la clinica è il primo
 ## punto di riferimento fuori di lì, in HILLSIDE, e il grossista dei semi il
-## primo di DOWNTOWN. Restano terreno, strade e lampioni INDUSTRIAL PARK e
-## CIVIC CENTER, in attesa dei loro disegni — e DOWNTOWN e HILLSIDE hanno un
-## edificio a testa, che è un punto di riferimento, non un quartiere.
+## primo del COMMERCIAL DISTRICT. Restano terreno, strade e lampioni
+## INDUSTRIAL PARK, CIVIC CENTER e DOWNTOWN, in attesa dei loro disegni — e
+## COMMERCIAL DISTRICT e HILLSIDE hanno un edificio a testa, che è un punto di
+## riferimento, non un quartiere.
 const BUILDINGS := [
 	{
 		# Casa. Resta a x 320 perche' li' nasce il protagonista quando comincia
@@ -375,10 +530,14 @@ const BUILDINGS := [
 		"label": "REAL ESTATE",
 		"texture": "res://assets/sprites/buildings/realEstate.png",
 		"lit": "res://assets/sprites/buildings/realEstateLit.png",
-		"offset": Vector2(-114, -334), "click": Rect2(-114, -334, 227, 334),
+		"offset": Vector2(-114, -301), "click": Rect2(-114, -301, 227, 301),
 		"entry": Vector2(0, 30),
 		"sign": "res://assets/sprites/buildings/signs/realEstateSign.png",
-		"sign_at": Vector2(-51, -107),
+		# Era -107. Il modello ha perso il marciapiede (2026-09-21) e lo sprite
+		# con lui 33 px di lastra SOTTO, quindi tutto l'edificio è sceso di 33
+		# px rispetto alla base: l'insegna lo segue, o resta sospesa sopra alla
+		# sua fascia.
+		"sign_at": Vector2(-51, -74),
 		"window": "res://scenes/ui/RealEstateWindow.tscn",
 	},
 	{
@@ -392,14 +551,283 @@ const BUILDINGS := [
 		"label": "GARAGE",
 		"texture": "res://assets/sprites/buildings/garage.png",
 		"lit": "res://assets/sprites/buildings/garageLit.png",
-		"offset": Vector2(-98, -197), "click": Rect2(-98, -197, 196, 197),
+		"offset": Vector2(-98, -163), "click": Rect2(-98, -163, 196, 163),
 		"entry": Vector2(0, 30),
 		"interior": "res://scenes/rooms/Garage.tscn", "owned": true,
 	},
 	{
+		# La casa gialla, a sinistra del garage in vendita su CROSS STREET: una
+		# vittoriana di legno presa da una foto — timpano ripido col pannello a
+		# croce, portico a colonnine bianche, l'ala bassa a destra, la rete col
+		# giardinetto. La costruisce `render_buildings.py` (voce "casa_gialla").
+		#
+		# **Si muove.** `anims` sono le strisce della girandola nel giardinetto
+		# e della bandiera appesa al portico: `at` e' dove si appoggiano
+		# rispetto alla base, e l'ha stampato `import_flats_art.py`, come
+		# `offset`. La velocita' la decide il vento del meteo (`wind_prop.gd`).
+		#
+		# La x la detta il vicino: il bordo destro del disegno (la rete del
+		# giardinetto) cade a 196, sei pixel prima del muro del garage (202).
+		# `click` e' il muro della casa e dell'ala, non la rete.
+		"id": "YellowHouse", "base": Vector2(61, 944),
+		"label": "YELLOW HOUSE",
+		"texture": "res://assets/sprites/buildings/yellowHouse.png",
+		"lit": "res://assets/sprites/buildings/yellowHouseLit.png",
+		"offset": Vector2(-135, -337), "click": Rect2(-118, -337, 236, 337),
+		# La porta e' a sinistra, in cima ai gradini del portico.
+		"entry": Vector2(-89, 24),
+		"anims": [
+			{"texture": "res://assets/sprites/buildings/yellowHouseGirandola.png",
+				"at": Vector2(93, -53), "frames": 6, "fps": [3.0, 24.0]},
+			{"texture": "res://assets/sprites/buildings/yellowHouseBandiera.png",
+				"at": Vector2(-110, -73), "frames": 8, "fps": [2.0, 12.0]},
+		],
+	},
+	{
+		# Lo STAR CASINO: un isolato intero, quello fra EAST STREET e HILL
+		# DRIVE su MAIN STREET, subito a sinistra del grossista. Preso da una
+		# foto di un grande casino' americano — torrette con le lanterne blu,
+		# finestroni ad arco, porticato, cupola, e il mappamondo gigante
+		# davanti. Lo costruisce `scripts_tools/blender_casino.py`.
+		#
+		# Largo esattamente l'isolato (606 px, dal marciapiede di EAST STREET a
+		# quello di HILL DRIVE: 3616..4224). Il piazzale lastricato col
+		# mappamondo sta DENTRO allo sprite: e' il lotto del casino', non il
+		# marciapiede, e la facciata vera e' sette metri e mezzo piu' indietro.
+		#
+		# Due strisce di luce (`wind_prop.gd`): il mappamondo che gira e le
+		# lampadine del porticato che ogni tanto fanno la corsa.
+		"id": "StarCasino", "base": Vector2(3920, 240),
+		"district": "COMMERCIAL DISTRICT",
+		"label": "STAR CASINO",
+		"texture": "res://assets/sprites/buildings/casino.png",
+		"lit": "res://assets/sprites/buildings/casinoLit.png",
+		# `click` e' otto pixel piu' basso dello sprite: in cima al PNG c'e' il
+		# margine sopra alla cupola, che toccava il marciapiede di HILLTOP ROAD,
+		# la strada di cornice a nord.
+		"offset": Vector2(-303, -723), "click": Rect2(-303, -715, 606, 715),
+		"entry": Vector2(0, 24),
+		"anims": [
+			{"texture": "res://assets/sprites/buildings/casinoMappamondo.png",
+				"at": Vector2(-75, -208), "frames": 8, "mode": "loop", "fps": [5.0],
+				"emissive": true},
+			{"texture": "res://assets/sprites/buildings/casinoLampadine.png",
+				"at": Vector2(-107, -141), "frames": 14, "mode": "event", "fps": [7.0],
+				"pause": [4.0, 10.0], "emissive": true},
+		],
+	},
+	# --- L'isolato commerciale di DOWNTOWN, su COUNTY LINE ----------------
+	#
+	# Quattro voci, un fabbricato solo (`scripts_tools/blender_isolato_downtown.py`):
+	# l'isolato intero subito a est dei grattacieli, fra LOCK STREET e SEVENTH
+	# STREET, dal marciapiede dell'una (6016) a quello dell'altra (6672). Le x
+	# si incastrano come nell'isolato cinese: ogni sprite e' largo il suo lotto,
+	# e la base e' il bordo sinistro piu' mezza larghezza.
+	#
+	# Si cliccano una per una. L'agenzia apre l'elenco delle case di DOWNTOWN
+	# (`RealEstateDowntownWindow.tscn`: gli appartamenti della Meridian); le
+	# altre tre per ora sono fondale col loro nome.
+	{
+		"id": "PrimeRealty", "base": Vector2(6112, 8448),
+		"district": "DOWNTOWN",
+		"label": "PRIME REALTY",
+		"texture": "res://assets/sprites/buildings/primeRealty.png",
+		"lit": "res://assets/sprites/buildings/primeRealtyLit.png",
+		"offset": Vector2(-96, -262), "click": Rect2(-96, -262, 192, 262),
+		# La porta e' a sinistra, sotto al portichetto.
+		"entry": Vector2(-75, 24),
+		"window": "res://scenes/ui/RealEstateDowntownWindow.tscn",
+	},
+	{
+		"id": "Laundromat", "base": Vector2(6284, 8448),
+		"district": "DOWNTOWN",
+		"label": "LAUNDROMAT",
+		"texture": "res://assets/sprites/buildings/laundromat.png",
+		"lit": "res://assets/sprites/buildings/laundromatLit.png",
+		"offset": Vector2(-76, -262), "click": Rect2(-76, -262, 152, 262),
+		"entry": Vector2(-55, 24),
+		"anims": [
+			{"texture": "res://assets/sprites/buildings/laundromatLavatrici.png",
+				"at": Vector2(-30, -63), "frames": 6, "mode": "loop", "fps": [9.0],
+				"emissive": true},
+		],
+	},
+	{
+		"id": "ClothingStore", "base": Vector2(6445, 8448),
+		"district": "DOWNTOWN",
+		"label": "CLOTHING",
+		"texture": "res://assets/sprites/buildings/clothingStore.png",
+		"lit": "res://assets/sprites/buildings/clothingStoreLit.png",
+		"offset": Vector2(-85, -262), "click": Rect2(-85, -262, 170, 262),
+		"entry": Vector2(0, 24),
+	},
+	{
+		"id": "Diner", "base": Vector2(6601, 8448),
+		"district": "DOWNTOWN",
+		"label": "DINER",
+		"texture": "res://assets/sprites/buildings/diner.png",
+		"lit": "res://assets/sprites/buildings/dinerLit.png",
+		"offset": Vector2(-71, -262), "click": Rect2(-71, -262, 142, 262),
+		"entry": Vector2(48, 24),
+		"anims": [
+			{"texture": "res://assets/sprites/buildings/dinerOpen.png",
+				"at": Vector2(-49, -67), "frames": 12, "mode": "event", "fps": [8.0],
+				"pause": [3.0, 9.0], "emissive": true},
+		],
+	},
+	# --- Il cinema e il negozio di videogiochi, su CROSS STREET ------------
+	#
+	# Due voci e non una, come l'isolato cinese: si cliccano separatamente, ma
+	# sono un fabbricato solo (`scripts_tools/blender_cinema_videogiochi.py`).
+	# Stanno sull'angolo di PORT STREET nel COMMERCIAL DISTRICT: il negozio sul
+	# marciapiede dell'incrocio (il suo muro sinistro a 5200, dove finisce il
+	# marciapiede di PORT STREET), il cinema attaccato a destra, e dopo il
+	# cinema il parcheggio (`LOTS`).
+	#
+	# Le x si incastrano: il negozio e' largo 192 e il cinema 254, che sono i
+	# loro lotti a 22,3 px/m, quindi base = bordo sinistro + mezza larghezza.
+	#
+	# Tutti e due hanno una striscia di luce che si muove (`anims`, vedi
+	# `wind_prop.gd`): le lampadine della pensilina che ogni tanto fanno la
+	# corsa e la parete di schermi dietro alla vetrata. `emissive` le tiene
+	# accese anche di notte.
+	{
+		"id": "GameShop", "base": Vector2(5296, 944),
+		"district": "COMMERCIAL DISTRICT",
+		"label": "GAME SHOP",
+		"texture": "res://assets/sprites/buildings/gameShop.png",
+		"lit": "res://assets/sprites/buildings/gameShopLit.png",
+		"offset": Vector2(-96, -312), "click": Rect2(-96, -312, 192, 312),
+		# La porta e' a destra della vetrina.
+		"entry": Vector2(51, 24),
+		"anims": [
+			{"texture": "res://assets/sprites/buildings/gameShopSchermi.png",
+				"at": Vector2(-79, -153), "frames": 8, "mode": "loop", "fps": [1.5],
+				"emissive": true},
+		],
+	},
+	{
+		"id": "Cinema", "base": Vector2(5519, 944),
+		"district": "COMMERCIAL DISTRICT",
+		"label": "CINEMA",
+		"texture": "res://assets/sprites/buildings/cinema.png",
+		"lit": "res://assets/sprites/buildings/cinemaLit.png",
+		"offset": Vector2(-127, -314), "click": Rect2(-127, -314, 254, 314),
+		"entry": Vector2(0, 24),
+		"anims": [
+			{"texture": "res://assets/sprites/buildings/cinemaLampadine.png",
+				"at": Vector2(-104, -109), "frames": 14, "mode": "event", "fps": [7.0],
+				"pause": [5.0, 12.0], "emissive": true},
+		],
+	},
+	# --- L'isolato cinese, su MAIN STREET a est di MILL ROAD ---------------
+	#
+	# Quattro voci e non una, perché quattro sono gli edifici: un ristorante
+	# cinese, un negozio di vestiti, uno di cellulari e una palazzina di
+	# appartamenti. Nella realtà è un fabbricato solo — muri in comune, stessa
+	# fila di cornicioni — ma in gioco le quattro unità non sono la stessa cosa:
+	# alcune si cliccano e hanno una logica dietro, altre sono fondale. Un PNG
+	# unico non si può rendere interagibile a pezzi, e per questo i modelli
+	# escono separati da `scripts_tools/blender_isolato_cinese.py`.
+	#
+	# **Le x non si scelgono a occhio: si incastrano.** Ogni sprite è largo
+	# esattamente il fronte del suo lotto (8,2 / 6,6 / 5,4 / 9,2 metri a 22,3
+	# px/m), e l'origine sta al centro della facciata, quindi la base dell'uno
+	# è il bordo destro dell'altro più mezza larghezza. Partono da 888 — il
+	# primo pixel libero a est della fascia di MILL ROAD, che arriva a 880 — e
+	# arrivano a 1543. I numeri qui sotto sono quella catena: cambiarne uno
+	# apre una fessura nel muro in comune o sovrappone due facciate.
+	#
+	# **La y è la stessa per tutte e quattro** ed è quella degli altri edifici
+	# di MAIN STREET (240, il bordo alto del marciapiede). Vale perché i quattro
+	# render hanno lo stesso margine sotto, quindi la riga di terra cade alla
+	# stessa quota in tutti e quattro i PNG: è la condizione che li fa sembrare
+	# un edificio solo invece di quattro appoggiati male.
+	#
+	# Perché qui: il fronte nord di MAIN STREET a ovest di MILL ROAD è pieno
+	# (casa, condominio occupato, agenzia), e a est c'erano 960 px liberi in
+	# fila dentro a THE FLATS — i 655 dell'isolato ci stanno per intero, senza
+	# spostare niente e senza stringere le proporzioni. Il garage è rimasto dov'era.
+	{
+		# Il ristorante cinese, in testa alla fila e all'angolo di MILL ROAD,
+		# come quello della foto di riferimento: è l'unità che si vede per prima
+		# arrivando da casa, ed è quella con l'insegna a bandiera.
+		#
+		# La porta non è al centro della facciata ma a sinistra, dove sta nel
+		# modello (1,35 m dal muro): `entry` la segue, altrimenti si va a
+		# bussare contro la vetrina.
+		"id": "ChineseRestaurant", "base": Vector2(980, 240),
+		"label": "FOOD KING",
+		"texture": "res://assets/sprites/buildings/chineseRestaurant.png",
+		"lit": "res://assets/sprites/buildings/chineseRestaurantLit.png",
+		"offset": Vector2(-92, -301), "click": Rect2(-92, -301, 183, 301),
+		"entry": Vector2(-62, 20),
+	},
+	{
+		# Il negozio di vestiti: muro in comune col ristorante a sinistra e col
+		# negozio di cellulari a destra. La porta è a destra della vetrina.
+		"id": "ClothesShop", "base": Vector2(1145, 240),
+		"label": "GOLDEN THREAD",
+		"texture": "res://assets/sprites/buildings/clothesShop.png",
+		"lit": "res://assets/sprites/buildings/clothesShopLit.png",
+		"offset": Vector2(-74, -303), "click": Rect2(-74, -303, 147, 303),
+		"entry": Vector2(45, 20),
+	},
+	{
+		# Il negozio di cellulari, il più stretto dei quattro.
+		"id": "PhoneShop", "base": Vector2(1278, 240),
+		"label": "CITY MOBILE",
+		"texture": "res://assets/sprites/buildings/phoneShop.png",
+		"lit": "res://assets/sprites/buildings/phoneShopLit.png",
+		"offset": Vector2(-60, -301), "click": Rect2(-60, -301, 120, 301),
+		"entry": Vector2(-34, 20),
+	},
+	{
+		# La palazzina di appartamenti che chiude l'isolato: un piano più alta
+		# dei tre negozi, niente vetrina, portone e scala antincendio.
+		#
+		# L'insegna è generica (`DISTRICTS` -> "APARTMENTS"): non è un punto di
+		# riferimento da dare in un appuntamento, in giro ce n'è più d'una.
+		"id": "ChinatownFlats", "base": Vector2(1441, 240),
+		"label": "APARTMENTS",
+		"texture": "res://assets/sprites/buildings/smallApartments.png",
+		"lit": "res://assets/sprites/buildings/smallApartmentsLit.png",
+		"offset": Vector2(-103, -373), "click": Rect2(-103, -373, 205, 373),
+		"entry": Vector2(-58, 20),
+	},
+	{
+		# L'officina di Miller, in fondo all'isolato cinese su MAIN STREET.
+		#
+		# **E' l'unico edificio della citta' che si muove.** La sua `texture`
+		# non e' un disegno solo ma una striscia di dodici fotogrammi — lo dice
+		# `frames` — con la serranda a dodici altezze diverse: alle sette si
+		# alza, alle 19:20 scende, e il fotogramma lo sceglie l'ora
+		# (`scripts/components/shop_shutter.gd`). Il modello e i fotogrammi li
+		# fa `scripts_tools/blender_officina.py`.
+		#
+		# `offset` e `click` sono quelli del SINGOLO fotogramma e non della
+		# striscia: `Sprite2D` con `hframes` disegna un fotogramma per volta, e
+		# l'ingombro dell'edificio e' quello che si vede, non quello del file.
+		#
+		# La x la detta il vicino: l'isolato cinese finisce a 1543 e la fascia
+		# di DOCK STREET comincia a 1824, quindi ci sono 281 px di marciapiede
+		# liberi per un edificio largo 272. Sta in mezzo con quattro pixel per
+		# parte — e' l'ultimo posto di THE FLATS dove ci sta.
+		#
+		# Ci si entra dalla porta del personale, che sta a sinistra della
+		# serranda: `entry` la segue, se no si va a bussare sul portone.
+		"id": "AutoShop", "base": Vector2(1683, 240),
+		"label": "AUTO REPAIR",
+		"texture": "res://assets/sprites/buildings/autoShop.png",
+		"lit": "res://assets/sprites/buildings/autoShopLit.png",
+		"offset": Vector2(-136, -229), "click": Rect2(-136, -229, 272, 229),
+		"frames": 12,
+		"entry": Vector2(-67, 20),
+	},
+	{
 		# Il grossista dei semi: il magazzino all'ingrosso dove Brian prende la
-		# merce. Primo edificio disegnato di DOWNTOWN — lo costruisce
-		# `render_buildings.py` sotto la voce "magazzino".
+		# merce. Primo edificio disegnato del COMMERCIAL DISTRICT — lo
+		# costruisce `render_buildings.py` sotto la voce "magazzino".
 		#
 		# **Compare solo dopo il furgone.** `unlock_flag` è la chiave che lo
 		# tiene fuori dalla città finché Brian non lo presenta (vedi `SeedRun` e
@@ -407,8 +835,9 @@ const BUILDINGS := [
 		# esiste proprio, invece di stare lì spento a dire che c'è qualcosa che
 		# non puoi ancora avere.
 		#
-		# Sta in DOWNTOWN, fra HILL DRIVE e PORT STREET: è la zona commerciale,
-		# ed è lontano da casa abbastanza da giustificare le due ore di viaggio.
+		# Sta nel quartiere commerciale, fra HILL DRIVE e PORT STREET — il nome
+		# non è più solo di comodo, il quartiere si chiama proprio così — ed è
+		# lontano da casa abbastanza da giustificare le due ore di viaggio.
 		#
 		# Il parcheggio sta DIETRO e non è in questo disegno: è il lotto
 		# "asphalt" qui sopra in `LOTS`, coi suoi lampioni in `lot_lamps()`.
@@ -423,16 +852,19 @@ const BUILDINGS := [
 		# parcheggio, sarebbe finito sui due marciapiedi. Questo isolato ne ha
 		# 688, e ne restano trentadue per parte.
 		"id": "SeedSupplier", "base": Vector2(4712, 240),
-		"district": "DOWNTOWN",
+		"district": "COMMERCIAL DISTRICT",
 		"unlock_flag": SeedRun.UNLOCK_FLAG,
 		"label": "SW_NAME",
 		"texture": "res://assets/sprites/buildings/wholesale.png",
 		"lit": "res://assets/sprites/buildings/wholesaleLit.png",
-		# `click` è il costruito e non tutto il PNG: davanti al muro il disegno
-		# ha ancora la sua striscia di marciapiede, 17 px, e prendendola dentro
-		# all'ingombro il magazzino risulterebbe appoggiato sul marciapiede di
-		# MAIN STREET. Su quella striscia ci si cammina sopra.
-		"offset": Vector2(-323, -299), "click": Rect2(-318, -299, 636, 282),
+		# `click` è tutto il PNG, e adesso è giusto così. Prima era più corto
+		# dello sprite: il modello si portava dentro una striscia di
+		# marciapiede di 17 px davanti al muro, e prendendola nell'ingombro il
+		# magazzino risultava appoggiato sul marciapiede di MAIN STREET, su cui
+		# ci si cammina. Il marciapiede è uscito dal modello (2026-09-21, vedi
+		# la nota sopra `magazzino_corpo`), quindi la correzione a mano non
+		# serve più: il bordo inferiore del disegno è il piede dell'edificio.
+		"offset": Vector2(-316, -290), "click": Rect2(-316, -290, 632, 290),
 		# La porta non è al centro del disegno: a sinistra c'è l'ala bassa, che
 		# sposta il corpo alto — e quindi l'ingresso — di 71 px a destra. Senza
 		# quei 71 px il protagonista andrebbe a bussare sul muro accanto
@@ -442,8 +874,94 @@ const BUILDINGS := [
 		# perché il corpo alto non è al centro del disegno: a sinistra c'è
 		# l'ala bassa, e il centro della facciata cade 71 px più a destra.
 		"sign": "res://assets/sprites/buildings/signs/wholesaleSign.png",
-		"sign_at": Vector2(32, -196),
+		"sign_at": Vector2(31, -192),
 		"window": "res://scenes/ui/SeedWholesaleWindow.tscn",
+	},
+	{
+		# --- I due grattacieli di DOWNTOWN ---------------------------------
+		#
+		# MERIDIAN TOWER: il prisma sfaccettato con l'antenna, 104 metri. La
+		# costruisce `scripts_tools/blender_grattacieli.py`.
+		#
+		# **Il `click` non è tutto il disegno, è il piede della torre.** Su
+		# tutti gli altri edifici i due coincidono; qui no, ed è una differenza
+		# che va capita. `click` è tre cose insieme: l'area su cui si clicca,
+		# l'ostacolo per chi cammina e l'ingombro che i controlli automatici
+		# confrontano con le strade. Di una torre alta 2316 px, l'ingombro a
+		# terra è il basamento — sopra c'è aria, e le strade che stanno dietro
+		# ci passano sotto senza toccarla. Prendendo tutto il disegno, questa
+		# torre risulterebbe appoggiata su quattro strade e sopra a mezzo
+		# quartiere.
+		#
+		# 480 px e non di più: fra il marciapiede di OLD MILL ROAD (finisce a
+		# 7904) e quello di COUNTY LINE (comincia a 8448) ci sono 544 px, ed è
+		# lì dentro che l'ingombro deve stare.
+		#
+		# Il resto della torre si disegna comunque, e copre quello che ha
+		# dietro: chi cammina a nord le sparisce dietro, che è esattamente
+		# quello che fa un grattacielo visto da sud.
+		#
+		# `glass` è la maschera delle facce di vetro: la legge lo shader
+		# `glass_sheen.gdshader` per far scorrere il riflesso del sole sulle
+		# facciate con l'ora. Vedi `sun_glass.gd`.
+		"id": "MeridianTower", "base": Vector2(5371, 8448),
+		"district": "DOWNTOWN",
+		"label": "MERIDIAN TOWER",
+		"texture": "res://assets/sprites/buildings/meridianTower.png",
+		"lit": "res://assets/sprites/buildings/meridianTowerLit.png",
+		"glass": "res://assets/sprites/buildings/meridianTowerGlass.png",
+		"offset": Vector2(-153, -2291), "click": Rect2(-153, -480, 305, 480),
+		"entry": Vector2(0, 20),
+	},
+	{
+		# HARBOR HEIGHTS: la torre residenziale con le solette a vista, 80
+		# metri. Vicina alla Meridian ma non attaccata: fra i due basamenti
+		# restano una quarantina di pixel, il vicolo di servizio che in una
+		# città vera divide due torri dello stesso isolato.
+		#
+		# Le due stanno nello stesso isolato di DOWNTOWN, fra PORT STREET e
+		# LOCK STREET: 656 px fra un marciapiede e l'altro, 305 + 272 di torri
+		# e il resto di respiro ai lati e in mezzo. È per farcele stare che i
+		# due basamenti sono stati stretti in Blender invece che allargare
+		# l'isolato: la maglia delle strade regge tutta la città, i basamenti
+		# no.
+		"id": "HarborHeights", "base": Vector2(5700, 8448),
+		"district": "DOWNTOWN",
+		"label": "HARBOR HEIGHTS",
+		"texture": "res://assets/sprites/buildings/harborHeights.png",
+		"lit": "res://assets/sprites/buildings/harborHeightsLit.png",
+		"glass": "res://assets/sprites/buildings/harborHeightsGlass.png",
+		"offset": Vector2(-136, -1762), "click": Rect2(-136, -430, 272, 430),
+		"entry": Vector2(0, 20),
+	},
+	{
+		# HOLLY LOFTS: il condominio d'angolo, preso da una foto (ala a doghe
+		# scure, torretta grigia col piano di legno e il tetto a sbalzo, ala
+		# bianca dietro). Lo costruisce `scripts_tools/blender_holly_lofts.py`.
+		#
+		# Sta nell'isolato subito a ovest dei grattacieli, fra HILL DRIVE e
+		# PORT STREET, e ne prende l'angolo sud-est: la facciata su COUNTY
+		# LINE, la torretta sull'incrocio con PORT STREET, di fronte alla
+		# Meridian. L'ala che corre lungo PORT STREET da sud non si vede — il
+		# gioco non mostra i fianchi — e si legge dal tetto dietro alla torretta.
+		#
+		# La x la detta l'angolo: il muro est deve cadere sul bordo del
+		# marciapiede di PORT STREET (5040). Il disegno e' largo 597 px ma i
+		# muri 582: a destra sporge il tetto della torretta (sbalza di sessanta
+		# centimetri anche sul fianco, come nella foto), a sinistra il
+		# pluviale. Per questo `click` e' piu' stretto dello sprite e non
+		# centrato — e' il muro, e il tetto che sbalza sopra al marciapiede non
+		# e' un ostacolo per chi ci cammina sotto.
+		#
+		# Si entra dall'atrio della torretta, non dal cancellino: quello e' il
+		# cortiletto delle unita' del piano terra.
+		"id": "HollyLofts", "base": Vector2(4754, 8448),
+		"district": "DOWNTOWN",
+		"label": "HOLLY LOFTS",
+		"texture": "res://assets/sprites/buildings/hollyLofts.png",
+		"lit": "res://assets/sprites/buildings/hollyLoftsLit.png",
+		"offset": Vector2(-299, -457), "click": Rect2(-296, -457, 582, 457),
+		"entry": Vector2(217, 20),
 	},
 	{
 		# La clinica dove lavora Brian: primo punto di riferimento fuori da THE
@@ -463,6 +981,49 @@ const BUILDINGS := [
 		"lit": "res://assets/sprites/buildings/clinicLit.png",
 		"offset": Vector2(-288, -428), "click": Rect2(-288, -428, 576, 428),
 		"entry": Vector2(30, 26),
+	},
+	{
+		# --- UNION PARK, lo stadio di CIVIC CENTER -------------------------
+		#
+		# Primo edificio disegnato del quartiere, quindi è lui a fissarne la
+		# tavolozza (`ST_`, granata e crema). Lo costruisce
+		# `scripts_tools/blender_stadio.py`.
+		#
+		# **Sta nell'isolato d'angolo fra EAST STREET e SOUTH GATE**, cioè il
+		# primo isolato del fronte sinistro che guarda DOWNTOWN dall'altra
+		# parte di EAST STREET. La facciata è rivolta a SUD, come quella di
+		# ogni altro edificio della città: la camera è frontale e fissa, e un
+		# edificio girato per stare "di faccia" alla sua strada si leggerebbe
+		# storto accanto ai vicini (è la stessa nota che ha il magazzino in
+		# `render_buildings.py`). Quindi si entra da SOUTH GATE e EAST STREET
+		# gli passa di fianco.
+		#
+		# ## La posizione non è scelta, è l'unica che ci sta
+		#
+		# L'ingombro è 642 x 513 px e l'isolato, tolti i quattro marciapiedi,
+		# ne offre 656 x 544: restano sette pixel per parte sui fianchi e una
+		# quindicina sopra e sotto. `base` è quindi il centro di quel rettangolo
+		# e non un numero tondo — spostarla di venti pixel in qualunque
+		# direzione mette lo stadio sul marciapiede, e il controllo automatico
+		# "nessun edificio sull'asfalto o sul marciapiede" se ne accorge.
+		#
+		# ## `click` è la pianta, non il disegno
+		#
+		# Come per i due grattacieli e per lo stesso motivo: dei 628 px di
+		# sprite, 513 sono l'ingombro a terra e i restanti 115 sono il tetto e
+		# le torri faro, che stanno in aria. Prendendo tutto il disegno lo
+		# stadio risulterebbe appoggiato su RIVER ROW, che gli passa dietro e
+		# sotto la falda.
+		"id": "Stadium", "base": Vector2(3128, 6320),
+		"district": "CIVIC CENTER",
+		"label": "UNION PARK",
+		"texture": "res://assets/sprites/buildings/stadium.png",
+		"lit": "res://assets/sprites/buildings/stadiumLit.png",
+		"offset": Vector2(-323, -628), "click": Rect2(-321, -513, 642, 513),
+		# Davanti al cancello, sul marciapiede nord di SOUTH GATE. Fra la riga
+		# di terra dello stadio e il marciapiede ci sono sedici pixel, quindi
+		# la porta cade appena dentro al marciapiede e non in carreggiata.
+		"entry": Vector2(0, 26),
 	},
 ]
 
@@ -518,13 +1079,13 @@ const BUILT_DISTRICTS := []
 ## tabella di dati: `CityMap` deve poter dire dov'è un edificio senza caricare
 ## otto texture.
 const FILL_ART := [
-	{"texture": "res://assets/sprites/buildings/rowBlock.png", "lit": "res://assets/sprites/buildings/rowBlockLit.png", "size": Vector2(283, 391)},
-	{"texture": "res://assets/sprites/buildings/rooming.png", "lit": "res://assets/sprites/buildings/roomingLit.png", "size": Vector2(223, 329)},
-	{"texture": "res://assets/sprites/buildings/bodega.png", "lit": "res://assets/sprites/buildings/bodegaLit.png", "size": Vector2(210, 255)},
-	{"texture": "res://assets/sprites/buildings/laundry.png", "lit": "res://assets/sprites/buildings/laundryLit.png", "size": Vector2(181, 249)},
-	{"texture": "res://assets/sprites/buildings/liquorStore.png", "lit": "res://assets/sprites/buildings/liquorStoreLit.png", "size": Vector2(161, 248)},
-	{"texture": "res://assets/sprites/buildings/autoRepair.png", "lit": "res://assets/sprites/buildings/autoRepairLit.png", "size": Vector2(263, 219)},
-	{"texture": "res://assets/sprites/buildings/garage.png", "lit": "res://assets/sprites/buildings/garageLit.png", "size": Vector2(196, 197)},
+	{"texture": "res://assets/sprites/buildings/rowBlock.png", "lit": "res://assets/sprites/buildings/rowBlockLit.png", "size": Vector2(283, 359)},
+	{"texture": "res://assets/sprites/buildings/rooming.png", "lit": "res://assets/sprites/buildings/roomingLit.png", "size": Vector2(223, 296)},
+	{"texture": "res://assets/sprites/buildings/bodega.png", "lit": "res://assets/sprites/buildings/bodegaLit.png", "size": Vector2(210, 222)},
+	{"texture": "res://assets/sprites/buildings/laundry.png", "lit": "res://assets/sprites/buildings/laundryLit.png", "size": Vector2(181, 216)},
+	{"texture": "res://assets/sprites/buildings/liquorStore.png", "lit": "res://assets/sprites/buildings/liquorStoreLit.png", "size": Vector2(161, 215)},
+	{"texture": "res://assets/sprites/buildings/autoRepair.png", "lit": "res://assets/sprites/buildings/autoRepairLit.png", "size": Vector2(263, 185)},
+	{"texture": "res://assets/sprites/buildings/garage.png", "lit": "res://assets/sprites/buildings/garageLit.png", "size": Vector2(196, 163)},
 ]
 ## La misura più grande del catalogo, in pixel: dice quanto è profonda la
 ## striscia di terreno che una fila può occupare, e quindi quali ingombri già
@@ -967,6 +1528,57 @@ static func street_lamps() -> Array:
 			y += LAMP_SPACING
 	return list
 
+## Gli incroci della città: il quadrato d'asfalto comune a ogni coppia di
+## strade che si toccano. È 96x96, perché le strade sono larghe uguali.
+##
+## Ricavato e non elencato per la ragione di sempre in questo file: spostando
+## una strada gli incroci la seguono, invece di restare disegnati dov'era prima
+## finché qualcuno non se ne accorge guardando la mappa. Lo usa `city_ground.gd`
+## per posarci sopra la piastrella del quadrivio e le strisce pedonali.
+## Gli incroci con i lati da cui la strada continua: `{"square", "open"}`,
+## dove `open` e' l'elenco dei versi (Vector2.UP/DOWN/LEFT/RIGHT) da cui
+## arriva asfalto. Quattro lati: quadrivio. Tre: T. Due ad angolo: curva.
+##
+## Un lato e' aperto se una delle due strade prosegue oltre il quadrato da
+## quella parte, oppure se da li' parte una strada d'uscita (che sta fuori
+## dagli elenchi: vedi `exit_roads()`).
+static func junction_sides() -> Array:
+	var exits: Array = exit_roads()
+	var list: Array = []
+	for road_h: Rect2 in ROADS_H:
+		for road_v: Rect2 in ROADS_V:
+			var sq: Rect2 = road_h.intersection(road_v)
+			if sq.size.x <= 0.0 or sq.size.y <= 0.0:
+				continue
+			var open: Array = []
+			if road_h.position.x < sq.position.x - 1.0 or _exit_touches(exits, sq, Vector2.LEFT):
+				open.append(Vector2.LEFT)
+			if road_h.end.x > sq.end.x + 1.0 or _exit_touches(exits, sq, Vector2.RIGHT):
+				open.append(Vector2.RIGHT)
+			if road_v.position.y < sq.position.y - 1.0 or _exit_touches(exits, sq, Vector2.UP):
+				open.append(Vector2.UP)
+			if road_v.end.y > sq.end.y + 1.0 or _exit_touches(exits, sq, Vector2.DOWN):
+				open.append(Vector2.DOWN)
+			list.append({"square": sq, "open": open})
+	return list
+
+static func _exit_touches(exits: Array, sq: Rect2, side: Vector2) -> bool:
+	var probe := sq.get_center() + side * (sq.size.x * 0.5 + 4.0)
+	for exit_road in exits:
+		if (exit_road["rect"] as Rect2).has_point(probe):
+			return true
+	return false
+
+static func junctions() -> Array:
+	var list: Array = []
+	for road_h: Rect2 in ROADS_H:
+		for road_v: Rect2 in ROADS_V:
+			var square: Rect2 = road_h.intersection(road_v)
+			if square.size.x <= 0.0 or square.size.y <= 0.0:
+				continue
+			list.append(square)
+	return list
+
 ## I lampioni dei piazzali: una fila per ogni lotto asfaltato.
 ##
 ## Generati dal lotto e non elencati a mano, come gli alberi dai prati: se il
@@ -1084,24 +1696,53 @@ static func lanes() -> Array:
 	var list: Array = []
 	for index in ROADS_H.size():
 		var road: Rect2 = ROADS_H[index]
-		list.append(_lane("h", road.end.y - 24.0, 1, road.position.x, road.end.x, index))
-		list.append(_lane("h", road.position.y + 24.0, -1, road.position.x, road.end.x, index + 7))
+		var blind := _blind_ends(road, true)
+		list.append(_lane("h", road.end.y - 24.0, 1, road.position.x, road.end.x, index, blind))
+		list.append(_lane("h", road.position.y + 24.0, -1, road.position.x, road.end.x, index + 7, blind))
 	for index in ROADS_V.size():
 		var road: Rect2 = ROADS_V[index]
-		list.append(_lane("v", road.position.x + 24.0, 1, road.position.y, road.end.y, index + 13))
-		list.append(_lane("v", road.end.x - 24.0, -1, road.position.y, road.end.y, index + 19))
+		var blind := _blind_ends(road, false)
+		list.append(_lane("v", road.position.x + 24.0, 1, road.position.y, road.end.y, index + 13, blind))
+		list.append(_lane("v", road.end.x - 24.0, -1, road.position.y, road.end.y, index + 19, blind))
 	return list
 
-static func _lane(axis: String, pos: float, direction: int, from: float, to: float, index: int) -> Dictionary:
+## Quali capi di una strada finiscono contro un'altra strada (e non al bordo
+## del mondo, dove la strada esce di scena o prosegue nelle montagne):
+## `Vector2(inizio, fine)`, 1 = cieco. Li' le auto non possono proseguire nel
+## nulla: svaniscono dentro all'incrocio. Vedi `car.gd`.
+static func _blind_ends(road: Rect2, horizontal: bool) -> Vector2:
+	var start := road.position.x if horizontal else road.position.y
+	var stop := road.end.x if horizontal else road.end.y
+	var w_end := WORLD_BOUNDS.end.x if horizontal else WORLD_BOUNDS.end.y
+	# L'inizio sta sempre sul bordo nord/ovest, cioe' su una strada di cornice:
+	# cieco, tranne dove da li' parte una strada d'uscita (LOWER MAIN verso
+	# ovest, PORT STREET verso nord). La fine e' cieca se non arriva al bordo.
+	var blind_start := 1.0
+	for exit_road in exit_roads():
+		var r: Rect2 = exit_road["rect"]
+		if bool(exit_road["horizontal"]) == horizontal and r.intersects(road.grow(2.0)) \
+				and (r.end.x if horizontal else r.end.y) <= start + 1.0:
+			blind_start = 0.0
+	var blind_end := 1.0 if stop < w_end - 1.0 else 0.0
+	return Vector2(blind_start, blind_end)
+
+static func _lane(axis: String, pos: float, direction: int, from: float, to: float, index: int,
+		blind := Vector2.ZERO) -> Dictionary:
 	var length := to - from
+	# Ai capi ciechi la corsia finisce in mezzo all'incrocio (48 px dentro), e
+	# non 68 oltre: oltre non c'e' strada.
+	var margin_from := -48.0 if blind.x > 0.0 else 68.0
+	var margin_to := -48.0 if blind.y > 0.0 else 68.0
 	return {
+		"fade_from": blind.x > 0.0,
+		"fade_to": blind.y > 0.0,
 		"axis": axis,
 		"pos": pos,
 		"dir": direction,
 		# Un margine oltre gli estremi, così le auto entrano ed escono dal
 		# campo invece di comparire sul bordo.
-		"from": from - 68.0,
-		"to": to + 68.0,
+		"from": from - margin_from,
+		"to": to + margin_to,
 		"cars": clampi(int(length / 1100.0), 2, 6),
 		# Velocità diverse per corsia: tutte uguali si muovono come un trenino.
 		#
@@ -1222,9 +1863,9 @@ static func _scan_meet_line(
 		spots: Array, home: Vector2, horizontal: bool, fixed: float,
 		solid: Array[Rect2]) -> void:
 	var center := home.x if horizontal else home.y
-	var to := center + MEET_MAX_DISTANCE
+	var last := center + MEET_MAX_DISTANCE
 	var at := floorf((center - MEET_MAX_DISTANCE) / MEET_STEP) * MEET_STEP
-	while at <= to:
+	while at <= last:
 		var point := Vector2(at, fixed) if horizontal else Vector2(fixed, at)
 		at += MEET_STEP
 		var distance := point.distance_to(home)

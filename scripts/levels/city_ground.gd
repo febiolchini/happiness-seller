@@ -25,17 +25,39 @@ extends Node2D
 ## `GroundWeather` ha -1 per lo stesso motivo — pozzanghere sopra all'asfalto,
 ## sotto a tutto il resto.
 ##
-## L'ordine di disegno è la parte che conta: prima tutti i marciapiedi, poi
-## tutto l'asfalto. Così agli incroci i marciapiedi restano sotto e le due
-## strade si fondono in una piazzola, senza dover calcolare le intersezioni.
+## ## Le strade sono piastrelle, non rettangoli colorati
+##
+## L'asfalto non si disegna più a mano: sono le piastrelle del kit stradale di
+## Kenney, renderizzate dall'alto da `scripts_tools/render_road_tiles.py` e
+## stese qui. Mezzeria, strisce pedonali e cordolo stanno **dentro al disegno**,
+## quindi da questo file sono spariti insieme al codice che li tracciava.
+##
+## Una piastrella è 120 px: 96 di asfalto — esattamente `CityMap.ROAD_WIDTH` —
+## e 12 di cordolo rialzato per lato, che cadono sul bordo interno della fascia
+## di marciapiede da 32. Il resto del marciapiede resta il grigio di prima, e
+## chi ci cammina non se ne accorge: per la navigazione e per il traffico non è
+## cambiato niente.
+##
+## L'ordine di disegno è la parte che conta:
+##
+## 1. tutti i **marciapiedi**, di tutte le strade;
+## 2. tutto l'**asfalto**, a piastrelle ripetute lungo ogni strada;
+## 3. le **strisce pedonali**, che stanno sull'asfalto;
+## 4. gli **incroci**, che coprono le due strade che ci si accavallano.
+##
+## I marciapiedi per primi è la vecchia regola e vale ancora: così agli incroci
+## restano sotto e le due strade si fondono senza calcolare le intersezioni. Gli
+## incroci per ultimi è la regola nuova: la piastrella del quadrivio è un pezzo
+## intero, e deve andare sopra alle due dritte che ci arrivano, non sotto.
+##
+## ## Il paesaggio del bordo
+##
+## Fuori dalla città ci sono colline e montagne, e quattro strade che ci
+## passano in mezzo per andarsene. Qui si disegnano solo le strade; il
+## paesaggio è uno shader su un nodo a parte. Vedi `_build_landscape()`.
 
 const SIDEWALK := Color(0.72, 0.73, 0.75)
 const SIDEWALK_EDGE := Color(0.60, 0.61, 0.64)
-const CURB := Color(0.83, 0.84, 0.86)
-const ASPHALT := Color(0.26, 0.26, 0.29)
-const ASPHALT_PATCH := Color(0.30, 0.30, 0.33)
-const ROAD_LINE := Color(0.85, 0.82, 0.55, 0.75)
-const CROSSWALK := Color(0.88, 0.89, 0.90, 0.55)
 const DISTRICT_LABEL := Color(0.93, 0.95, 0.92, 0.30)
 const LOT_LABEL := Color(0.88, 0.90, 0.86, 0.45)
 
@@ -55,7 +77,7 @@ const LOT_STYLES := {
 	"dirt": {"fill": Color(0.40, 0.35, 0.24), "line": Color(0.55, 0.50, 0.38, 0.35)},
 	"gravel": {"fill": Color(0.35, 0.34, 0.32), "line": Color(0.50, 0.48, 0.45, 0.35)},
 	"concrete": {"fill": Color(0.46, 0.46, 0.45), "line": Color(0.35, 0.35, 0.35, 0.45)},
-	# Piu' scuro del terreno di DOWNTOWN, che e' un grigio-azzurro quasi dello
+	# Piu' scuro del terreno del COMMERCIAL DISTRICT, che e' un grigio-azzurro quasi dello
 	# stesso tono: col vecchio 0,28 il parcheggio del grossista si leggeva come
 	# un rettangolo appena piu' chiaro del prato, e le righe dei posti come dei
 	# graffi. L'asfalto di un piazzale e' la cosa piu' scura dell'isolato.
@@ -63,6 +85,47 @@ const LOT_STYLES := {
 	"court": {"fill": Color(0.42, 0.30, 0.24), "line": Color(0.90, 0.92, 0.88, 0.45)},
 	"pool": {"fill": Color(0.24, 0.48, 0.58), "line": Color(0.85, 0.92, 0.95, 0.45)},
 }
+
+# --- Le piastrelle stradali -------------------------------------------------
+## Il kit di Kenney, reso dall'alto. Vedi `scripts_tools/render_road_tiles.py`
+## per come nascono e `CityMap.junctions()` per come si sceglie quale mettere.
+##
+## Ognuna è orientata ovest-est e si gira di novanta gradi alla volta: sono
+## quadrate e l'asfalto è centrato sul lato, quindi ruotandole combaciano sempre.
+## Sono tre perché il reticolo è fatto di tre cose: dritti, quadrivi e
+## attraversamenti.
+const ROAD_TILE := 120.0
+## Il rettilineo: imbocco a ovest e a est.
+const TILE_STRAIGHT := preload("res://assets/sprites/roads/straight.png")
+## Il quadrivio: imbocco da tutti e quattro i lati.
+const TILE_CROSSROAD := preload("res://assets/sprites/roads/crossroad.png")
+## Le strisce pedonali, in mezzo a un rettilineo ovest-est.
+const TILE_CROSSING := preload("res://assets/sprites/roads/crossing.png")
+## L'incrocio a T, chiuso a nord, e la curva da ovest a sud: servono agli
+## incroci del bordo, dove la strada non prosegue da tutti e quattro i lati.
+## Si girano come le altre. Vedi `CityMap.junction_sides()`.
+const TILE_T := preload("res://assets/sprites/roads/tjunction.png")
+const TILE_BEND := preload("res://assets/sprites/roads/bend.png")
+
+## Dove stanno le strisce dentro alla piastrella: sono una fascia di 40 px nel
+## mezzo di 120. Si ritaglia quella invece di stendere la piastrella intera,
+## così l'attraversamento si può mettere **dove serve** — a ridosso
+## dell'incrocio, dove attraversa la gente — e non dove capita di far cadere
+## una piastrella intera, che lo spingerebbe mezzo isolato più in là.
+const CROSSING_BAND := Rect2(40.0, 0.0, 40.0, ROAD_TILE)
+## Quanto le strisce stanno fuori dal quadrato dell'incrocio.
+const CROSSING_GAP := 16.0
+
+# --- Il paesaggio del bordo -------------------------------------------------
+const LANDSCAPE_SHADER := preload("res://assets/shaders/landscape.gdshader")
+## Il seme del rumore: fisso, perché colline e montagne devono essere le stesse
+## a ogni avvio. Una catena montuosa che si rimescola entrando e uscendo da una
+## stanza è la cosa che si nota per prima.
+const LANDSCAPE_SEED := 7
+## Quanto è alta la cima più alta, in pixel di mondo. Alla vista d'insieme
+## (scala netta 0,15) sono ottanta pixel di schermo: abbastanza per una catena
+## che chiude l'orizzonte, non tanto da mangiarsi la cornice.
+const LANDSCAPE_HEIGHT := 560.0
 
 const TREE_TRUNK := Color(0.30, 0.23, 0.17)
 const TREE_LEAVES := Color(0.22, 0.34, 0.20)
@@ -93,6 +156,14 @@ const STREET_LABEL_SIZE := 13
 ## camminando, non tanto da diventare una decorazione a righe.
 const STREET_LABEL_STEP := 900.0
 
+func _ready() -> void:
+	# Le piastrelle si stendono con `draw_texture_rect(..., tile = true)`, e per
+	# ripetersi la texture deve poter uscire dai suoi bordi. Senza questa riga
+	# Godot ne disegna una sola e stira il resto: una strada lunga dieci
+	# chilometri diventa una singola piastrella spalmata.
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	_build_landscape()
+
 func _draw() -> void:
 	_draw_districts()
 	_draw_lots()
@@ -100,13 +171,12 @@ func _draw() -> void:
 	# fa venire bene gli incroci senza calcolarli.
 	for road in CityMap.ROADS_H + CityMap.ROADS_V:
 		_draw_sidewalk_band(road)
-	for road in CityMap.ROADS_H + CityMap.ROADS_V:
-		draw_rect(road, ASPHALT, true)
 	for road in CityMap.ROADS_H:
-		_draw_road_markings(road, true)
+		_draw_asphalt(road, true)
 	for road in CityMap.ROADS_V:
-		_draw_road_markings(road, false)
-	_draw_crosswalks()
+		_draw_asphalt(road, false)
+	_draw_junctions()
+	_draw_exit_roads()
 	_draw_street_names()
 	_draw_trees()
 	_draw_labels()
@@ -267,69 +337,166 @@ func _draw_sidewalk_band(road: Rect2) -> void:
 		draw_line(Vector2(x, band.position.y), Vector2(x, band.end.y), SIDEWALK_EDGE, 1.0)
 		x += 32.0
 
-func _draw_road_markings(road: Rect2, horizontal: bool) -> void:
-	# Cordoli chiari sui due lati.
+## L'asfalto di una strada: la stessa piastrella ripetuta da un capo all'altro.
+##
+## La fascia è alta `ROAD_TILE` e non `ROAD_WIDTH`, ed è centrata sull'asse
+## della carreggiata: i 12 px di cordolo che avanzano per parte vanno a finire
+## sul marciapiede, che è esattamente dove un cordolo sta.
+##
+## Sulle verticali si gira la tela di novanta gradi invece di tenere una seconda
+## piastrella già ruotata: sono la stessa immagine, e due file sarebbero due
+## cose da rifare ogni volta che se ne ritocca una.
+func _draw_asphalt(road: Rect2, horizontal: bool) -> void:
+	var half := ROAD_TILE * 0.5
 	if horizontal:
-		draw_line(road.position, Vector2(road.end.x, road.position.y), CURB, 2.0)
-		draw_line(Vector2(road.position.x, road.end.y), road.end, CURB, 2.0)
-	else:
-		draw_line(road.position, Vector2(road.position.x, road.end.y), CURB, 2.0)
-		draw_line(Vector2(road.end.x, road.position.y), road.end, CURB, 2.0)
+		draw_texture_rect(TILE_STRAIGHT, Rect2(
+			road.position.x, road.get_center().y - half,
+			road.size.x, ROAD_TILE), true)
+		return
+	draw_set_transform(Vector2(road.get_center().x, 0.0), PI * 0.5, Vector2.ONE)
+	draw_texture_rect(TILE_STRAIGHT, Rect2(
+		road.position.y, -half, road.size.y, ROAD_TILE), true)
+	draw_set_transform_matrix(Transform2D.IDENTITY)
 
-	# Rappezzi d'asfalto: le strade di questa città sono malmesse.
-	draw_rect(Rect2(road.position.x + 96.0, road.position.y + 18.0, 72.0, 26.0), ASPHALT_PATCH, true)
-	draw_rect(Rect2(road.position.x + 512.0, road.position.y + 52.0, 96.0, 22.0), ASPHALT_PATCH, true)
+## Ogni crocevia: prima le strisce pedonali sui quattro lati, poi il quadrivio.
+##
+## Le strisce sono il segnale visivo di dove si può attraversare, e i percorsi
+## degli NPC passano di lì. Il quadrivio va sopra perché è il pezzo intero: le
+## due dritte che ci arrivano si accavallano, e coprirle è esattamente il suo
+## mestiere.
+func _draw_junctions() -> void:
+	for junction: Dictionary in CityMap.junction_sides():
+		var square: Rect2 = junction["square"]
+		var open: Array = junction["open"]
+		# Le strisce solo dove c'e' strada: sul lato chiuso di una T si
+		# finirebbe dritti contro il marciapiede.
+		for side: Vector2 in open:
+			_draw_crossing(square, side)
+		var size := Vector2(ROAD_TILE, ROAD_TILE)
+		var tile: Texture2D = TILE_CROSSROAD
+		var angle := 0.0
+		if open.size() == 3:
+			tile = TILE_T
+			# La T di serie e' chiusa a nord: si gira finche' il lato chiuso
+			# non e' quello senza strada.
+			for side: Vector2 in [Vector2.UP, Vector2.RIGHT, Vector2.DOWN, Vector2.LEFT]:
+				if not side in open:
+					angle = Vector2.UP.angle_to(side)
+		elif open.size() == 2:
+			tile = TILE_BEND
+			# La curva di serie va da ovest a sud; girandola di 90 gradi in senso
+			# orario i due lati diventano nord-ovest, poi nord-est, poi est-sud.
+			for step in 4:
+				var a := Vector2.LEFT.rotated(PI * 0.5 * step)
+				var b := Vector2.DOWN.rotated(PI * 0.5 * step)
+				if _has_side(open, a) and _has_side(open, b):
+					angle = PI * 0.5 * step
+		draw_set_transform(square.get_center(), angle, Vector2.ONE)
+		draw_texture_rect(tile, Rect2(-size * 0.5, size), false)
+		draw_set_transform_matrix(Transform2D.IDENTITY)
 
-	# Mezzeria tratteggiata, interrotta dentro agli incroci: una linea continua
-	# che attraversa un incrocio si legge subito come un errore di disegno.
-	var crossing := CityMap.ROADS_V if horizontal else CityMap.ROADS_H
-	if horizontal:
-		var y := road.get_center().y
-		var x := road.position.x
-		while x < road.end.x:
-			var to := minf(x + 20.0, road.end.x)
-			if not _inside_any(crossing, Vector2((x + to) * 0.5, y)):
-				draw_line(Vector2(x, y), Vector2(to, y), ROAD_LINE, 2.0)
-			x += 36.0
-	else:
-		var x := road.get_center().x
-		var y := road.position.y
-		while y < road.end.y:
-			var to := minf(y + 20.0, road.end.y)
-			if not _inside_any(crossing, Vector2(x, (y + to) * 0.5)):
-				draw_line(Vector2(x, y), Vector2(x, to), ROAD_LINE, 2.0)
-			y += 36.0
-
-## Strisce pedonali sui quattro lati di ogni incrocio: sono il segnale visivo
-## di dove si può attraversare, e i percorsi degli NPC passano da lì.
-func _draw_crosswalks() -> void:
-	for road_h: Rect2 in CityMap.ROADS_H:
-		for road_v: Rect2 in CityMap.ROADS_V:
-			var cross: Rect2 = road_h.intersection(road_v)
-			if cross.size.x <= 0.0 or cross.size.y <= 0.0:
-				continue
-			_draw_stripes(Rect2(cross.position.x, road_h.position.y - 14.0, cross.size.x, 12.0), true)
-			_draw_stripes(Rect2(cross.position.x, road_h.end.y + 2.0, cross.size.x, 12.0), true)
-			_draw_stripes(Rect2(road_v.position.x - 14.0, cross.position.y, 12.0, cross.size.y), false)
-			_draw_stripes(Rect2(road_v.end.x + 2.0, cross.position.y, 12.0, cross.size.y), false)
-
-func _draw_stripes(rect: Rect2, horizontal: bool) -> void:
-	if horizontal:
-		var x := rect.position.x + 4.0
-		while x < rect.end.x - 6.0:
-			draw_rect(Rect2(x, rect.position.y, 8.0, rect.size.y), CROSSWALK, true)
-			x += 16.0
-	else:
-		var y := rect.position.y + 4.0
-		while y < rect.end.y - 6.0:
-			draw_rect(Rect2(rect.position.x, y, rect.size.x, 8.0), CROSSWALK, true)
-			y += 16.0
-
-func _inside_any(rects: Array, point: Vector2) -> bool:
-	for rect in rects:
-		if (rect as Rect2).has_point(point):
+static func _has_side(open: Array, side: Vector2) -> bool:
+	for s: Vector2 in open:
+		if s.distance_to(side) < 0.01:
 			return true
 	return false
+
+## Le strisce pedonali su un lato dell'incrocio.
+func _draw_crossing(square: Rect2, step: Vector2) -> void:
+	var at := square.get_center() + step * (square.size.x * 0.5 + CROSSING_GAP
+		+ CROSSING_BAND.size.x * 0.5)
+	var size := Vector2(CROSSING_BAND.size.x, ROAD_TILE)
+	# Le strisce stanno **di traverso** alla strada, quindi la fascia ritagliata
+	# va girata quando l'attraversamento è su una verticale.
+	if absf(step.y) > 0.0:
+		draw_set_transform(at, PI * 0.5, Vector2.ONE)
+		draw_texture_rect_region(TILE_CROSSING, Rect2(-size * 0.5, size), CROSSING_BAND)
+		draw_set_transform_matrix(Transform2D.IDENTITY)
+		return
+	draw_texture_rect_region(TILE_CROSSING, Rect2(at - size * 0.5, size), CROSSING_BAND)
+
+# --- Il paesaggio del bordo -------------------------------------------------
+
+## Le quattro strade che se ne vanno dalla città, in mezzo alle colline.
+##
+## Solo l'asfalto, senza la fascia di marciapiede che hanno quelle di città:
+## il cordolo se lo porta già la piastrella, e un marciapiede lastricato in
+## mezzo ai monti direbbe che lì ci si passeggia. Lì non ci va nessuno — la
+## griglia dei percorsi finisce prima, vedi `CityMap.view_bounds()`.
+##
+## Stanno qui e non nello shader del paesaggio perché sono le stesse piastrelle
+## di Kenney delle strade di città: il paesaggio, che sta sopra, in quei
+## rettangoli è trasparente e le lascia vedere.
+func _draw_exit_roads() -> void:
+	for exit_road in CityMap.exit_roads():
+		_draw_asphalt(exit_road["rect"], bool(exit_road["horizontal"]))
+
+## Le colline e le montagne intorno alla città.
+##
+## ## A cosa servono
+##
+## A far finire la mappa senza che si veda che finisce. Allo scatto di zoom più
+## lontano, e camminando fino all'ultimo isolato, prima c'era una cornice di
+## triangoli grigi tutti uguali su un fondo grigio piatto: si leggeva come una
+## decorazione messa intorno a un disegno, non come un posto. Adesso fuori
+## dalla città c'è campagna — prato e boschi — che sale in colline e poi in
+## montagne rocciose e innevate, sempre più velate di foschia verso il bordo.
+##
+## ## Come è fatto
+##
+## È uno shader (`assets/shaders/landscape.gdshader`, lì c'è il perché di
+## tutto) su un `Polygon2D` grande quanto la vista della camera. Sta **sopra**
+## a questo nodo, perché le montagne si alzano verso nord e coprono quello che
+## hanno dietro — strade d'uscita comprese; dove si vede la città o l'asfalto
+## è trasparente. Figlio di questo nodo e non della City per stare nello stesso
+## `z_index`: sotto a edifici, persone e lampioni.
+##
+## Il rumore è in due `NoiseTexture2D` senza cuciture invece che calcolato nello
+## shader: per ogni pixel la quota si legge una sessantina di volte, e una
+## lettura di texture costa molto meno di un rumore fatto di seni.
+func _build_landscape() -> void:
+	var old := get_node_or_null("Landscape")
+	if old != null:
+		old.free()
+	var view := CityMap.view_bounds()
+	var land := Polygon2D.new()
+	land.name = "Landscape"
+	land.polygon = PackedVector2Array([
+		view.position, Vector2(view.end.x, view.position.y),
+		view.end, Vector2(view.position.x, view.end.y)])
+	var material := ShaderMaterial.new()
+	material.shader = LANDSCAPE_SHADER
+	material.set_shader_parameter("colline", _noise_texture(FastNoiseLite.FRACTAL_FBM, 0.010, 3))
+	material.set_shader_parameter("creste", _noise_texture(FastNoiseLite.FRACTAL_RIDGED, 0.009, 4))
+	var city := CityMap.WORLD_BOUNDS
+	material.set_shader_parameter("citta", Vector4(city.position.x, city.position.y, city.size.x, city.size.y))
+	var roads: Array[Vector4] = []
+	for exit_road in CityMap.exit_roads():
+		var r: Rect2 = exit_road["rect"]
+		roads.append(Vector4(r.position.x, r.position.y, r.size.x, r.size.y))
+	material.set_shader_parameter("strade", roads)
+	material.set_shader_parameter("profondita", CityMap.FRAME_DEPTH)
+	material.set_shader_parameter("alt_max", LANDSCAPE_HEIGHT)
+	land.material = material
+	add_child(land)
+
+## Un rumore senza cuciture da 512 px: lo shader lo ripete su qualche migliaio
+## di pixel di mondo, quindi le ripetizioni cadono lontane fra loro e con due
+## rumori a scale diverse non si allineano mai.
+func _noise_texture(fractal: FastNoiseLite.FractalType, frequency: float, octaves: int) -> NoiseTexture2D:
+	var noise := FastNoiseLite.new()
+	noise.seed = LANDSCAPE_SEED
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.fractal_type = fractal
+	noise.fractal_octaves = octaves
+	noise.frequency = frequency
+	var texture := NoiseTexture2D.new()
+	texture.width = 512
+	texture.height = 512
+	texture.seamless = true
+	texture.normalize = true
+	texture.noise = noise
+	return texture
 
 # --- Nomi delle strade -----------------------------------------------------
 

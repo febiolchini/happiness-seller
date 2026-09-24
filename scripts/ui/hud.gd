@@ -75,6 +75,10 @@ const DOT := "·"
 ## aggiungerla a un elenco in un altro file.
 const MODAL_GROUP := "modal"
 
+const PRESTIGE_BADGE := preload("res://scripts/ui/prestige_badge.gd")
+const SUSPICION_BAR := preload("res://scripts/ui/suspicion_bar.gd")
+const ORG_NAME_WINDOW := preload("res://scripts/ui/org_name_window.gd")
+
 ## Spento quando la mappa fa solo da sfondo a un menu. Senza questo l'HUD si
 ## rimostrerebbe da solo al primo `_refresh()`, comparendo dietro ai bottoni.
 @export var enabled := true:
@@ -118,6 +122,7 @@ var _dots: Array[Label] = []
 var _shown: Array[String] = []
 
 func _ready() -> void:
+	_build_meters()
 	for i in _segments.size():
 		var segment: Dictionary = _segments[i]
 		_dots.append(_make_dot() if i > 0 else null)
@@ -143,6 +148,7 @@ func _refresh() -> void:
 		visible = false
 		return
 	visible = true
+	_check_org_name(data)
 
 	# Il punto va messo solo *fra* due segmenti visibili: quello del primo
 	# segmento acceso resterebbe appeso a sinistra, davanti al nulla.
@@ -166,6 +172,40 @@ func _refresh() -> void:
 			_labels[i].text = text
 
 ## C'è una finestra aperta che si prende lo schermo?
+## Il prestigio a sinistra della sveglia e il sospetto della polizia sul lato
+## sinistro dello schermo. Costruiti da codice e non nella scena, cosi' le
+## scene che istanziano l'HUD non si ritrovano nodi nuovi da sistemare. Sono
+## segnaposto disegnati in attesa della grafica vera: vedi i due script.
+func _build_meters() -> void:
+	var root: Control = $Root
+	var badge := Control.new()
+	badge.set_script(PRESTIGE_BADGE)
+	badge.name = "Prestige"
+	badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	# La sveglia e' larga 78 e sta a 8 dal bordo: il badge le sta a fianco.
+	badge.offset_left = -200.0
+	badge.offset_right = -94.0
+	badge.offset_top = 14.0
+	badge.offset_bottom = 48.0
+	root.add_child(badge)
+	var bar := Control.new()
+	bar.set_script(SUSPICION_BAR)
+	bar.name = "Suspicion"
+	bar.position = Vector2(12, 40)
+	bar.size = Vector2(10, 122)
+	root.add_child(bar)
+
+## Brian ha chiesto il nome e non c'e' ancora: si apre la finestra. Controllato
+## qui e non con un segnale perche' deve valere anche dopo un caricamento — chi
+## chiude il gioco senza aver dato il nome se la ritrova alla riapertura.
+func _check_org_name(data: SaveData) -> void:
+	if not data.org_name.is_empty():
+		return
+	if not bool(data.get_flag(GameState.ORG_NAME_FLAG, false)):
+		return
+	var window: CanvasLayer = ORG_NAME_WINDOW.new()
+	get_tree().current_scene.add_child(window)
+
 func _modal_open() -> bool:
 	return not get_tree().get_nodes_in_group(MODAL_GROUP).is_empty()
 

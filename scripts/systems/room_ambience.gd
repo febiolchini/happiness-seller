@@ -77,6 +77,13 @@ const FLICKER_DEPTH := 0.035
 var _tint: CanvasModulate = null
 var _daylight := true
 var _window := Rect2()
+## La finestra come si vede davvero: quattro angoli, in alto a sinistra, in
+## alto a destra, in basso a destra, in basso a sinistra. Per una finestra vista
+## di fronte sono gli angoli di `_window`; per una vista di sbieco (il garage)
+## è un trapezio, e `_window` è solo il rettangolo che la contiene. Tutto quello
+## che si DISEGNA sul vetro usa questi, così il cielo della sera non finisce sul
+## muro intorno.
+var _quad := PackedVector2Array()
 ## Le scritte della stanza: nome e uscite. Vedi `_keep_readable()`.
 var _readable: Array[CanvasItem] = []
 
@@ -95,10 +102,22 @@ var _ambient := Color.WHITE
 ## La chiama `room.gd` appena costruita la stanza.
 ##
 ## `readable` sono i nodi che la tinta NON deve spegnere: vedi `_keep_readable()`.
-func setup(tint: CanvasModulate, has_daylight: bool, window: Rect2, readable: Array) -> void:
+##
+## `quad` è facoltativo: vedi `_quad`. Vuoto vuol dire una finestra dritta, e
+## gli angoli si prendono da `window`.
+func setup(tint: CanvasModulate, has_daylight: bool, window: Rect2, readable: Array,
+		quad := PackedVector2Array()) -> void:
 	_tint = tint
 	_daylight = has_daylight
 	_window = window
+	if quad.size() == 4:
+		_quad = quad
+		_window = Rect2(quad[0], Vector2.ZERO)
+		for corner in quad:
+			_window = _window.expand(corner)
+	elif window.size.x > 0.0:
+		_quad = PackedVector2Array([window.position, Vector2(window.end.x, window.position.y),
+				window.end, Vector2(window.position.x, window.end.y)])
 	for item in readable:
 		if item is CanvasItem:
 			_readable.append(item)
@@ -224,7 +243,7 @@ func _draw() -> void:
 		# Il lampo entra dalla finestra prima di riempire la stanza: senza la
 		# finestra più accesa del resto, sembra che si accenda una luce dentro.
 		if _window.size.x > 0.0:
-			draw_rect(_window, Color(0.95, 0.96, 1.0, _flash * 0.55), true)
+			draw_colored_polygon(_quad, Color(0.95, 0.96, 1.0, _flash * 0.55))
 		draw_rect(Rect2(Vector2.ZERO, _view()), Color(0.92, 0.94, 1.0, _flash * FLASH_PEAK), true)
 
 ## Il taglio di luce dalla finestra al pavimento.
@@ -247,8 +266,8 @@ func _draw_shaft() -> void:
 	var info := Daylight.shadow(data)
 	var direction: Vector2 = info["direction"]
 	var across := Vector2(-direction.y, direction.x)
-	var left := Vector2(_window.position.x, _window.end.y)
-	var right := Vector2(_window.end.x, _window.end.y)
+	var left := _quad[3]
+	var right := _quad[2]
 
 	var span := minf(_window.size.y * SHAFT_REACH * float(info["length"]), SHAFT_MAX)
 	for i in SHAFT_LAYERS:
@@ -280,7 +299,7 @@ func _draw_outside() -> void:
 		return
 	var sky := Daylight.void_color(hour)
 	sky.a = clampf(dark * 1.25, 0.0, 0.88)
-	draw_rect(_window, sky, true)
+	draw_colored_polygon(_quad, sky)
 
 	if not Daylight.lamps_on(data):
 		return
@@ -290,24 +309,23 @@ func _draw_outside() -> void:
 	# Posizioni fisse dentro alla finestra: sono finestre di un palazzo, non
 	# lucciole, e se si spostassero si vedrebbe subito.
 	for spot in [Vector2(0.18, 0.34), Vector2(0.52, 0.22), Vector2(0.74, 0.46)]:
-		var at := _window.position + Vector2(spot.x * _window.size.x, spot.y * _window.size.y)
-		draw_rect(Rect2(at, Vector2(3, 4)), bright, true)
+		draw_rect(Rect2(_on_glass(spot.x, spot.y), Vector2(3, 4)), bright, true)
 
 ## L'acqua che scende sul vetro. Sta dentro al rettangolo della finestra e non
 ## davanti a tutta la stanza: da dentro, la pioggia si vede solo lì.
 func _draw_glass() -> void:
 	var wash := GLASS_COLOR
 	wash.a = 0.16
-	draw_rect(_window, Daylight.emissive(wash, _ambient), true)
+	draw_colored_polygon(_quad, Daylight.emissive(wash, _ambient))
 	var streak := GLASS_COLOR
 	streak.a = 0.42
 	var bright := Daylight.emissive(streak, _ambient)
 	for drop in _drops:
 		if drop.y < 0.0 or drop.y > 1.0:
 			continue
-		var head := _window.position + Vector2(drop.x * _window.size.x, drop.y * _window.size.y)
-		var tail := head + Vector2(0, 4.0 + drop.z * 5.0)
-		draw_line(head, Vector2(head.x, minf(tail.y, _window.end.y)), bright, 1.0)
+		var head := _on_glass(drop.x, drop.y)
+		var length := (4.0 + drop.z * 5.0) / _window.size.y
+		draw_line(head, _on_glass(drop.x, minf(drop.y + length, 1.0)), bright, 1.0)
 
 func _draw_motes() -> void:
 	var color := MOTE_COLOR
@@ -320,6 +338,15 @@ func _draw_motes() -> void:
 			near = clampf(1.4 - distance / 260.0, 0.25, 1.4)
 		color.a = (0.05 + mote.z * 0.07) * near
 		draw_rect(Rect2(mote.x, mote.y, 1.0, 1.0), Daylight.emissive(color, _ambient), true)
+
+## Un punto del vetro, da coordinate 0-1 dentro alla finestra (0,0 in alto a
+## sinistra). Interpola fra i quattro angoli, quindi segue anche il trapezio di
+## una finestra vista di sbieco: la pioggia scende lungo il vetro, non dritta
+## attraverso il muro.
+func _on_glass(u: float, v: float) -> Vector2:
+	var top := _quad[0].lerp(_quad[1], u)
+	var bottom := _quad[3].lerp(_quad[2], u)
+	return top.lerp(bottom, v)
 
 func _view() -> Vector2:
 	return size if size.x > 0.0 else get_viewport_rect().size

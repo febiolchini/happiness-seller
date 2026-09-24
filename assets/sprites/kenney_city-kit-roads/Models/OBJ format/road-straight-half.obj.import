@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://ibfuagc222td"
+path="res://.godot/imported/road-straight-half.obj-0af95d61bd84774cf54abe5925d390be.mesh"
+
+[deps]
+
+files=["res://.godot/imported/road-straight-half.obj-0af95d61bd84774cf54abe5925d390be.mesh"]
+
+source_file="res://assets/sprites/kenney_city-kit-roads/Models/OBJ format/road-straight-half.obj"
+dest_files=["res://.godot/imported/road-straight-half.obj-0af95d61bd84774cf54abe5925d390be.mesh", "res://.godot/imported/road-straight-half.obj-0af95d61bd84774cf54abe5925d390be.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

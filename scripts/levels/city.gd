@@ -42,6 +42,10 @@ const MAIN_MENU := "res://scenes/main/Main.tscn"
 const RIPPLE := preload("res://scenes/components/ClickRipple.tscn")
 const ENTERABLE := preload("res://scripts/components/enterable_building.gd")
 const BUILDING_LIGHTS := preload("res://scripts/components/building_lights.gd")
+const SHOP_SHUTTER := preload("res://scripts/components/shop_shutter.gd")
+const SUN_GLASS := preload("res://scripts/components/sun_glass.gd")
+const WIND_PROP := preload("res://scripts/components/wind_prop.gd")
+const GLASS_SHEEN := preload("res://assets/shaders/glass_sheen.gdshader")
 const NPC := preload("res://scenes/characters/Npc.tscn")
 const CAR := preload("res://scenes/components/Car.tscn")
 const FOUNTAIN := preload("res://scenes/components/Fountain.tscn")
@@ -122,7 +126,9 @@ func _ready() -> void:
 	GameState.clock_running = true
 	_player.arrived.connect(_on_player_arrived)
 	_camera.follow = _player
-	_camera.set_bounds(CityMap.WORLD_BOUNDS)
+	# La camera arriva fino alle montagne, non al bordo della citta': e' tutta
+	# la ragione per cui la cornice esiste. Vedi `CityMap.view_bounds()`.
+	_camera.set_bounds(CityMap.view_bounds())
 
 	# Dove sta il protagonista lo sa solo la scena, non `SaveData`: prima di
 	# ogni scrittura su disco lo riversiamo noi. Vale anche per i salvataggi
@@ -223,6 +229,14 @@ func _make_building(entry: Dictionary) -> Node2D:
 	node.offset = entry.get("offset", Vector2.ZERO)
 	node.name = str(entry["id"])
 	node.position = entry["base"]
+	# `frames` dice che la texture non e' un disegno solo ma una striscia di
+	# fotogrammi affiancati: l'officina, che la sera tira giu' la serranda. Lo
+	# sprite ne disegna uno per volta e a sceglierlo e' `shop_shutter.gd`, che
+	# sta in un figlio perche' qui lo script e' gia' occupato da
+	# `enterable_building.gd`. Vedi `blender_officina.py`.
+	var frames := int(entry.get("frames", 1))
+	if frames > 1:
+		node.hframes = frames
 	# Le finestre accese: un secondo PNG appoggiato sopra, con lo stesso
 	# scostamento del disegno. Figlio dell'edificio e non nodo a sé — come
 	# l'insegna — così segue il muro dovunque vada. Vedi `building_lights.gd`.
@@ -234,6 +248,16 @@ func _make_building(entry: Dictionary) -> Node2D:
 		lights.offset = node.offset
 		lights.set_script(BUILDING_LIGHTS)
 		node.add_child(lights)
+	# Le cose che si muovono col vento — la girandola, la bandiera — sono
+	# strisce di fotogrammi a parte, gia' allineate al disegno. Dopo le luci e
+	# non prima: una bandiera davanti a una finestra accesa la copre, com'e'
+	# giusto. Vedi `wind_prop.gd`.
+	for anim: Dictionary in entry.get("anims", []):
+		var prop := Sprite2D.new()
+		prop.set_script(WIND_PROP)
+		prop.name = str(anim["texture"]).get_file().get_basename()
+		node.add_child(prop)
+		prop.setup(anim)
 	# I fondali dentro agli isolati restano uno sprite e basta: murati dietro
 	# alla fila che dà sulla strada, non hanno una porta a cui andare, e un
 	# click che manda il protagonista a sbattere contro il muro davanti sarebbe
@@ -253,6 +277,24 @@ func _make_building(entry: Dictionary) -> Node2D:
 	# L'insegna è figlia dell'edificio e non un nodo a sé: così segue la
 	# schiacciata del click e la luce dell'ora come fosse dipinta sul muro, che
 	# è quello che deve sembrare.
+	if frames > 1:
+		var shutter := Node.new()
+		shutter.name = "Shutter"
+		shutter.set_script(SHOP_SHUTTER)
+		node.add_child(shutter)
+	# `glass` e' la maschera del vetro dei grattacieli: dice allo shader quali
+	# pixel riflettono il sole e in che direzione guardano. Il riflesso non sta
+	# nel disegno — cambia con l'ora, e nel disegno sarebbe fermo. Vedi
+	# `sun_glass.gd` e `scripts_tools/blender_grattacieli.py`.
+	if entry.has("glass"):
+		var vetro := ShaderMaterial.new()
+		vetro.shader = GLASS_SHEEN
+		vetro.set_shader_parameter("maschera", load(str(entry["glass"])))
+		node.material = vetro
+		var sole := Node.new()
+		sole.name = "SunGlass"
+		sole.set_script(SUN_GLASS)
+		node.add_child(sole)
 	if entry.has("sign"):
 		var sign := Sprite2D.new()
 		sign.name = "Sign"
@@ -518,6 +560,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		var building := _building_at(point)
 		if building != null:
 			_go_enter(building)
+			return
+		# Nelle montagne non si va. La griglia dei percorsi copre la citta' e
+		# basta (`CityMap.WORLD_BOUNDS`), e un click fuori le veniva accostato
+		# alla cella di bordo piu' vicina mentre la destinazione restava quella
+		# cliccata: il protagonista usciva dalla mappa e si incamminava dentro
+		# a un monte. Un click li' non e' un ordine, e' un click a vuoto.
+		if not CityMap.WORLD_BOUNDS.has_point(point):
 			return
 		_order_move(point)
 

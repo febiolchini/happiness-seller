@@ -32,6 +32,14 @@ extends RefCounted
 ## `prezzo` → dollari, interi
 ## `corrente` → quanto aggiunge alla bolletta mensile, a locale vuoto
 ##
+## `agenzia` → quale sportello lo vende: "flats" (quella accanto a casa) o
+## "downtown" (PRIME REALTY, a DOWNTOWN). Senza, e' "flats". Ogni agenzia
+## mostra solo i suoi annunci: vedi `for_agency()` e `real_estate_window.gd`.
+## `edificio` → per le proprieta' che sono un PEZZO di un edificio (un
+## appartamento in un grattacielo): l'id dell'edificio in `CityMap.BUILDINGS`.
+## In quel caso `id` e' l'appartamento, e l'edificio e' quello che si vede in
+## citta'. Senza, l'id e' l'edificio stesso, come per il garage.
+##
 ## `corrente` sta qui insieme al prezzo perche' e' l'altra meta' dello stesso
 ## discorso: un posto non si paga solo il giorno che si compra, e un capannone
 ## grande costa piu' di un box anche a luci spente. Sono i muri a consumare —
@@ -46,10 +54,43 @@ const LISTINGS := [
 		"prezzo": 35000,
 		"corrente": 120,
 	},
+	# I due appartamenti nella MERIDIAN TOWER, il grattacielo piu' alto: li
+	# vende l'agenzia di DOWNTOWN. Per ora si comprano e basta — dentro non si
+	# entra ancora, quindi non hanno `interior` e la torre resta com'e'.
+	{
+		"id": "MeridianApt5",
+		"edificio": "MeridianTower",
+		"agenzia": "downtown",
+		"titolo": "RE_MERIDIAN_5_NAME",
+		"riga": "RE_MERIDIAN_5_DESC",
+		"prezzo": 300000,
+		"corrente": 60,
+	},
+	{
+		"id": "MeridianApt21",
+		"edificio": "MeridianTower",
+		"agenzia": "downtown",
+		"titolo": "RE_MERIDIAN_21_NAME",
+		"riga": "RE_MERIDIAN_21_DESC",
+		"prezzo": 1000000,
+		"corrente": 90,
+	},
 ]
 
 static func all() -> Array:
 	return LISTINGS
+
+## Gli annunci di un'agenzia sola ("flats" o "downtown").
+static func for_agency(agency: String) -> Array:
+	var out: Array = []
+	for listing in LISTINGS:
+		if str(listing.get("agenzia", "flats")) == agency:
+			out.append(listing)
+	return out
+
+## L'id dell'edificio in citta' in cui sta la proprieta'.
+static func building_of(listing: Dictionary) -> String:
+	return str(listing.get("edificio", listing["id"]))
 
 ## Quanto aggiunge alla bolletta mensile la proprieta' con quell'id.
 ##

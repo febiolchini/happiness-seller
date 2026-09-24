@@ -84,12 +84,26 @@ const TYPES := {
 ## giorni, e il meteo si leggerebbe come rumore invece che come stagione.
 ##
 ## Ogni riga somma a 100 per rendere leggibili le percentuali a occhio.
+##
+## **La pioggia deve restare rara.** La prima tabella pioveva un giorno su
+## quattro (distribuzione stazionaria della catena: `rain` + `storm` al 23%) —
+## Federico l'ha giocata e ha chiesto un giorno su sette. Non si abbassa il solo
+## "rain" di `TRANSITIONS["overcast"]`: la pioggia arriva anche di rimbalzo, da
+## `clouds` e da `storm` che torna giù passando da `rain`, quindi il conto che
+## conta è quello di TUTTA la catena, non di una riga sola. Questa versione
+## pesca acqua (`rain` + `storm`) il 14,5% delle volte — un giorno su 6,9 — e
+## ci si arriva così: `clear` e `clouds` restano appiccicosi (tornarci è più
+## probabile che lasciarli), `overcast` è il vero bivio fra tornare al coperto
+## e cominciare a piovere, e uno `storm` si spegne per gradi passando da
+## `rain`/`overcast` invece di schiarirsi di colpo — è l'unica cosa che un
+## controllo automatico verifica (`storm.clear` deve restare più basso di
+## `clouds.clear`, vedi `_test_weather()`).
 const TRANSITIONS := {
-	"clear": {"clear": 45, "clouds": 35, "overcast": 10, "fog": 10},
-	"clouds": {"clear": 30, "clouds": 30, "overcast": 25, "rain": 12, "fog": 3},
-	"overcast": {"clouds": 30, "overcast": 22, "rain": 33, "storm": 10, "fog": 5},
-	"rain": {"overcast": 34, "rain": 28, "storm": 15, "clouds": 20, "clear": 3},
-	"storm": {"rain": 40, "overcast": 30, "clouds": 20, "clear": 10},
+	"clear": {"clear": 52, "clouds": 32, "overcast": 6, "fog": 10},
+	"clouds": {"clear": 36, "clouds": 32, "overcast": 21, "rain": 8, "fog": 3},
+	"overcast": {"clouds": 36, "overcast": 24, "rain": 27, "storm": 8, "fog": 5},
+	"rain": {"overcast": 38, "rain": 24, "storm": 10, "clouds": 25, "clear": 3},
+	"storm": {"rain": 35, "overcast": 35, "clouds": 20, "clear": 10},
 	"fog": {"fog": 20, "clear": 25, "clouds": 30, "overcast": 25},
 }
 

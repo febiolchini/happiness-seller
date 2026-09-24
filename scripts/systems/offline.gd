@@ -32,31 +32,36 @@ extends RefCounted
 ## mezzanotte perché paghe, prezzo del giorno e meteo cadano al momento giusto.
 ## Sono un centinaio di giri per una notte intera: non si sente.
 ##
-## ## Tutta l'assenza, ma a metà resa
+## ## Tutto, a resa piena, ma non più di una settimana
 ##
-## Non c'è più un tetto. Si conta **tutto** il tempo passato fuori: chi torna
-## dopo una settimana trova una settimana di lavoro, non le quarantotto ore che
-## si contavano prima.
+## Quello che è successo a gioco spento vale **per intero**: se in quel tempo si
+## sarebbero piazzati cinquanta grammi, se ne trovano cinquanta; le piante fanno
+## tutti i loro cicli, e per intero sono anche le paghe e le bollette. Non c'è
+## nessuno sconto da nessuna parte, ed è il motivo per cui in questo file non si
+## trova un moltiplicatore: il mondo a gioco chiuso è lo stesso di quello a
+## gioco aperto.
 ##
-## Quello che c'è al posto del tetto è la resa: a gioco spento **tutto rende la
-## metà**. Se in quel tempo si sarebbero piazzati cinquanta grammi, se ne
-## trovano venticinque; le piante fanno metà dei cicli, e metà sono anche le
-## paghe e le bollette, perché è tutto il mondo ad andare a metà velocità e non
-## solo la parte che frutta.
+## Quello che c'è al posto dello sconto è un **tetto**: `MAX_GAME_DAYS` giorni
+## di gioco, sette. Oltre quelli l'assenza non conta più, per quanto sia durata.
 ##
-## Come: `catch_up()` accredita metà delle ore, e da lì in poi non cambia
-## niente: i sistemi che c'erano già lavorano su quelle. È solo un conto —
-## il gioco era spento, non c'era niente da vedere — ed è il modo più onesto di
-## farlo, perché non c'è nessun punto in cui una cosa rende e un'altra no.
+## **Perché un tetto e non una resa ridotta.** Dimezzare la resa diceva al
+## giocatore una cosa poco simpatica: che il suo tempo lontano valeva meno di
+## quello di chi restava, e che il conto delle bollette che trovava al ritorno
+## non era il conto vero. Il tetto dice invece l'unica cosa che serve dire — il
+## mondo va avanti **come sempre**, ma non all'infinito — e la dice una volta
+## sola, senza sporcare nessun numero.
 ##
-## **Perché a metà e non per intero.** L'orologio della partita corre
-## duecentoquaranta volte più veloce del nostro: a `GAME_MINUTES_PER_SECOND` = 4
-## una giornata di gioco dura sei minuti veri, e una notte di sonno vale due
-## mesi di gioco. Contarla tutta per intero vorrebbe dire che il modo migliore
-## di giocare è non aprire il gioco. A metà resta conveniente **esserci** — chi
-## gioca produce il doppio di chi aspetta — e chi torna dopo una settimana
-## trova comunque una settimana di roba, che è quello che uno si aspetta.
+## **Perché sette giorni.** L'orologio della partita corre duecentoquaranta
+## volte più veloce del nostro: a `GAME_MINUTES_PER_SECOND` = 4 una giornata di
+## gioco dura sei minuti veri, quindi il tetto si riempie in poco meno di
+## tre quarti d'ora di assenza. È voluto: chi chiude il gioco per la notte o per
+## la giornata di lavoro trova sempre la settimana piena, e chi lo lascia chiuso
+## per un mese trova la stessa settimana — non un anno di paghe arretrate che
+## gli svuota la cassa e gli manda via il personale mentre non c'era.
 ##
+## Resta comunque conveniente **esserci**: una settimana è il massimo che
+## l'assenza può dare, mentre chi gioca non ha nessun massimo.
+
 ## ## Cosa NON succede a gioco chiuso
 ##
 ## Solo il personale lavora. Il giocatore no: non annaffia i vasi che i
@@ -65,26 +70,15 @@ extends RefCounted
 ## vasi restano vuoti e la produzione si ferma da sola: è il vero limite di una
 ## lunga assenza, e non lo mette un numero.
 
-## Quanto rende un'ora passata a gioco spento. Vedi il commento qui sopra.
+## Quanti giorni di gioco al massimo vale un'assenza. Vedi il commento qui sopra.
 ##
 ## È l'unico numero da girare per rendere il ritorno più o meno ricco: tutto il
 ## resto viene da sé, perché tutto il recupero è fatto delle ore che questo
-## moltiplicatore decide.
-const CLOSED_RATE := 0.5
+## tetto lascia passare.
+const MAX_GAME_DAYS := 7
 
-## Quanti passi al massimo, per non piantare il gioco all'avvio.
-##
-## Il passo è di mezz'ora di gioco, e per un'assenza normale i passi sono
-## qualche centinaio. Ma senza tetto l'assenza non ha più un massimo: un mese
-## via sarebbe un quarto di milione di giri, cioè una manciata di secondi di
-## schermo fermo all'apertura. Oltre questo numero il passo si allarga da solo.
-##
-## Allargandolo si perde qualcosa — un coltivatore raccoglie **una volta per
-## chiamata**, quindi con passi larghi qualche ciclo non viene contato — e va
-## bene che sia così: l'errore è sempre in difetto, mai a favore, e comincia a
-## esistere dopo mesi di assenza, quando i semi sono finiti da un pezzo e non
-## c'è più niente da raccogliere comunque.
-const MAX_STEPS := 6000
+## Lo stesso tetto in ore di gioco, che è l'unità in cui lavora `catch_up()`.
+const MAX_GAME_HOURS := 24.0 * float(MAX_GAME_DAYS)
 
 ## Sotto a questi secondi non è successo niente che valga la pena raccontare.
 ##
@@ -103,10 +97,12 @@ static func empty_report() -> Dictionary:
 	return {
 		# Se il recupero è stato fatto davvero.
 		"ran": false,
-		# Secondi veri passati: si contano tutti, non c'è più un tetto.
+		# Secondi veri passati: si contano tutti, anche quelli oltre al tetto.
 		"away_seconds": 0.0,
-		# Quanto ha rendito quel tempo, 0-1. Vedi `CLOSED_RATE`.
-		"rate": 1.0,
+		# Vero se l'assenza è andata oltre al tetto e ne è stata contata solo
+		# una parte. Serve al resoconto, che in quel caso ha una riga in più da
+		# dire. Vedi `MAX_GAME_DAYS`.
+		"capped": false,
 		# Ore di gioco recuperate, e da dove si partiva.
 		"game_hours": 0.0,
 		"from_day": 0,
@@ -166,27 +162,29 @@ static func catch_up(data: SaveData, real_seconds: float, minutes_per_second: fl
 	if data == null or real_seconds < MIN_REAL_SECONDS or minutes_per_second <= 0.0:
 		return report
 
-	# Le ore che l'assenza varrebbe, e quelle che valgono davvero: a gioco
-	# spento tutto rende la metà, e il modo di dirlo è accreditare metà delle
-	# ore. Da qui in avanti nessuno sa più niente dello sconto — i sistemi
-	# lavorano sulle ore che si trovano, come hanno sempre fatto.
+	# Le ore che l'assenza vale e quelle che le vengono contate: sono le stesse
+	# fino al tetto, che le taglia. Non c'è nessun altro sconto, né qui né
+	# dopo: i sistemi lavorano sulle ore che si trovano, come hanno sempre
+	# fatto, e non sanno nemmeno che il gioco era spento.
 	var real_hours := real_seconds * minutes_per_second / 60.0
-	var hours := real_hours * CLOSED_RATE
+	var hours := minf(real_hours, MAX_GAME_HOURS)
 	if hours <= 0.0:
 		return report
 
 	report["ran"] = true
 	report["away_seconds"] = real_seconds
-	report["rate"] = CLOSED_RATE
+	report["capped"] = real_hours > MAX_GAME_HOURS
 	report["game_hours"] = hours
 	report["from_day"] = data.day
 	report["from_time"] = data.time_of_day
 
-	# Il passo si allarga solo per le assenze lunghissime: vedi `MAX_STEPS`.
-	var step := maxf(STEP_HOURS, hours / float(MAX_STEPS))
+	# Il tetto rende il numero di passi limitato per costruzione: sette giorni
+	# di gioco a mezz'ora per passo sono trecentotrentasei giri, sempre, anche
+	# per chi torna dopo un anno. È il motivo per cui qui non c'è più niente
+	# che allarghi il passo per non piantare il gioco all'avvio.
 	var left := hours
 	while left > 0.0:
-		left -= _one_step(data, minf(step, left), report)
+		left -= _one_step(data, minf(STEP_HOURS, left), report)
 
 	# I vasi che il personale non segue nessuno li ha annaffiati: dirlo è la
 	# differenza fra "il gioco mi ha rovinato le piante" e "le piante avevano
