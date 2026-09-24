@@ -37,15 +37,18 @@ except NameError:
 sys.path.insert(0, HERE)
 import blender_cinema_videogiochi as cv  # noqa: E402
 import blender_isolato_cinese as ic  # noqa: E402
+import blender_grattacieli as gr  # noqa: E402
 from blender_cinema_videogiochi import M, PEZZI, bx, finestra, piatto, testo  # noqa: E402
 
 OUT = cv.OUT
 
-# Larghezze in metri: sono i PNG a 22,3 px/m (424, 290 e 178 px).
+# Larghezze in metri: sono i PNG a 22,3 px/m (424, 290, 736 e 169 px).
+# Il terminal e la torre sono due unita': la torre e' un fondale a se'.
 UNITA = {
     "hangar_grande": 19.0,
     "hangar_piccolo": 13.0,
-    "torre": 8.0,
+    "terminal": 33.0,
+    "torre": 7.6,
 }
 
 
@@ -67,6 +70,14 @@ def palette():
     M["scritta_nera"] = piatto("AE_Scritta_Nera", "#22262A", 0.6)
     M["rosso_luce"] = piatto("AE_Rosso_Luce", "#C8281E", 0.4, emissivo="#FF3A2A", forza=2.5)
     M["antenna"] = piatto("AE_Antenna", "#3A3E42", 0.5, 0.6)
+    M["radar"] = piatto("AE_Radar", "#E4E6E2", 0.5, 0.2)
+    M["vetro_dt"] = vetro_downtown("AE_Vetro_Terminal", 1.0, 12.0)
+    M["vetro_dietro"] = vetro_downtown("AE_Vetro_Uffici", 6.0, 16.0)
+    M["cemento_dt"] = cv.righe("AE_Cemento_DT", "#C8C5BD", "#AAA79F", 3.4, asse="Z", frazione=0.08)
+    M["montante"] = piatto("AE_Montante", "#D9DEDC", 0.5, 0.3)
+    M["pensilina"] = piatto("AE_Pensilina", "#EEEEEA", 0.6)
+    M["solare"] = piatto("AE_Solare", "#26323E", 0.25, 0.4)
+    M["radar_scuro"] = piatto("AE_Radar_Scuro", "#5A6168", 0.5, 0.4)
 
 
 def poligono(nome, punti, facce, mat):
@@ -173,39 +184,146 @@ def hangar_piccolo(w):
     testo("scritta", "HANGAR 2", w / 2, -0.04, 5.3, 0.5, "scritta_nera")
 
 
-def torre(w):
-    """La palazzina degli uffici (bassa, larga quanto il lotto) e la torre che
-    ne esce a destra, con la cabina a vetri e la luce rossa in cima."""
-    D = 6.0
-    bx("uffici", 0.0, w, 0.0, D, 0.0, 3.4, "cemento")
-    bx("uffici_cornice", -0.05, w + 0.05, -0.1, D, 3.2, 3.5, "cemento_scuro")
-    for k in range(3):
-        x = 0.6 + k * 1.6
-        finestra("uff_fin%d" % k, x, x + 1.1, 1.2, 2.5, -0.01, "vetro_acceso")
-    bx("uff_porta", 5.3, 6.4, -0.05, 0.0, 0.0, 2.3, "vetro")
-    # La torre: un fusto quadrato, la cabina che sporge, il tetto piatto.
-    # Un metro dal bordo: la cabina sporge di 0,65 per lato, e l'inquadratura
-    # e' esattamente il lotto.
-    tx0, tx1 = w - 4.0, w - 1.0
-    ty0, ty1 = 1.5, 4.5
-    Z_CAB = 9.4
-    bx("fusto", tx0, tx1, ty0, ty1, 3.4, Z_CAB, "cemento")
-    for z in (5.4, 7.4):
-        bx("fusto_fascia%d" % int(z), tx0 - 0.03, tx1 + 0.03, ty0 - 0.03, ty1, z, z + 0.15, "cemento_scuro")
-    bx("cab_base", tx0 - 0.55, tx1 + 0.55, ty0 - 0.55, ty1 + 0.55, Z_CAB, Z_CAB + 0.35, "cemento_scuro")
-    # La cabina a vetri: pannelli inclinati sarebbero belli, ma a questa scala
-    # si legge solo la fascia di vetro. Montanti ogni metro.
-    bx("cabina", tx0 - 0.45, tx1 + 0.45, ty0 - 0.45, ty1 + 0.45, Z_CAB + 0.35, Z_CAB + 2.0, "vetro_torre")
-    for k in range(5):
-        x = tx0 - 0.45 + (tx1 - tx0 + 0.9) * k / 4
-        bx("cab_m%d" % k, x - 0.05, x + 0.05, ty0 - 0.5, ty0 - 0.44, Z_CAB + 0.35, Z_CAB + 2.0, "infisso")
-    bx("cab_tetto", tx0 - 0.65, tx1 + 0.65, ty0 - 0.65, ty1 + 0.65, Z_CAB + 2.0, Z_CAB + 2.3, "bianco")
-    bx("antenna", (tx0 + tx1) / 2 - 0.05, (tx0 + tx1) / 2 + 0.05, 3.0, 3.1, Z_CAB + 2.3, Z_CAB + 3.6, "antenna")
-    bx("luce_rossa", (tx0 + tx1) / 2 - 0.12, (tx0 + tx1) / 2 + 0.12, 2.93, 3.17, Z_CAB + 3.6, Z_CAB + 3.84,
-       "rosso_luce")
+def torre(w, animati):
+    """La torre di controllo, da sola: fusto alto, cabina a vetri larga, e in
+    cima il radar che gira.
+
+    Il radar e' l'unica cosa animata: l'antenna (la barra col suo riflettore)
+    sta appesa a un perno sul palo, e l'animazione la fa girare su se' stessa.
+    Il palo resta nel disegno; l'antenna va in `animati`."""
+    tx0, tx1 = w / 2 - 1.9, w / 2 + 1.9
+    ty0, ty1 = 1.0, 4.8
+    Z_CAB = 14.0
+    bx("fusto", tx0, tx1, ty0, ty1, 0.0, Z_CAB, "cemento")
+    bx("zoccolo", tx0 - 0.1, tx1 + 0.1, ty0 - 0.1, ty1, 0.0, 0.6, "cemento_scuro")
+    bx("porta", w / 2 - 0.55, w / 2 + 0.55, ty0 - 0.05, ty0, 0.0, 2.3, "vetro")
+    for z in (3.4, 6.8, 10.2):
+        bx("fusto_fascia%d" % int(z), tx0 - 0.04, tx1 + 0.04, ty0 - 0.04, ty1, z, z + 0.18, "cemento_scuro")
+    for z in (4.6, 8.0, 11.4):
+        finestra("fusto_fin%d" % int(z), tx0 + 1.3, tx1 - 1.3, z, z + 1.0, ty0 - 0.01, "vetro_acceso")
+    bx("cab_base", tx0 - 0.7, tx1 + 0.7, ty0 - 0.7, ty1 + 0.7, Z_CAB, Z_CAB + 0.45, "cemento_scuro")
+    # La cabina a vetri: a questa scala si legge la fascia di vetro, coi
+    # montanti ogni metro.
+    bx("cabina", tx0 - 0.6, tx1 + 0.6, ty0 - 0.6, ty1 + 0.6, Z_CAB + 0.45, Z_CAB + 2.7, "vetro_torre")
+    for k in range(6):
+        x = tx0 - 0.6 + (tx1 - tx0 + 1.2) * k / 5
+        bx("cab_m%d" % k, x - 0.05, x + 0.05, ty0 - 0.66, ty0 - 0.58, Z_CAB + 0.45, Z_CAB + 2.7, "infisso")
+    bx("cab_tetto", tx0 - 0.85, tx1 + 0.85, ty0 - 0.85, ty1 + 0.85, Z_CAB + 2.7, Z_CAB + 3.05, "bianco")
+    cx, cy = (tx0 + tx1) / 2, (ty0 + ty1) / 2
+    z_top = Z_CAB + 3.05
+    # Il palo del radar e, accanto, l'antennina con la luce rossa.
+    bx("radar_palo", cx - 0.18, cx + 0.18, cy - 0.18, cy + 0.18, z_top, z_top + 1.9, "antenna")
+    bx("antenna", tx1 + 0.35, tx1 + 0.45, ty0 - 0.3, ty0 - 0.2, z_top, z_top + 1.6, "antenna")
+    bx("luce_rossa", tx1 + 0.28, tx1 + 0.52, ty0 - 0.37, ty0 - 0.13, z_top + 1.6, z_top + 1.84, "rosso_luce")
+    # Il radar: la barra lunga dell'antenna e il riflettore curvo davanti,
+    # tutto appeso al perno in cima al palo.
+    perno = bpy.data.objects.new("radar_perno", None)
+    bpy.context.scene.collection.objects.link(perno)
+    perno.location = (cx, cy, z_top + 1.9)
+    pezzi = []
+    # Grande apposta: da quaggiu' e' la cosa che dice "torre di controllo"
+    # anche a chi non legge la scritta, e deve vedersi girare.
+    bx("radar_mozzo", -0.3, 0.3, -0.3, 0.3, 0.0, 0.4, "antenna", raccolta=pezzi)
+    bx("radar_barra", -2.3, 2.3, -0.16, 0.16, 0.4, 1.35, "radar", raccolta=pezzi)
+    bx("radar_griglia", -2.2, 2.2, -0.26, -0.16, 0.48, 1.27, "radar_scuro", raccolta=pezzi)
+    for k in range(1, 8):
+        x = -2.2 + 4.4 * k / 8
+        bx("radar_costola%d" % k, x - 0.04, x + 0.04, -0.3, -0.26, 0.48, 1.27, "radar", raccolta=pezzi)
+    bx("radar_braccio", -0.07, 0.07, -1.1, -0.26, 0.8, 0.94, "antenna", raccolta=pezzi)
+    bx("radar_punta", -0.16, 0.16, -1.3, -1.1, 0.72, 1.02, "rosso_luce", raccolta=pezzi)
+    for ob in pezzi:
+        ob.parent = perno
+    animati.extend(pezzi)
+    return perno
 
 
-COSTRUTTORI = {"hangar_grande": hangar_grande, "hangar_piccolo": hangar_piccolo, "torre": torre}
+def vetro_downtown(nome, seme, alto_m):
+    """Il vetro dei grattacieli di DOWNTOWN (`blender_grattacieli.vetro()`):
+    blu-grigio, sfumato dal basso in alto, con le righe dei piani, i montanti
+    e le finestre che la notte si accendono a caso. Guarda a sud, e la
+    maschera lo dice allo shader del riflesso in gioco.
+
+    La sfumatura dei grattacieli va da 0 a 100 m: su un edificio di dodici
+    resterebbe tutta scura, quindi qui la si stringe sulla sua altezza."""
+    mat = gr.vetro(nome, "#4E6274", "#BCD8EA", "#27323E", 3.4, 90, (16.5, 4.0), gr.SUD, seme=seme)
+    for n in mat.node_tree.nodes:
+        if n.type == "MAP_RANGE":
+            n.inputs["From Max"].default_value = alto_m
+    return mat
+
+
+def terminal(w):
+    """Il terminal: due corpi, come i palazzi di DOWNTOWN.
+
+    DAVANTI, il vetro: la sala partenze bassa e lunga con la grande pensilina
+    bianca a sbalzo (pannelli solari sopra, pilastri esili sotto), e a destra
+    il cubo piu' alto. Il vetro e' quello dei grattacieli, blu-grigio e
+    sfumato, e ha la maschera: in gioco il sole ci scorre sopra con l'ora.
+
+    DIETRO, il cemento: un palazzo di uffici piu' alto, con le lesene e i
+    nastri di finestre, che spunta sopra alla sala e le da' il peso di un
+    edificio vero invece che di una pensilina.
+    """
+    xs = 21.0                 # dove finisce la sala e comincia il cubo
+    H_SALA, H_CUBO = 8.4, 11.2
+    P = 4.6                   # quanto sporge la pensilina
+    # --- dietro: il palazzo di cemento
+    bx0, bx1, by0, by1, H_DIETRO = 2.5, 25.5, 9.0, 16.5, 14.4
+    bx("dietro", bx0, bx1, by0, by1, 0.0, H_DIETRO, "cemento_dt")
+    bx("dietro_cornice", bx0 - 0.1, bx1 + 0.1, by0 - 0.25, by1, H_DIETRO - 0.3, H_DIETRO + 0.4, "cemento_scuro")
+    for k, z in enumerate((9.2, 12.0)):
+        bx("dietro_nastro%d" % k, bx0 + 0.3, bx1 - 0.3, by0 - 0.06, by0, z, z + 1.7, "vetro_dietro")
+    n = 12
+    for i in range(n + 1):
+        x = bx0 + (bx1 - bx0) * i / n
+        bx("dietro_lesena%d" % i, x - 0.18, x + 0.18, by0 - 0.3, by0, 8.0, H_DIETRO - 0.3, "cemento_dt")
+    for k, (a0, b0, c0, d0, h0) in enumerate(((4.0, 7.5, 11.0, 14.0, 1.2), (9.0, 11.0, 12.0, 15.5, 0.9),
+                                              (18.0, 22.5, 10.5, 13.0, 1.3), (14.0, 15.0, 14.5, 15.5, 2.4))):
+        bx("dietro_macchina%d" % k, a0, b0, c0, d0, H_DIETRO + 0.4, H_DIETRO + 0.4 + h0, "macchina")
+    bx("dietro_antenna", 23.0, 23.15, 15.0, 15.15, H_DIETRO + 0.4, H_DIETRO + 3.0, "antenna")
+    bx("dietro_luce", 22.95, 23.2, 14.95, 15.2, H_DIETRO + 3.0, H_DIETRO + 3.25, "rosso_luce")
+    # --- davanti: la sala e il cubo, pieni di vetro
+    bx("sala", 0.0, xs, 0.0, 11.0, 0.0, H_SALA, "vetro_dt")
+    bx("cubo", xs, w, -0.9, 11.0, 0.0, H_CUBO, "vetro_dt")
+    bx("cubo_tetto", xs - 0.05, w, -1.0, 11.0, H_CUBO - 0.05, H_CUBO + 0.4, "bianco")
+    bx("cubo_zoccolo", xs, w, -0.96, -0.9, 0.0, 0.35, "cemento_scuro")
+    bx("sala_zoccolo", 0.0, xs, -0.06, 0.0, 0.0, 0.35, "cemento_scuro")
+    bx("sala_tetto", 0.0, xs, 0.0, 11.0, H_SALA - 0.05, H_SALA + 0.25, "cemento_scuro")
+    for k, (a0, b0, c0, d0) in enumerate(((xs + 1.5, xs + 4.0, 3.0, 5.0), (xs + 6.5, xs + 9.5, 6.5, 8.5),
+                                          (xs + 2.0, xs + 3.2, 8.0, 10.0))):
+        bx("cubo_macchina%d" % k, a0, b0, c0, d0, H_CUBO + 0.4, H_CUBO + 1.1, "macchina")
+    # Montanti sottili, bianchi sporchi: le righe dei piani ce le ha gia' il
+    # materiale, qui si marcano solo le campate grandi.
+    for nome, a, b, y, z1, passo in (("sala_g", 0.0, xs, 0.0, H_SALA, 3.0), ("cubo_g", xs, w, -0.9, H_CUBO, 2.4)):
+        k = int(round((b - a) / passo))
+        for i in range(k + 1):
+            x = a + (b - a) * i / k
+            bx("%s_m%d" % (nome, i), x - 0.07, x + 0.07, y - 0.1, y, 0.35, z1, "montante")
+    for k, x in enumerate((4.5, 10.5, 16.5)):
+        bx("porta%d" % k, x - 1.2, x + 1.2, -0.12, -0.02, 0.35, 2.7, "vetro")
+        bx("porta%d_cornice" % k, x - 1.3, x + 1.3, -0.14, -0.1, 2.7, 2.9, "montante")
+    # --- la pensilina
+    z_dietro, z_davanti = H_SALA + 0.9, H_SALA + 1.5
+    pts = [(0.0, 6.5, z_dietro), (xs + 1.2, 6.5, z_dietro), (xs + 1.2, -P, z_davanti), (0.0, -P, z_davanti)]
+    lastra = [(x, y, z) for x, y, z in pts] + [(x, y, z + 0.35) for x, y, z in pts]
+    poligono("pensilina", lastra, [(0, 1, 2, 3), (7, 6, 5, 4), (0, 4, 5, 1), (1, 5, 6, 2),
+                                    (2, 6, 7, 3), (3, 7, 4, 0)], "pensilina")
+    bx("pensilina_bordo", 0.0, xs + 1.2, -P - 0.15, -P + 0.05, z_davanti - 0.25, z_davanti + 0.45, "bianco")
+    for r in range(3):
+        y0 = -P + 0.8 + r * 3.1
+        for c in range(6):
+            x0 = 0.9 + c * 3.4
+            t = (y0 + P) / (6.5 + P)
+            z = z_davanti + (z_dietro - z_davanti) * t + 0.36
+            bx("solare%d_%d" % (r, c), x0, x0 + 2.8, y0, y0 + 2.3, z, z + 0.08, "solare")
+    # I pilastri a filo del vetro: cosi' la riga di terra resta la facciata,
+    # e la pensilina sporge nel vuoto come nella foto.
+    for k, x in enumerate((3.0, 7.5, 12.0, 16.5)):
+        bx("pilastro%d" % k, x - 0.15, x + 0.15, -0.5, -0.2, 0.0, z_davanti - 0.3, "bianco")
+    testo("scritta", "AIRPORT", xs * 0.5, -P - 0.17, z_davanti + 0.1, 0.5, "scritta_nera")
+
+
+COSTRUTTORI = {"hangar_grande": hangar_grande, "hangar_piccolo": hangar_piccolo, "terminal": terminal}
 
 
 def costruisci(chiave):
@@ -220,14 +338,29 @@ def costruisci(chiave):
     cv.SOTTILI.clear()
     palette()
     w = UNITA[chiave]
-    COSTRUTTORI[chiave](w)
+    animati = []
+    perno = None
+    if chiave == "torre":
+        perno = torre(w, animati)
+    else:
+        COSTRUTTORI[chiave](w)
     for ob in PEZZI:
         for mod in list(ob.modifiers):
             bpy.context.view_layer.objects.active = ob
             bpy.ops.object.modifier_apply(modifier=mod.name)
     cv.unisci(list(PEZZI), "AE_" + chiave)
     cam = cv.scena()
+    # Prima si inquadra e poi si nasconde il radar: l'inquadratura guarda solo
+    # quello che si renderizza, e il radar sta piu' in alto di tutto il resto.
     cv.inquadra(cam, 0.0, w)
+    for ob in animati:
+        ob.hide_render = True
+    return animati, perno
+
+
+# Il radar: un giro intero in sedici pose. Il disegno non si ripete prima del
+# giro (il riflettore sta da una parte sola), quindi servono tutte.
+FOTOGRAMMI_RADAR = 16
 
 
 def renderizza():
@@ -237,10 +370,36 @@ def renderizza():
         costruisci(chiave)
         sc.render.filepath = os.path.join(OUT, "render_aero_%s.png" % chiave)
         bpy.ops.render.render(write_still=True)
-        cv.modo_luci()
+        # Le luci della notte con la versione dei grattacieli, che sa leggere
+        # le finestre sorteggiate dal vetro di downtown (vedi `vetro_downtown`).
+        gr.modo_luci() if chiave == "terminal" else cv.modo_luci()
         sc.render.filepath = os.path.join(OUT, "luci_aero_%s.png" % chiave)
         bpy.ops.render.render(write_still=True)
+        if chiave == "terminal":
+            # La maschera del vetro, come per i grattacieli: dice allo shader
+            # in gioco dove batte il sole. Si ricostruisce, perche' le luci
+            # hanno gia' riscritto i materiali.
+            costruisci(chiave)
+            gr.modo_vetro()
+            sc.render.filepath = os.path.join(OUT, "vetro_aero_%s.png" % chiave)
+            bpy.ops.render.render(write_still=True)
         print("AERO", chiave, sc.render.resolution_x, sc.render.resolution_y)
+        if chiave != "torre":
+            continue
+        # Il radar, da solo, col resto in holdout: come il mappamondo del
+        # casino'. Senza contorni, perche' il Freestyle disegnerebbe anche i
+        # bordi di quello che e' in holdout.
+        animati, perno = costruisci(chiave)
+        for ob in bpy.data.objects:
+            if ob.type in ("MESH", "FONT"):
+                ob.is_holdout = ob not in animati
+        for ob in animati:
+            ob.hide_render = False
+        sc.render.use_freestyle = False
+        for i in range(FOTOGRAMMI_RADAR):
+            perno.rotation_euler = (0, 0, 2 * math.pi * i / FOTOGRAMMI_RADAR)
+            sc.render.filepath = os.path.join(OUT, "anim_aero_torre_radar_%02d.png" % i)
+            bpy.ops.render.render(write_still=True)
 
 
 if __name__ == "__main__":

@@ -1143,18 +1143,18 @@ const BUILDINGS := [
 	},
 	# --- L'aeroporto (`AIRPORT`) --------------------------------------------
 	#
-	# Due hangar e la torre di controllo in fila lungo il bordo nord, con la
-	# facciata verso le piste. Li costruisce `scripts_tools/blender_aeroporto.py`.
+	# Due hangar, il terminal e la torre di controllo in fila lungo il bordo
+	# nord, con la facciata verso le piste. Li costruisce `scripts_tools/blender_aeroporto.py`.
 	#
 	# Sono fondali (`backdrop`): l'aeroporto e' recintato, non ci si entra e
-	# non si clicca. La riga di terra e' la stessa per tutti e tre, 7560, il
-	# bordo alto del piazzale che disegna `airport.gd`; da li' in su gli sprite
-	# stanno dentro all'aeroporto senza arrivare a QUARRY LANE.
+	# non si clicca. La riga di terra degli hangar e' 7560, il bordo alto del
+	# piazzale che disegna `airport_ground.gd`; da li' in su gli sprite stanno
+	# dentro all'aeroporto senza arrivare a QUARRY LANE.
 	#
 	# `click` qui e' solo la pianta (la profondita' vista dall'alto), perche'
 	# e' l'ingombro che la navigazione e i controlli confrontano con le strade.
 	{
-		"id": "HangarSmall", "base": Vector2(1350, 7560),
+		"id": "HangarSmall", "base": Vector2(1040, 7560),
 		"district": "CIVIC CENTER", "backdrop": true,
 		"label": "HANGAR",
 		"texture": "res://assets/sprites/buildings/hangarSmall.png",
@@ -1163,7 +1163,7 @@ const BUILDINGS := [
 		"entry": Vector2(0, 24),
 	},
 	{
-		"id": "HangarLarge", "base": Vector2(1880, 7560),
+		"id": "HangarLarge", "base": Vector2(1410, 7560),
 		"district": "CIVIC CENTER", "backdrop": true,
 		"label": "HANGAR",
 		"texture": "res://assets/sprites/buildings/hangarLarge.png",
@@ -1172,13 +1172,41 @@ const BUILDINGS := [
 		"entry": Vector2(0, 24),
 	},
 	{
-		"id": "ControlTower", "base": Vector2(2470, 7560),
+		# Il terminal, due corpi come i palazzi di DOWNTOWN: davanti la sala di
+		# vetro con la grande pensilina bianca a sbalzo e il cubo piu' alto,
+		# dietro il palazzo di uffici di cemento che spunta sopra. Il vetro e'
+		# quello dei grattacieli, con la sua maschera (`glass`): il riflesso
+		# del sole ci scorre sopra con l'ora.
+		#
+		# E' alto 517 px: la riga di terra sta a 7685, sul piazzale, e la cima
+		# arriva esatta al bordo di QUARRY LANE.
+		"id": "Terminal", "base": Vector2(2008, 7685),
+		"district": "CIVIC CENTER", "backdrop": true,
+		"label": "TERMINAL",
+		"texture": "res://assets/sprites/buildings/terminal.png",
+		"lit": "res://assets/sprites/buildings/terminalLit.png",
+		"glass": "res://assets/sprites/buildings/terminalGlass.png",
+		"offset": Vector2(-368, -517), "click": Rect2(-368, -188, 736, 188),
+		"entry": Vector2(0, 24),
+	},
+	{
+		# La torre di controllo, fra il terminal e il deposito dei mezzi (x
+		# 2600). Poggia sul piazzale come il terminal: e' alta 402 px, e con la
+		# riga di terra degli hangar il radar finirebbe sopra a QUARRY LANE.
+		#
+		# Il radar in cima gira sempre (`loop`), come quelli veri: un giro
+		# in sedici pose, circa tre secondi.
+		"id": "ControlTower", "base": Vector2(2465, 7640),
 		"district": "CIVIC CENTER", "backdrop": true,
 		"label": "CONTROL TOWER",
 		"texture": "res://assets/sprites/buildings/controlTower.png",
 		"lit": "res://assets/sprites/buildings/controlTowerLit.png",
-		"offset": Vector2(-89, -298), "click": Rect2(-89, -61, 178, 61),
+		"offset": Vector2(-63, -402), "click": Rect2(-63, -86, 126, 86),
 		"entry": Vector2(0, 24),
+		"anims": [
+			{"texture": "res://assets/sprites/buildings/controlTowerRadar.png",
+				"at": Vector2(-50, -402), "frames": 16, "mode": "loop", "fps": [5.5]},
+		],
 	},
 ]
 

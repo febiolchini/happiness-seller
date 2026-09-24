@@ -277,6 +277,21 @@ func _make_building(entry: Dictionary) -> Node2D:
 		prop.name = str(anim["texture"]).get_file().get_basename()
 		node.add_child(prop)
 		prop.setup(anim)
+	# `glass` e' la maschera del vetro dei grattacieli: dice allo shader quali
+	# pixel riflettono il sole e in che direzione guardano. Il riflesso non sta
+	# nel disegno — cambia con l'ora, e nel disegno sarebbe fermo. Vedi
+	# `sun_glass.gd` e `scripts_tools/blender_grattacieli.py`. Sta prima
+	# dell'uscita dei fondali: anche il terminal dell'aeroporto, che non si
+	# clicca, ha il vetro.
+	if entry.has("glass"):
+		var vetro := ShaderMaterial.new()
+		vetro.shader = GLASS_SHEEN
+		vetro.set_shader_parameter("maschera", load(str(entry["glass"])))
+		node.material = vetro
+		var sole := Node.new()
+		sole.name = "SunGlass"
+		sole.set_script(SUN_GLASS)
+		node.add_child(sole)
 	# I fondali dentro agli isolati restano uno sprite e basta: murati dietro
 	# alla fila che dà sulla strada, non hanno una porta a cui andare, e un
 	# click che manda il protagonista a sbattere contro il muro davanti sarebbe
@@ -301,19 +316,6 @@ func _make_building(entry: Dictionary) -> Node2D:
 		shutter.name = "Shutter"
 		shutter.set_script(SHOP_SHUTTER)
 		node.add_child(shutter)
-	# `glass` e' la maschera del vetro dei grattacieli: dice allo shader quali
-	# pixel riflettono il sole e in che direzione guardano. Il riflesso non sta
-	# nel disegno — cambia con l'ora, e nel disegno sarebbe fermo. Vedi
-	# `sun_glass.gd` e `scripts_tools/blender_grattacieli.py`.
-	if entry.has("glass"):
-		var vetro := ShaderMaterial.new()
-		vetro.shader = GLASS_SHEEN
-		vetro.set_shader_parameter("maschera", load(str(entry["glass"])))
-		node.material = vetro
-		var sole := Node.new()
-		sole.name = "SunGlass"
-		sole.set_script(SUN_GLASS)
-		node.add_child(sole)
 	if entry.has("sign"):
 		var sign := Sprite2D.new()
 		sign.name = "Sign"

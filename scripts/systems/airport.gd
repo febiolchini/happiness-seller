@@ -22,9 +22,13 @@ const SHADOW := Color(0, 0, 0, 0.30)
 ## Da quanto in su un aereo conta "in volo" e si disegna sopra a tutto.
 const AIRBORNE := 2.0
 const FLYING_Z := 6
+## Quanto si ingrandiscono gli sprite rispetto al render: l'aereo di linea un
+## filo piu' piccolo, gli altri aerei un filo piu' grandi, i mezzi come sono.
+const SCALES := {"jet": 0.95, "trattorino": 1.0, "scala": 1.0}
+const PLANE_SCALE := 1.05
 
 var _props: Node2D = null
-## attore -> [sprite, ombra]
+## attore -> [sprite, ombra, scala dello sprite]
 var _actors := {}
 var _stairs_frames: Array[Texture2D] = []
 
@@ -32,14 +36,14 @@ var _stairs_frames: Array[Texture2D] = []
 func setup(props: Node2D) -> void:
 	_props = props
 	for entry in AirportPlan.PARKED:
-		var pair := _pair(load(DIR + str(entry[0]) + ".png"))
+		var pair := _pair(load(DIR + str(entry[0]) + ".png"), _scale_of(str(entry[0])))
 		_place(pair, entry[1], deg_to_rad(float(entry[2])), 0.0, 1.0)
 	for i in AirportPlan.STAIRS_FRAMES:
 		_stairs_frames.append(load(DIR + "scala_%02d.png" % i))
-	_actors["jet"] = _pair(load(DIR + "jet.png"))
-	_actors["twin"] = _pair(load(DIR + "bimotore.png"))
-	_actors["stairs"] = _pair(_stairs_frames[0])
-	_actors["tug"] = _pair(load(DIR + "trattorino.png"))
+	_actors["jet"] = _pair(load(DIR + "jet.png"), _scale_of("jet"))
+	_actors["twin"] = _pair(load(DIR + "bimotore.png"), _scale_of("bimotore"))
+	_actors["stairs"] = _pair(_stairs_frames[0], _scale_of("scala"))
+	_actors["tug"] = _pair(load(DIR + "trattorino.png"), _scale_of("trattorino"))
 	_process(0.0)
 
 func _process(_delta: float) -> void:
@@ -60,8 +64,11 @@ func _process(_delta: float) -> void:
 			(pair[1] as Sprite2D).texture = tex
 		_place(pair, pose["pos"], float(pose["heading"]), float(pose["alt"]), float(pose["alpha"]))
 
-## Uno sprite e la sua ombra, gia' dentro ai `Props`.
-func _pair(texture: Texture2D) -> Array:
+static func _scale_of(sprite: String) -> float:
+	return float(SCALES.get(sprite, PLANE_SCALE))
+
+## Uno sprite e la sua ombra, gia' dentro ai `Props`, e la scala dello sprite.
+func _pair(texture: Texture2D, base := 1.0) -> Array:
 	var shadow := Sprite2D.new()
 	shadow.texture = texture
 	shadow.modulate = SHADOW
@@ -70,14 +77,15 @@ func _pair(texture: Texture2D) -> Array:
 	shadow.z_index = -1
 	var sprite := Sprite2D.new()
 	sprite.texture = texture
+	shadow.scale = Vector2(base, base)
 	_props.add_child(shadow)
 	_props.add_child(sprite)
-	return [sprite, shadow]
+	return [sprite, shadow, base]
 
 func _place(pair: Array, pos: Vector2, heading: float, alt: float, alpha: float) -> void:
 	var sprite: Sprite2D = pair[0]
 	var shadow: Sprite2D = pair[1]
-	var grow := 1.0 + alt / 1400.0
+	var grow := float(pair[2]) * (1.0 + alt / 1400.0)
 	sprite.position = pos - Vector2(0.0, alt)
 	sprite.rotation = heading
 	sprite.scale = Vector2(grow, grow)

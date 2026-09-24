@@ -174,10 +174,17 @@ ASSETS = [
     # cavalletto, l'insegna appesa, il neon OPEN.
     ("render_bici.png", "bikeShop", 322, None),
     # L'aeroporto di CIVIC CENTER (`blender_aeroporto.py`): due hangar e la
-    # torre di controllo, larghi quanto i loro lotti a 22,3 px/m.
+    # torre di controllo, larghi quanto i loro lotti a 22,3 px/m. La torre ha
+    # anche la striscia del radar che gira.
     ("render_aero_hangar_grande.png", "hangarLarge", 424, None),
     ("render_aero_hangar_piccolo.png", "hangarSmall", 290, None),
-    ("render_aero_torre.png", "controlTower", 178, None),
+    # Il terminal ha anche la maschera del vetro (`vetro_aero_terminal.png`),
+    # come i grattacieli: il riflesso del sole scorre sulla facciata con l'ora.
+    ("render_aero_terminal.png", "terminal", 736, None),
+    # La torre e' piu' stretta del suo lotto (la cabina e' 6 m su 7,6): qui
+    # si scrive l'ALTEZZA, il ritaglio netto del render diviso il
+    # supersampling (1607 / 4), o la larghezza la ingrandirebbe.
+    ("render_aero_torre.png", "controlTower", None, 402),
     # Il negozio di videogiochi e il cinema del COMMERCIAL DISTRICT: due unita'
     # di uno stesso fabbricato, come l'isolato cinese
     # (`blender_cinema_videogiochi.py`). La LARGHEZZA e' il lotto a 22,3 px/m —

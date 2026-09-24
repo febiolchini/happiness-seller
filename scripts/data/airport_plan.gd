@@ -60,10 +60,12 @@ const PARKED := [
 	["elicottero", HELIPAD, 0.0],
 ]
 
-## Dove si ferma l'aereo di linea: davanti all'hangar grande, col muso a
-## ovest. Il portellone e' sul fianco sinistro, cioe' a sud, vicino al muso.
-const JET_STAND := Vector2(1880, 7690)
-## Il bimotore aspetta davanti all'hangar piccolo, col muso verso le piste.
+## Dove si ferma l'aereo di linea: davanti al terminal, col muso a ovest, un
+## po' staccato dalla pensilina. Il portellone e' sul fianco sinistro, cioe' a
+## sud, vicino al muso (`DOOR`).
+const JET_STAND := Vector2(2015, 7740)
+const DOOR := Vector2(-122, 0)
+## Il bimotore aspetta davanti all'hangar grande, col muso verso le piste.
 const TWIN_STAND := Vector2(1350, 7700)
 ## Il deposito dei mezzi, accanto alla torre.
 const STAIRS_DEPOT := Vector2(2600, 7640)
@@ -224,26 +226,26 @@ static func _build() -> void:
 	# Il rullaggio: fuori dalla pista sul raccordo est, su al piazzale e a
 	# ovest fino all'hangar grande.
 	t = _move(jet, _smooth([Vector2(2330, main_y), Vector2(2450, main_y - 40), Vector2(2450, 7790),
-		Vector2(2440, 7700), Vector2(2300, 7690), Vector2(2010, JET_STAND.y)]), t, 42.0, 75.0)
-	t = _move(jet, [Vector2(2010, JET_STAND.y), JET_STAND], t, 75.0, 0.0)
+		Vector2(2440, JET_STAND.y + 10), Vector2(2320, JET_STAND.y), Vector2(2150, JET_STAND.y)]), t, 42.0, 75.0)
+	t = _move(jet, [Vector2(2150, JET_STAND.y), JET_STAND], t, 75.0, 0.0)
 
 	# I mezzi partono quando l'aereo e' fermo.
 	t += 2.5
 	var stairs: Array = []
 	var tug: Array = []
-	var door := JET_STAND + Vector2(-128, 0)
+	var door := JET_STAND + DOOR
 	# Di corsa fin sotto all'aereo, poi l'accostata piano: frenare lungo tutto
 	# il tragitto li faceva arrancare per mezzo minuto.
 	var s_end := _move(stairs, _smooth([STAIRS_DEPOT, Vector2(STAIRS_DEPOT.x, 7860),
-		Vector2(door.x + 60, 7860), Vector2(door.x, 7830)]), t, 110.0, 110.0)
-	s_end = _move(stairs, [Vector2(door.x, 7830), Vector2(door.x, 7762)], s_end, 110.0, 0.0)
+		Vector2(door.x + 60, 7860), Vector2(door.x, 7835)]), t, 110.0, 110.0)
+	s_end = _move(stairs, [Vector2(door.x, 7835), door + Vector2(0, 60)], s_end, 110.0, 0.0)
 	# La scala si alza verso il portellone.
-	stairs.append({"type": "frames", "t0": s_end + 0.6, "t1": s_end + 3.6, "pos": Vector2(door.x, 7762),
+	stairs.append({"type": "frames", "t0": s_end + 0.6, "t1": s_end + 3.6, "pos": door + Vector2(0, 60),
 		"heading": -PI * 0.5, "f0": 0, "f1": STAIRS_FRAMES - 1})
 	s_end += 3.6
 	var g_end := _move(tug, _smooth([TUG_DEPOT, Vector2(TUG_DEPOT.x, 7885), Vector2(door.x - 20, 7885),
-		Vector2(door.x - 66, 7850)]), t + 1.5, 120.0, 120.0)
-	g_end = _move(tug, [Vector2(door.x - 66, 7850), Vector2(door.x - 66, 7792)], g_end, 120.0, 0.0)
+		Vector2(door.x - 66, 7860)]), t + 1.5, 120.0, 120.0)
+	g_end = _move(tug, [Vector2(door.x - 66, 7860), door + Vector2(-66, 84)], g_end, 120.0, 0.0)
 	t = maxf(s_end, g_end) + 2.5
 
 	# Il bimotore: giu' dal suo posto, a est sul raccordo sud, in testa alla
