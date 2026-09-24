@@ -163,6 +163,15 @@ static func _nearest_road(roads: Array, at: float, horizontal: bool) -> int:
 ## Agli incroci del bordo quindi la strada non continua da tutti e quattro i
 ## lati: `junction_sides()` dice da quali, e `city_ground.gd` ci mette la T o la
 ## curva giusta invece del quadrivio.
+##
+## ## L'aeroporto interrompe due strade
+##
+## `AIRPORT` ha preso il posto di quattro isolati, e le due strade che li
+## dividevano non lo attraversano: DOCK STREET finisce a T su QUARRY LANE, e
+## OLD MILL ROAD e' spezzata in due tronconi. Il secondo troncone sta IN FONDO
+## a `ROADS_H` (e ai suoi elenchi paralleli: nomi e marciapiedi), dopo la
+## cornice, per la stessa ragione per cui la cornice sta in fondo: gli indici
+## delle strade di prima sono scritti anche altrove.
 const ROADS_H := [
 	Rect2(-480, 272, 10544, 96),   # MAIN STREET
 	Rect2(-480, 976, 10544, 96),   # CROSS STREET
@@ -175,13 +184,14 @@ const ROADS_H := [
 	Rect2(-480, 5664, 10544, 96),  # RIVER ROW
 	Rect2(-480, 6368, 10544, 96),  # SOUTH GATE
 	Rect2(-480, 7072, 10544, 96),  # QUARRY LANE
-	Rect2(-480, 7776, 10544, 96),  # OLD MILL ROAD
+	Rect2(-480, 7776, 1328, 96),   # OLD MILL ROAD — si ferma all'aeroporto
 	Rect2(-480, 8480, 10544, 96),  # COUNTY LINE
 	Rect2(-480, -608, 10544, 96),  # HILLTOP ROAD — la cornice a nord
+	Rect2(2672, 7776, 7392, 96),   # OLD MILL ROAD — riprende dopo l'aeroporto
 ]
 const ROADS_V := [
 	Rect2(752, -608, 96, 9184),   # MILL ROAD
-	Rect2(1856, -608, 96, 9184),  # DOCK STREET
+	Rect2(1856, -608, 96, 7776),  # DOCK STREET — finisce a T su QUARRY LANE
 	Rect2(2672, -608, 96, 9184),  # FURNACE STREET
 	Rect2(3488, -608, 96, 9184),  # EAST STREET
 	Rect2(4256, -608, 96, 9184),  # HILL DRIVE
@@ -215,7 +225,7 @@ const ROAD_NAMES_H := [
 	"DIVISION AVENUE", "PARK LANE", "SOUTH BOULEVARD",
 	"LOWER MAIN", "CANAL ROAD", "RIVER ROW",
 	"SOUTH GATE", "QUARRY LANE", "OLD MILL ROAD",
-	"COUNTY LINE", "HILLTOP ROAD",
+	"COUNTY LINE", "HILLTOP ROAD", "OLD MILL ROAD",
 ]
 const ROAD_NAMES_V := [
 	"MILL ROAD", "DOCK STREET", "FURNACE STREET",
@@ -232,12 +242,12 @@ const ROAD_NAMES_V := [
 const SIDEWALK_N := [
 	256.0, 960.0, 1664.0, 2224.0, 2928.0, 3536.0,
 	4240.0, 4944.0, 5648.0, 6352.0, 7056.0, 7760.0,
-	8464.0, -624.0,
+	8464.0, -624.0, 7760.0,
 ]
 const SIDEWALK_S := [
 	384.0, 1088.0, 1792.0, 2352.0, 3056.0, 3664.0,
 	4368.0, 5072.0, 5776.0, 6480.0, 7184.0, 7888.0,
-	8592.0, -496.0,
+	8592.0, -496.0, 7888.0,
 ]
 const SIDEWALK_W := [
 	736.0, 1840.0, 2656.0, 3472.0, 4240.0, 5056.0,
@@ -393,6 +403,83 @@ const LOTS := [
 	# isolato normale.
 	{"rect": Rect2(5656, 614, 200, 330), "kind": "asphalt"},
 ]
+
+## L'aeroporto, in basso a sinistra: i quattro isolati fra MILL ROAD e FURNACE
+## STREET, e fra QUARRY LANE e COUNTY LINE, marciapiedi esclusi. Dentro non si
+## cammina (e' recintato: vedi `CityNavigation`), e tutto quello che ci
+## succede — piste, aerei, mezzi — sta in `AirportPlan` e `airport.gd`.
+const AIRPORT := Rect2(880, 7200, 1760, 1248)
+
+## Prati a strati: erba disegnata da `layered_grass.gdshader`, che si schiaccia
+## sotto a chi ci cammina e si accende sotto ai lampioni. Non sono `LOTS`
+## perché non sono un tipo di terreno da colorare: sono un nodo a parte, sopra
+## al terreno del quartiere.
+##
+## `style` e' una chiave di `LayeredGrass.STYLES`. `rects` sono i prati scritti
+## a mano; `district` invece li ricava da tutti gli isolati del quartiere
+## (`district_blocks()`), cosi' un quartiere intero non e' un elenco di
+## cinquanta rettangoli da tenere allineati alle strade.
+##
+## THE FLATS tutto, con l'erba incolta di chi non ha tempo ne' soldi per
+## innaffiarla. HILLSIDE tutto, con l'erba curata dei benestanti. INDUSTRIAL
+## PARK tutto, con l'erba brulla dei terreni fra i capannoni.
+const LAYERED_GRASS := [
+	{"style": "incolto", "district": "flats"},
+	{"style": "curato", "district": "hillside"},
+	{"style": "brullo", "district": "industrial"},
+	# Il prato fra le piste dell'aeroporto: tagliato corto, come quello curato.
+	{"style": "curato", "rects": [AIRPORT]},
+]
+
+## I prati di una voce di `LAYERED_GRASS`, in coordinate mondo.
+static func grass_rects(entry: Dictionary) -> Array[Rect2]:
+	var list: Array[Rect2] = []
+	for rect in entry.get("rects", []):
+		list.append(rect)
+	if entry.has("district"):
+		list.append_array(district_blocks(str(entry["district"])))
+	return list
+
+## Gli isolati di un quartiere: il suo rettangolo meno strade e marciapiedi.
+##
+## Si toglie la fascia di ogni strada allargata di un marciapiede per lato, in
+## x con le verticali e in y con le orizzontali: quello che resta, incrociato,
+## sono gli isolati. I confini dei quartieri cadono sul bordo di una strada
+## (vedi `DISTRICTS`), quindi ai bordi il marciapiede si toglie da solo.
+static func district_blocks(district_id: String) -> Array[Rect2]:
+	var bounds := Rect2()
+	for district in DISTRICTS:
+		if str(district["id"]) == district_id:
+			bounds = district["rect"]
+	var columns := _free_spans(bounds.position.x, bounds.end.x, ROADS_V, true)
+	var rows := _free_spans(bounds.position.y, bounds.end.y, ROADS_H, false)
+	var blocks: Array[Rect2] = []
+	for row in rows:
+		for column in columns:
+			blocks.append(Rect2(column.x, row.x, column.y - column.x, row.y - row.x))
+	return blocks
+
+## I tratti di [from, to] che non cadono su una strada o sul suo marciapiede.
+static func _free_spans(from: float, to: float, roads: Array, vertical: bool) -> Array[Vector2]:
+	var spans: Array[Vector2] = [Vector2(from, to)]
+	for road: Rect2 in roads:
+		var cut_from := (road.position.x if vertical else road.position.y) - SIDEWALK_DEPTH
+		var cut_to := (road.end.x if vertical else road.end.y) + SIDEWALK_DEPTH
+		var kept: Array[Vector2] = []
+		for span in spans:
+			if cut_to <= span.x or cut_from >= span.y:
+				kept.append(span)
+				continue
+			if cut_from > span.x:
+				kept.append(Vector2(span.x, cut_from))
+			if cut_to < span.y:
+				kept.append(Vector2(cut_to, span.y))
+		spans = kept
+	var wide: Array[Vector2] = []
+	for span in spans:
+		if span.y - span.x >= 24.0:
+			wide.append(span)
+	return wide
 
 ## Quanti pixel di lato stanno fra un lampione e l'altro dentro a un piazzale.
 ## Più fitti che in strada: un parcheggio buio con tre lampioni in croce non è
@@ -581,6 +668,35 @@ const BUILDINGS := [
 				"at": Vector2(93, -53), "frames": 6, "fps": [3.0, 24.0]},
 			{"texture": "res://assets/sprites/buildings/yellowHouseBandiera.png",
 				"at": Vector2(-110, -73), "frames": 8, "fps": [2.0, 12.0]},
+		],
+	},
+	{
+		# Il negozio di biciclette, attaccato a destra del garage: riempie il
+		# lotto dal muro del garage (398) al marciapiede di MILL ROAD (720),
+		# quindi e' largo 322 e la base sta nel mezzo. Lo costruisce
+		# `scripts_tools/blender_bici.py`: mattoni rossi, portico coi pilastri
+		# bianchi, bici parcheggiate sotto.
+		#
+		# Tre cose si muovono, tutte ogni tanto e mai di continuo: la ruota
+		# della bici sul cavalletto che qualcuno fa girare e che rallenta,
+		# l'insegna ovale che dondola col vento, il neon OPEN in vetrina che
+		# sfarfalla (e' luce: `emissive`, resta acceso di notte).
+		"id": "BikeShop", "base": Vector2(559, 944),
+		"label": "BIKE SHOP",
+		"texture": "res://assets/sprites/buildings/bikeShop.png",
+		"lit": "res://assets/sprites/buildings/bikeShopLit.png",
+		"offset": Vector2(-161, -187), "click": Rect2(-161, -187, 322, 187),
+		# La porta a vetri, fra le due vetrine.
+		"entry": Vector2(-32, 24),
+		"anims": [
+			{"texture": "res://assets/sprites/buildings/bikeShopRuota.png",
+				"at": Vector2(96, -37), "frames": 24, "mode": "event", "fps": [16.0],
+				"pause": [5.0, 14.0]},
+			{"texture": "res://assets/sprites/buildings/bikeShopInsegna.png",
+				"at": Vector2(-128, -84), "frames": 8, "fps": [1.5, 8.0]},
+			{"texture": "res://assets/sprites/buildings/bikeShopNeon.png",
+				"at": Vector2(2, -77), "frames": 10, "mode": "event", "fps": [9.0],
+				"pause": [6.0, 16.0], "emissive": true},
 		],
 	},
 	{
@@ -1024,6 +1140,45 @@ const BUILDINGS := [
 		# di terra dello stadio e il marciapiede ci sono sedici pixel, quindi
 		# la porta cade appena dentro al marciapiede e non in carreggiata.
 		"entry": Vector2(0, 26),
+	},
+	# --- L'aeroporto (`AIRPORT`) --------------------------------------------
+	#
+	# Due hangar e la torre di controllo in fila lungo il bordo nord, con la
+	# facciata verso le piste. Li costruisce `scripts_tools/blender_aeroporto.py`.
+	#
+	# Sono fondali (`backdrop`): l'aeroporto e' recintato, non ci si entra e
+	# non si clicca. La riga di terra e' la stessa per tutti e tre, 7560, il
+	# bordo alto del piazzale che disegna `airport.gd`; da li' in su gli sprite
+	# stanno dentro all'aeroporto senza arrivare a QUARRY LANE.
+	#
+	# `click` qui e' solo la pianta (la profondita' vista dall'alto), perche'
+	# e' l'ingombro che la navigazione e i controlli confrontano con le strade.
+	{
+		"id": "HangarSmall", "base": Vector2(1350, 7560),
+		"district": "CIVIC CENTER", "backdrop": true,
+		"label": "HANGAR",
+		"texture": "res://assets/sprites/buildings/hangarSmall.png",
+		"lit": "res://assets/sprites/buildings/hangarSmallLit.png",
+		"offset": Vector2(-145, -244), "click": Rect2(-145, -101, 290, 101),
+		"entry": Vector2(0, 24),
+	},
+	{
+		"id": "HangarLarge", "base": Vector2(1880, 7560),
+		"district": "CIVIC CENTER", "backdrop": true,
+		"label": "HANGAR",
+		"texture": "res://assets/sprites/buildings/hangarLarge.png",
+		"lit": "res://assets/sprites/buildings/hangarLargeLit.png",
+		"offset": Vector2(-212, -320), "click": Rect2(-212, -132, 424, 132),
+		"entry": Vector2(0, 24),
+	},
+	{
+		"id": "ControlTower", "base": Vector2(2470, 7560),
+		"district": "CIVIC CENTER", "backdrop": true,
+		"label": "CONTROL TOWER",
+		"texture": "res://assets/sprites/buildings/controlTower.png",
+		"lit": "res://assets/sprites/buildings/controlTowerLit.png",
+		"offset": Vector2(-89, -298), "click": Rect2(-89, -61, 178, 61),
+		"entry": Vector2(0, 24),
 	},
 ]
 

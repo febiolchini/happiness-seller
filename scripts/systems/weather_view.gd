@@ -1,7 +1,7 @@
 extends Node2D
 
-## Il tempo che fa, disegnato davanti a tutto: pioggia, schizzi, foschia,
-## lampi e il buio agli angoli dello schermo.
+## Il tempo che fa, disegnato davanti a tutto: pioggia, schizzi, lampi e il
+## buio agli angoli dello schermo.
 ##
 ## Sta su una tela sua (`WeatherLayer`), sopra al mondo e sotto all'HUD. Due
 ## conseguenze, ed è per quelle che sta lì:
@@ -42,10 +42,10 @@ const SPLASH_RATE := 90.0
 const SPLASH_LIFE := 0.22
 const SPLASH_COLOR := Color(0.80, 0.87, 0.96, 0.55)
 
-## Banchi di foschia: pochi e molto larghi, perché la nebbia si legge dal fatto
-## che le cose lontane sbiadiscono, non dal fatto che passano delle nuvolette.
-const HAZE_BANKS := 9
-const HAZE_COLOR := Color(0.78, 0.81, 0.86)
+## La foschia in mezzo allo schermo è stata tolta su richiesta di Federico: si
+## leggeva come un velo grigio piazzato sopra al gioco invece che come aria
+## spessa. Quello che resta della nebbia è solo l'effetto che ha sul resto —
+## meno gente in strada, buio agli angoli — non più un disegno suo.
 
 ## Il velo bianco del lampo, sopra a quello che ha già fatto `atmosphere.gd`
 ## sul mondo: quello schiarisce le cose illuminate, questo è il cielo che si
@@ -68,8 +68,6 @@ var _drops: Array[Vector3] = []
 var _splashes: Array[Vector3] = []
 var _splash_debt := 0.0
 
-## Fase dei banchi di foschia, che scorrono col vento.
-var _haze_phase := 0.0
 var _flash := 0.0
 var _time := 0.0
 
@@ -77,7 +75,6 @@ var _time := 0.0
 ## scattare: la pioggia che parte a bomba a mezzanotte esatta si legge come un
 ## interruttore. Vedi `_ease()`.
 var _wetness := 0.0
-var _haze := 0.0
 var _dark := 0.0
 
 ## In quanti secondi il meteo a schermo raggiunge quello della partita.
@@ -95,14 +92,12 @@ func _process(delta: float) -> void:
 	var wind := float(entry["wind"])
 
 	_wetness = _ease(_wetness, float(entry["rain"]), delta)
-	_haze = _ease(_haze, float(entry["fog"]), delta)
 	# Il buio agli angoli è la somma di due cose che lo vogliono: l'ora e il
 	# tempo. Una notte serena e un temporale di giorno chiudono lo stesso.
 	var night := 1.0 - Daylight.brightness(GameState.current)
 	_dark = _ease(_dark, clampf(night * 0.75 + float(entry["fog"]) * 0.3 + float(entry["rain"]) * 0.35, 0.0, 1.0), delta)
 
 	_flash = maxf(0.0, _flash - delta * FLASH_FADE)
-	_haze_phase += delta * (6.0 + wind * 26.0)
 	_move_drops(delta, wind)
 	_tick_splashes(delta)
 	queue_redraw()
@@ -171,8 +166,6 @@ func _tick_splashes(delta: float) -> void:
 # --- Disegno ----------------------------------------------------------------
 
 func _draw() -> void:
-	if _haze > 0.01:
-		_draw_haze()
 	if _wetness > 0.01:
 		_draw_rain()
 		_draw_splashes()
@@ -207,24 +200,6 @@ func _draw_splashes() -> void:
 		# Un trattino che si allarga e sbiadisce: a questa scala è tutto quello
 		# che serve per leggere "una goccia ha appena toccato terra".
 		draw_line(Vector2(splash.x - half, splash.y), Vector2(splash.x + half, splash.y), color, 1.0)
-
-## Foschia: un velo piatto su tutto, più qualche banco più denso che scorre.
-## Il velo da solo è un filtro grigio; i banchi da soli sono delle macchie. È
-## la somma che si legge come aria spessa.
-func _draw_haze() -> void:
-	var view := _view()
-	var flat := HAZE_COLOR
-	flat.a = _haze * 0.30
-	draw_rect(Rect2(Vector2.ZERO, view), flat, true)
-	for i in HAZE_BANKS:
-		var phase := float(i) * 1.37
-		var y := fposmod(view.y * (0.12 + 0.13 * float(i)) + sin(_time * 0.11 + phase) * 18.0, view.y)
-		var x := fposmod(_haze_phase * (0.4 + 0.2 * float(i % 3)) + phase * 210.0, view.x + 420.0) - 210.0
-		var band := HAZE_COLOR
-		# Larghi e tenui: a banchi stretti e densi la nebbia si legge come una
-		# fila di macchie che passa, non come aria spessa.
-		band.a = _haze * 0.10
-		draw_colored_polygon(_ellipse(Vector2(x, y), Vector2(250.0 + 60.0 * float(i % 3), 42.0)), band)
 
 ## Il buio agli angoli, fatto di cornici sempre più strette e sempre più
 ## trasparenti verso il centro. Senza shader e senza texture: quattordici

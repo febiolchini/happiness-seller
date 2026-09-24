@@ -191,6 +191,25 @@ func _build_city() -> void:
 	# e i tre PNG restano sul disco: `CityMap.field_props()` torna a costruire
 	# le posizioni non appena un lotto "football" ricompare in `LOTS`, e questo
 	# ciclo va rimesso qui davanti a `FOUNTAINS`.
+	# Subito dopo `Ground` nell'albero: stesso `z_index`, quindi a decidere
+	# chi sta sopra e' l'ordine, e l'erba va sopra al terreno del quartiere.
+	var ground := get_node("Ground")
+	for entry in CityMap.LAYERED_GRASS:
+		var grass := LayeredGrass.new()
+		grass.rects = CityMap.grass_rects(entry)
+		grass.style = str(entry["style"])
+		grass.z_index = ground.z_index
+		add_child(grass)
+		move_child(grass, ground.get_index() + 1)
+	# Il pavimento dell'aeroporto sopra ai prati (lo stesso `z_index`, quindi
+	# decide l'ordine: dopo l'ultimo prato), e gli aerei nei `Props`.
+	var airport_ground := AirportGround.new()
+	airport_ground.z_index = ground.z_index
+	add_child(airport_ground)
+	move_child(airport_ground, ground.get_index() + CityMap.LAYERED_GRASS.size() + 1)
+	var airport := Airport.new()
+	add_child(airport)
+	airport.setup(_props)
 	for point in CityMap.FOUNTAINS:
 		var fountain := FOUNTAIN.instantiate()
 		fountain.position = point

@@ -85,6 +85,8 @@ func build(buildings: Array) -> void:
 
 	_paint_costs()
 	_block(buildings)
+	# L'aeroporto e' recintato: fra piste e aerei non si passa a piedi.
+	_block_rect(CityMap.AIRPORT)
 	_ready = true
 
 ## Dipinge i costi a strati, dal più generico al più specifico.
@@ -112,12 +114,14 @@ func _fill(rect: Rect2, weight: float) -> void:
 
 func _block(buildings: Array) -> void:
 	for entry in buildings:
-		var rect := CityMap.footprint(entry).grow(WALL_MARGIN)
-		var from := _clamped_cell(rect.position)
-		var to := _clamped_cell(rect.end - Vector2.ONE)
-		for y in range(from.y, to.y + 1):
-			for x in range(from.x, to.x + 1):
-				_grid.set_point_solid(Vector2i(x, y), true)
+		_block_rect(CityMap.footprint(entry).grow(WALL_MARGIN))
+
+func _block_rect(rect: Rect2) -> void:
+	var from := _clamped_cell(rect.position)
+	var to := _clamped_cell(rect.end - Vector2.ONE)
+	for y in range(from.y, to.y + 1):
+		for x in range(from.x, to.x + 1):
+			_grid.set_point_solid(Vector2i(x, y), true)
 
 # --- Percorso --------------------------------------------------------------
 

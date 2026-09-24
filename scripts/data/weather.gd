@@ -1,4 +1,4 @@
-class_name Weather
+﻿class_name Weather
 extends RefCounted
 
 ## Che tempo fa, quanto dura e cosa cambia.
@@ -55,22 +55,22 @@ const TYPES := {
 		"demand": 1.00, "heat": 1.00, "name": "WEATHER_CLOUDS",
 	},
 	"overcast": {
-		"tint": Color(0.78, 0.80, 0.86), "dark": false, "shadows": 0.15,
+		"tint": Color(0.84, 0.86, 0.93), "dark": false, "shadows": 0.15,
 		"rain": 0.0, "fog": 0.18, "clouds": 0.85, "wind": 0.40, "thunder": 0.0,
 		"demand": 0.90, "heat": 0.92, "name": "WEATHER_OVERCAST",
 	},
 	"rain": {
-		"tint": Color(0.63, 0.68, 0.80), "dark": true, "shadows": 0.05,
+		"tint": Color(0.68, 0.73, 0.86), "dark": true, "shadows": 0.05,
 		"rain": 0.62, "fog": 0.22, "clouds": 0.70, "wind": 0.45, "thunder": 0.0,
 		"demand": 0.62, "heat": 0.70, "name": "WEATHER_RAIN",
 	},
 	"storm": {
-		"tint": Color(0.48, 0.53, 0.68), "dark": true, "shadows": 0.0,
+		"tint": Color(0.52, 0.57, 0.73), "dark": true, "shadows": 0.0,
 		"rain": 1.00, "fog": 0.30, "clouds": 0.95, "wind": 0.85, "thunder": 9.0,
 		"demand": 0.38, "heat": 0.55, "name": "WEATHER_STORM",
 	},
 	"fog": {
-		"tint": Color(0.74, 0.76, 0.79), "dark": true, "shadows": 0.10,
+		"tint": Color(0.80, 0.82, 0.85), "dark": true, "shadows": 0.10,
 		"rain": 0.0, "fog": 0.80, "clouds": 0.20, "wind": 0.05, "thunder": 0.0,
 		"demand": 0.78, "heat": 0.58, "name": "WEATHER_FOG",
 	},
@@ -87,23 +87,23 @@ const TYPES := {
 ##
 ## **La pioggia deve restare rara.** La prima tabella pioveva un giorno su
 ## quattro (distribuzione stazionaria della catena: `rain` + `storm` al 23%) —
-## Federico l'ha giocata e ha chiesto un giorno su sette. Non si abbassa il solo
-## "rain" di `TRANSITIONS["overcast"]`: la pioggia arriva anche di rimbalzo, da
-## `clouds` e da `storm` che torna giù passando da `rain`, quindi il conto che
-## conta è quello di TUTTA la catena, non di una riga sola. Questa versione
-## pesca acqua (`rain` + `storm`) il 14,5% delle volte — un giorno su 6,9 — e
-## ci si arriva così: `clear` e `clouds` restano appiccicosi (tornarci è più
-## probabile che lasciarli), `overcast` è il vero bivio fra tornare al coperto
-## e cominciare a piovere, e uno `storm` si spegne per gradi passando da
-## `rain`/`overcast` invece di schiarirsi di colpo — è l'unica cosa che un
-## controllo automatico verifica (`storm.clear` deve restare più basso di
-## `clouds.clear`, vedi `_test_weather()`).
+## Federico l'ha giocata e ha chiesto un giorno su sette, poi ha chiesto di
+## scendere ancora un altro poco. Non si abbassa il solo "rain" di
+## `TRANSITIONS["overcast"]`: la pioggia arriva anche di rimbalzo, da `clouds`
+## e da `storm` che torna giù passando da `rain`, quindi il conto che conta è
+## quello di TUTTA la catena, non di una riga sola. Questa versione pesca
+## acqua (`rain` + `storm`) sotto il 14,5% di prima — `clear` e `clouds`
+## restano appiccicosi (tornarci è più probabile che lasciarli), `overcast` è
+## il vero bivio fra tornare al coperto e cominciare a piovere, e uno `storm`
+## si spegne per gradi passando da `rain`/`overcast` invece di schiarirsi di
+## colpo — è l'unica cosa che un controllo automatico verifica (`storm.clear`
+## deve restare più basso di `clouds.clear`, vedi `_test_weather()`).
 const TRANSITIONS := {
 	"clear": {"clear": 52, "clouds": 32, "overcast": 6, "fog": 10},
-	"clouds": {"clear": 36, "clouds": 32, "overcast": 21, "rain": 8, "fog": 3},
-	"overcast": {"clouds": 36, "overcast": 24, "rain": 27, "storm": 8, "fog": 5},
-	"rain": {"overcast": 38, "rain": 24, "storm": 10, "clouds": 25, "clear": 3},
-	"storm": {"rain": 35, "overcast": 35, "clouds": 20, "clear": 10},
+	"clouds": {"clear": 36, "clouds": 32, "overcast": 23, "rain": 6, "fog": 3},
+	"overcast": {"clouds": 40, "overcast": 27, "rain": 21, "storm": 6, "fog": 6},
+	"rain": {"overcast": 40, "rain": 20, "storm": 8, "clouds": 27, "clear": 5},
+	"storm": {"rain": 30, "overcast": 35, "clouds": 25, "clear": 10},
 	"fog": {"fog": 20, "clear": 25, "clouds": 30, "overcast": 25},
 }
 

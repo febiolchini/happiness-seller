@@ -168,6 +168,16 @@ ASSETS = [
     # le strisce delle cose che si muovono (girandola, bandiera): vedi
     # `animazioni()` qui sotto.
     ("render_casa_gialla.png", "yellowHouse", None, 337),
+    # Il negozio di bici accanto al garage, su CROSS STREET
+    # (`blender_bici.py`). La LARGHEZZA e' il lotto: dal muro del garage al
+    # marciapiede di MILL ROAD, 322 px. Ha tre strisce animate: la ruota sul
+    # cavalletto, l'insegna appesa, il neon OPEN.
+    ("render_bici.png", "bikeShop", 322, None),
+    # L'aeroporto di CIVIC CENTER (`blender_aeroporto.py`): due hangar e la
+    # torre di controllo, larghi quanto i loro lotti a 22,3 px/m.
+    ("render_aero_hangar_grande.png", "hangarLarge", 424, None),
+    ("render_aero_hangar_piccolo.png", "hangarSmall", 290, None),
+    ("render_aero_torre.png", "controlTower", 178, None),
     # Il negozio di videogiochi e il cinema del COMMERCIAL DISTRICT: due unita'
     # di uno stesso fabbricato, come l'isolato cinese
     # (`blender_cinema_videogiochi.py`). La LARGHEZZA e' il lotto a 22,3 px/m —

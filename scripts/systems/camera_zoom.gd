@@ -11,8 +11,10 @@ extends Camera2D
 ##
 ## Per questo lo zoom non è continuo ma scatta tra scale nette intere.
 
-## Scale nette selezionabili: 1 = un pixel sprite per pixel schermo, 8 =
-## massimo avvicinamento. Sotto l'1 si allarga oltre il pixel-perfect, fino a
+## Scale nette selezionabili: 1 = un pixel sprite per pixel schermo, 5 =
+## massimo avvicinamento. Arrivava a 8: Federico (2026-09-24) ha tolto gli
+## ultimi tre livelli, perche' cosi' da vicino molte cose perdono qualita' —
+## un pixel dello sprite diventava un quadrato grosso come un dito. Sotto l'1 si allarga oltre il pixel-perfect, fino a
 ## inquadrare praticamente tutta la città.
 ##
 ## Da 1 in su devono restare INTERI: a 1.5 un pixel dello sprite ne coprirebbe
@@ -20,7 +22,7 @@ extends Camera2D
 ## perde comunque (lo sprite viene rimpicciolito), quindi lì è solo una
 ## questione di leggibilità: bastano pochi scalini per non rendere la mappa
 ## illeggibile prima di arrivare alla vista d'insieme.
-@export var net_scales: Array[float] = [0.15, 0.25, 0.4, 0.6, 1, 2, 3, 4, 5, 6, 7, 8]
+@export var net_scales: Array[float] = [0.15, 0.25, 0.4, 0.6, 1, 2, 3, 4, 5]
 ## Livello iniziale (indice in net_scales): 2x è la vista di default.
 @export var default_level := 5
 ## Disattiva zoom, pan e cursore custom: usata quando la mappa è solo sfondo

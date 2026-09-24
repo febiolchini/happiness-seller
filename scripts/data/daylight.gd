@@ -1,4 +1,4 @@
-class_name Daylight
+﻿class_name Daylight
 extends RefCounted
 
 ## Che luce c'è a una data ora, e tutto quello che ne consegue: il colore
@@ -55,17 +55,17 @@ const MENU_HOUR := 20.4
 ## `void_color` è il fondale oltre ai bordi del mondo: segue l'aria ma molto più
 ## cupo, perché è cielo e non terreno illuminato.
 const KEYFRAMES := [
-	{"hour": 0.0, "air": Color(0.30, 0.33, 0.55), "void_color": Color(0.05, 0.06, 0.12)},
-	{"hour": 5.0, "air": Color(0.31, 0.34, 0.55), "void_color": Color(0.06, 0.07, 0.13)},
-	{"hour": 6.6, "air": Color(0.66, 0.52, 0.55), "void_color": Color(0.24, 0.17, 0.22)},
-	{"hour": 7.8, "air": Color(0.94, 0.84, 0.76), "void_color": Color(0.36, 0.34, 0.36)},
+	{"hour": 0.0, "air": Color(0.34, 0.37, 0.62), "void_color": Color(0.05, 0.06, 0.12)},
+	{"hour": 5.0, "air": Color(0.35, 0.38, 0.62), "void_color": Color(0.06, 0.07, 0.13)},
+	{"hour": 6.6, "air": Color(0.74, 0.58, 0.62), "void_color": Color(0.24, 0.17, 0.22)},
+	{"hour": 7.8, "air": Color(1.00, 0.94, 0.85), "void_color": Color(0.36, 0.34, 0.36)},
 	{"hour": 10.0, "air": Color(1.00, 0.99, 0.95), "void_color": Color(0.30, 0.40, 0.47)},
 	{"hour": 13.0, "air": Color(1.00, 1.00, 0.99), "void_color": Color(0.32, 0.43, 0.50)},
-	{"hour": 17.0, "air": Color(1.00, 0.95, 0.86), "void_color": Color(0.31, 0.39, 0.45)},
-	{"hour": 19.1, "air": Color(0.98, 0.73, 0.56), "void_color": Color(0.35, 0.23, 0.22)},
-	{"hour": 20.4, "air": Color(0.63, 0.53, 0.63), "void_color": Color(0.17, 0.14, 0.22)},
-	{"hour": 21.6, "air": Color(0.34, 0.37, 0.57), "void_color": Color(0.07, 0.08, 0.14)},
-	{"hour": 24.0, "air": Color(0.30, 0.33, 0.55), "void_color": Color(0.05, 0.06, 0.12)},
+	{"hour": 17.0, "air": Color(1.00, 1.00, 0.96), "void_color": Color(0.31, 0.39, 0.45)},
+	{"hour": 19.1, "air": Color(1.00, 0.82, 0.63), "void_color": Color(0.35, 0.23, 0.22)},
+	{"hour": 20.4, "air": Color(0.71, 0.59, 0.71), "void_color": Color(0.17, 0.14, 0.22)},
+	{"hour": 21.6, "air": Color(0.38, 0.41, 0.64), "void_color": Color(0.07, 0.08, 0.14)},
+	{"hour": 24.0, "air": Color(0.34, 0.37, 0.62), "void_color": Color(0.05, 0.06, 0.12)},
 ]
 
 ## Fra queste due ore il sole è sopra l'orizzonte: fuori ci sono ombre portate e

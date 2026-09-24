@@ -45,6 +45,7 @@ func _ready() -> void:
 		["le tre lingue", _test_translations],
 		["la luce del giorno", _test_daylight],
 		["il meteo", _test_weather],
+		["la giornata dell'aeroporto", _test_airport],
 		["pianta della citta'", _test_city_layout],
 		["percorsi", _test_navigation],
 		["si cammina sul marciapiede", _test_sidewalks],
@@ -1820,6 +1821,51 @@ func _test_daylight() -> void:
 # ---------------------------------------------------------------------------
 
 ## Il meteo: la tabella, il tiro del giorno nuovo, e quanto pesa in partita.
+## La giornata dell'aeroporto e' una funzione dell'ora (`AirportPlan.pose()`):
+## si controlla che il copione torni da tutte e due le parti — com'e' la
+## mattina, com'e' la sera — e che in mezzo nessun mezzo salti da un punto
+## all'altro, che e' quello che succede quando due tratti non si attaccano.
+func _test_airport() -> void:
+	var before := AirportPlan.START_HOUR - 1.0
+	var after := AirportPlan.hour_at(AirportPlan.duration() + 1.0)
+	_check(not bool(AirportPlan.pose("jet", before)["visible"]), "la mattina l'aereo di linea non c'e' ancora")
+	_check(bool(AirportPlan.pose("twin", before)["visible"]), "la mattina il bimotore e' al suo posto")
+	var jet := AirportPlan.pose("jet", after)
+	_check(bool(jet["visible"]) and (jet["pos"] as Vector2).distance_to(AirportPlan.JET_STAND) < 1.0,
+		"la sera l'aereo di linea e' fermo davanti all'hangar")
+	_check(not bool(AirportPlan.pose("twin", after)["visible"]), "la sera il bimotore e' partito")
+	var stairs := AirportPlan.pose("stairs", after)
+	_check_eq(int(stairs["frame"]), AirportPlan.STAIRS_FRAMES - 1, "la sera la scala e' alzata")
+	# Il bimotore esce davvero dalla mappa, e non svanisce in vista.
+	var last := AirportPlan.pose("twin", AirportPlan.hour_at(AirportPlan.duration() - 0.05))
+	_check(not CityMap.view_bounds().has_point(last["pos"]), "il bimotore finisce fuori dalla vista")
+	# Nessun salto: un quarto di secondo alla volta, di quanto si muove ognuno.
+	var jumps: Array = []
+	for actor in AirportPlan.ACTORS:
+		var prev: Vector2 = AirportPlan.pose(actor, AirportPlan.hour_at(0.0))["pos"]
+		var t := 0.25
+		while t <= AirportPlan.duration():
+			var pos: Vector2 = AirportPlan.pose(actor, AirportPlan.hour_at(t))["pos"]
+			if pos.distance_to(prev) > 120.0:
+				jumps.append("%s a %.2f s: %.0f px" % [actor, t, pos.distance_to(prev)])
+				break
+			prev = pos
+			t += 0.25
+	_check_empty(jumps, "nessun mezzo dell'aeroporto salta da un punto all'altro")
+	# La notte si torna alla mattina: dopo il cambio, tutto e' come prima.
+	for actor in AirportPlan.ACTORS:
+		var morning := AirportPlan.pose(actor, before)
+		var dawn := AirportPlan.pose(actor, AirportPlan.RESET_TO + 0.01)
+		_check(bool(morning["visible"]) == bool(dawn["visible"])
+			and (morning["pos"] as Vector2).distance_to(dawn["pos"]) < 1.0,
+			"dopo la notte %s e' di nuovo al posto della mattina" % actor)
+	# Gli aerei fermi stanno dentro all'aeroporto.
+	var outside: Array = []
+	for entry in AirportPlan.PARKED:
+		if not CityMap.AIRPORT.has_point(entry[1]):
+			outside.append(entry[0])
+	_check_empty(outside, "gli aerei parcheggiati stanno dentro all'aeroporto")
+
 func _test_weather() -> void:
 	_check_empty(Weather.problems(), "la tabella del meteo e' completa")
 

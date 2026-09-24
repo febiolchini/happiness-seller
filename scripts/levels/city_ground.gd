@@ -466,8 +466,10 @@ func _build_landscape() -> void:
 		view.end, Vector2(view.position.x, view.end.y)])
 	var material := ShaderMaterial.new()
 	material.shader = LANDSCAPE_SHADER
-	material.set_shader_parameter("colline", _noise_texture(FastNoiseLite.FRACTAL_FBM, 0.010, 3))
-	material.set_shader_parameter("creste", _noise_texture(FastNoiseLite.FRACTAL_RIDGED, 0.009, 4))
+	var hills := _noise_image(FastNoiseLite.FRACTAL_FBM, 0.010, 3)
+	var ridges := _noise_image(FastNoiseLite.FRACTAL_RIDGED, 0.009, 4)
+	material.set_shader_parameter("colline", ImageTexture.create_from_image(hills))
+	material.set_shader_parameter("creste", ImageTexture.create_from_image(ridges))
 	var city := CityMap.WORLD_BOUNDS
 	material.set_shader_parameter("citta", Vector4(city.position.x, city.position.y, city.size.x, city.size.y))
 	var roads: Array[Vector4] = []
@@ -480,23 +482,36 @@ func _build_landscape() -> void:
 	land.material = material
 	add_child(land)
 
+	# Gli abeti delle colline, sopra al paesaggio. Leggono le stesse due
+	# immagini dello shader per sapere a che quota sta ogni punto.
+	var old_pines := get_node_or_null("Pines")
+	if old_pines != null:
+		old_pines.free()
+	var pines := PineTrees.new()
+	pines.name = "Pines"
+	add_child(pines)
+	var exit_rects: Array[Rect2] = []
+	for exit_road in CityMap.exit_roads():
+		exit_rects.append(exit_road["rect"])
+	pines.build(hills, ridges, city, exit_rects, CityMap.FRAME_DEPTH, LANDSCAPE_HEIGHT, view)
+
 ## Un rumore senza cuciture da 512 px: lo shader lo ripete su qualche migliaio
 ## di pixel di mondo, quindi le ripetizioni cadono lontane fra loro e con due
 ## rumori a scale diverse non si allineano mai.
-func _noise_texture(fractal: FastNoiseLite.FractalType, frequency: float, octaves: int) -> NoiseTexture2D:
+##
+## Un'immagine e non una `NoiseTexture2D`: la stessa immagine la legge anche
+## `PineTrees` per sapere dove sta il terreno, e una `NoiseTexture2D` si
+## genera in un thread suo e non la si puo' leggere subito. Gli argomenti sono
+## quelli che usava la `NoiseTexture2D` (senza cuciture, margine 0,1,
+## normalizzato), quindi il paesaggio e' lo stesso di prima.
+func _noise_image(fractal: FastNoiseLite.FractalType, frequency: float, octaves: int) -> Image:
 	var noise := FastNoiseLite.new()
 	noise.seed = LANDSCAPE_SEED
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	noise.fractal_type = fractal
 	noise.fractal_octaves = octaves
 	noise.frequency = frequency
-	var texture := NoiseTexture2D.new()
-	texture.width = 512
-	texture.height = 512
-	texture.seamless = true
-	texture.normalize = true
-	texture.noise = noise
-	return texture
+	return noise.get_seamless_image(512, 512, false, false, 0.1, true)
 
 # --- Nomi delle strade -----------------------------------------------------
 
