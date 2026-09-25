@@ -109,8 +109,8 @@ func _dress() -> void:
 	UiTheme.dress_window_text(_title, _title.text, UiTheme.WIN_TITLE, UiTheme.SIZE_TITLE)
 	_title.add_theme_color_override("font_color", UiTheme.INK)
 
-	_lead.add_theme_font_override("font", UiTheme.body(UiTheme.W_MEDIUM))
-	_lead.add_theme_font_size_override("font_size", UiTheme.SIZE_LABEL)
+	UiTheme.dress_window_text(_lead, _lead.text, UiTheme.brush_size(UiTheme.SIZE_LABEL),
+		UiTheme.SIZE_LABEL, UiTheme.W_MEDIUM)
 	_lead.add_theme_color_override("font_color", UiTheme.INK_FAINT)
 
 	UiTheme.dress_button(_close, UiTheme.ghost_boxes(), UiTheme.INK_SOFT,
@@ -193,7 +193,8 @@ func _caption_of(text: String) -> String:
 	return head if head == head.to_upper() else ""
 
 func _paragraph(text: String) -> Label:
-	var label := UiTheme.label(text, UiTheme.SIZE_VALUE, UiTheme.INK)
+	var label := UiTheme.window_label(text, UiTheme.brush_size(UiTheme.SIZE_VALUE),
+		UiTheme.SIZE_VALUE, UiTheme.INK)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	# Un filo d'aria fra le righe. Su un paragrafo di sei righe è la differenza
 	# fra un blocco di testo e qualcosa che si legge volentieri.

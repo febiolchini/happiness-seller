@@ -158,12 +158,14 @@ func _on_buy(id: String) -> void:
 
 ## Una riga di testo. Prima ce n'erano due versioni — `_label()` col font del
 ## gioco e `_numero()` con quello di sistema — perche' `alphabet.fnt` le cifre
-## non ce le ha e un prezzo scritto con quello usciva vuoto. Il font del testo
-## adesso e' Nunito, che le cifre ce le ha: una funzione sola, e un tranello in
-## meno per chi aggiunge una riga.
+## non ce le ha e un prezzo scritto con quello usciva vuoto, e bisognava
+## scegliere a mano quale delle due chiamare per ogni riga. Adesso e' una
+## funzione sola che guarda il testo: pennello (senza cifre da disegnare non ce
+## n'e' bisogno) se le parole bastano, Nunito se no. Nessun tranello, perche'
+## non e' piu' chi scrive la riga a doverlo sapere.
 func _label(text: String, color: Color, size: int,
 		weight := UiTheme.W_REGULAR) -> Label:
-	return UiTheme.label(text, size, color, weight)
+	return UiTheme.window_label(text, UiTheme.brush_size(size), size, color, weight)
 
 func _button(text: String, size: int) -> Button:
 	var button := Button.new()

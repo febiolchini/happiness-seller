@@ -561,13 +561,12 @@ func _build_hover_label() -> void:
 	# È un'insegna, cioè un nome proprio: tradurla la sposterebbe in un'altra
 	# città. Vedi la nota in cima a `strings.gd`.
 	_hover_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_hover_label.add_theme_font_size_override("font_size", HOVER_SIZE)
 	_hover_label.add_theme_color_override("font_color", HOVER_COLOR)
-	# L'ombra dura al posto del riquadro, come nell'HUD: sotto la scritta può
-	# passarci un muro chiaro, l'asfalto o il cielo.
-	_hover_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
-	_hover_label.add_theme_constant_override("shadow_offset_x", 1)
-	_hover_label.add_theme_constant_override("shadow_offset_y", 1)
+	# Pennello (un'insegna è sempre di sole lettere) con l'ombra dura al posto
+	# del riquadro, come nell'HUD: sotto la scritta può passarci un muro
+	# chiaro, l'asfalto o il cielo.
+	UiTheme.dress_world_text(_hover_label, "", UiTheme.brush_size(HOVER_SIZE), HOVER_SIZE,
+		UiTheme.W_REGULAR, Color(0, 0, 0, 0.85))
 	layer.add_child(_hover_label)
 
 func _process(_delta: float) -> void:
@@ -582,6 +581,9 @@ func _process(_delta: float) -> void:
 	if _hover_shown != building.display_name:
 		_hover_shown = building.display_name
 		_hover_label.text = building.display_name
+		UiTheme.dress_world_text(_hover_label, building.display_name,
+			UiTheme.brush_size(HOVER_SIZE), HOVER_SIZE, UiTheme.W_REGULAR,
+			Color(0, 0, 0, 0.85))
 	_hover_label.visible = true
 	_place_hover()
 

@@ -382,13 +382,15 @@ func _draw_marker(hop: float) -> void:
 	]), Daylight.emissive(color, Daylight.light(GameState.current)))
 
 func _draw_name() -> void:
-	var font := ThemeDB.fallback_font
-	if font == null:
-		return
-	var width := font.get_string_size(npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-	# Anche il nome è un'etichetta e non una cosa della città: stessa regola.
+	# Pennello se il nome è di sole lettere (lo è sempre, ma si controlla come
+	# ovunque), Nunito se no: stessa scelta di `city.gd::_hover_label`, per lo
+	# stesso motivo — un nome è un'insegna, non una cosa della città.
+	var brush := UiTheme.can_brush(npc_name)
+	var font: Font = UiTheme.menu() if brush else UiTheme.body()
+	var size := 11 if brush else 8
+	var width := font.get_string_size(npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	draw_string(
-		font, Vector2(-width * 0.5, -66), npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 8,
+		font, Vector2(-width * 0.5, -66), npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, size,
 		Daylight.emissive(Color(0.94, 0.95, 0.92, 0.75), Daylight.light(GameState.current)))
 
 func _ellipse(center: Vector2, radius: Vector2) -> PackedVector2Array:

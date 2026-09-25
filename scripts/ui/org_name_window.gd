@@ -46,7 +46,8 @@ func _ready() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 
-	var hint := UiTheme.label(tr("ORG_NAME_HINT"), UiTheme.SIZE_NOTE, UiTheme.INK_SOFT)
+	var hint := UiTheme.window_label(tr("ORG_NAME_HINT"), UiTheme.brush_size(UiTheme.SIZE_NOTE),
+		UiTheme.SIZE_NOTE, UiTheme.INK_SOFT)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)

@@ -55,15 +55,12 @@ func _build_row(save: Dictionary) -> Control:
 	row.add_child(delete_button)
 	return row
 
-## I testi con dei numeri usano il font di sistema: il pennello dei menu
-## (`brush.fnt`) contiene solo lettere e spazio, quindi con lui cifre, "$" e
-## "—" sparirebbero dallo schermo.
+## Pennello se la riga e' di sole parole ("nessun salvataggio"), Nunito se ha
+## cifre o simboli dentro ("$", "—", una data): il pennello dei menu
+## (`brush.fnt`) contiene solo lettere e spazio, quindi con lui sparirebbero
+## dallo schermo. Lo decide `UiTheme` guardando il testo, come dappertutto.
 func _info_label(text: String, color := Color(0.94, 0.95, 0.97)) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_size_override("font_size", 11)
-	label.add_theme_color_override("font_color", color)
-	return label
+	return UiTheme.world_label(text, UiTheme.brush_size(11), 11, color)
 
 ## I tasti invece hanno solo lettere, quindi possono usare il pennello.
 func _action_button(text: String, on_press: Callable) -> Button:

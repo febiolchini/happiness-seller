@@ -148,7 +148,7 @@ func _card(rows: Array) -> PanelContainer:
 ## "0", "$" uno sotto l'altro.
 func _label(text: String, color: Color, size: int,
 		weight := UiTheme.W_REGULAR, wrap := false) -> Label:
-	var node := UiTheme.label(text, size, color, weight)
+	var node := UiTheme.window_label(text, UiTheme.brush_size(size), size, color, weight)
 	if wrap:
 		node.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return node

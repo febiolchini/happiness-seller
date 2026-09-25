@@ -170,6 +170,8 @@ func _refresh() -> void:
 		if text != _shown[i]:
 			_shown[i] = text
 			_labels[i].text = text
+			UiTheme.dress_world_text(_labels[i], text, UiTheme.brush_size(INFO_SIZE),
+				INFO_SIZE, UiTheme.W_MEDIUM, Color(0, 0, 0, 0.85))
 
 ## C'è una finestra aperta che si prende lo schermo?
 ## Il prestigio a sinistra della sveglia e il sospetto della polizia sul lato
@@ -260,9 +262,11 @@ func _show_toast(text: String) -> void:
 
 	var label := UiTheme.label(text, 12, Color(1, 0.95, 0.78), UiTheme.W_MEDIUM)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_add_shadow(label)
-	# Il messaggio arriva già tradotto da chi lo manda, e contiene numeri:
-	# ritradurlo non troverebbe niente, ma tanto vale non provarci.
+	# Il messaggio arriva già tradotto da chi lo manda, e contiene quasi sempre
+	# numeri: pennello se per una volta è di sole parole, Nunito con l'ombra
+	# dura altrimenti — decide `UiTheme` sul testo vero.
+	UiTheme.dress_world_text(label, text, UiTheme.brush_size(12), 12, UiTheme.W_MEDIUM,
+		Color(0, 0, 0, 0.85))
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	_toasts.add_child(label)
 
