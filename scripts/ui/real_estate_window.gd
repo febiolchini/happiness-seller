@@ -69,8 +69,9 @@ func _dress() -> void:
 	UiTheme.dress_window_text(_title, _title.text, UiTheme.WIN_TITLE, UiTheme.SIZE_TITLE)
 	_title.add_theme_color_override("font_color", UiTheme.INK)
 	_rule.color = UiTheme.LINE
-	_cash.add_theme_font_override("font", UiTheme.body(UiTheme.W_BOLD))
-	_cash.add_theme_font_size_override("font_size", UiTheme.SIZE_BIG)
+	# La riga della cassa e' alta sedici pixel (vedi il `.tscn`): il pennello
+	# alla misura della cassa del PC ne uscirebbe e finirebbe sul primo riquadro.
+	UiTheme.dress_window_text(_cash, _cash.text, UiTheme.WIN_BUTTON)
 	_cash.add_theme_color_override("font_color", UiTheme.ACCENT_DARK)
 	# `MenuTextButton` arriva con `flat` acceso, e un bottone flat ignora i
 	# riquadri: senza spegnerlo il contorno non comparirebbe mai.

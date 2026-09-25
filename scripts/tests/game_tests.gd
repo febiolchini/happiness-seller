@@ -255,6 +255,10 @@ func _test_city_layout() -> void:
 	# e quando passa sembra un problema di livelli invece che di piantina.
 	var doors_on_asphalt: Array = []
 	for entry in CityMap.BUILDINGS:
+		# I fondali una porta non ce l'hanno: le pensiline della stazione degli
+		# autobus non si cliccano.
+		if bool(entry.get("backdrop", false)):
+			continue
 		var door: Vector2 = entry["base"] + _entry_offset(entry)
 		for road: Rect2 in CityMap.ROADS_H + CityMap.ROADS_V:
 			if road.has_point(door):

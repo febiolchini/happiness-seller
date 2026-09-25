@@ -34,20 +34,14 @@ func _process(_delta: float) -> void:
 		queue_redraw()
 
 func _draw() -> void:
-	# Pennello (il nome di un livello è sempre di sole parole) con l'ombra già
-	# dentro al disegno, Nunito con l'ombra dura disegnata a mano se no — stessa
-	# scelta di `npc.gd::_draw_name()` e per lo stesso motivo.
-	var brush := UiTheme.can_brush(_level)
-	var font: Font = UiTheme.menu() if brush else UiTheme.body()
-	var font_size := 15 if brush else 12
+	# Pennello con l'ombra già dentro al disegno, come `npc.gd::_draw_name()`.
+	var font: Font = UiTheme.menu()
+	var font_size := 15
 	var y_bar := size.y - BAR_SIZE.y - 2.0
 	var x0 := size.x - BAR_SIZE.x
 	# Il livello, allineato a destra sopra alla barra.
 	var text_w := font.get_string_size(_level, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	var at := Vector2(size.x - text_w, y_bar - 5.0)
-	if not brush:
-		draw_string(font, at + Vector2(1, 1), _level, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size,
-			Color(0, 0, 0, 0.7))
 	draw_string(font, at, _level, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, TEXT)
 	var bar := Rect2(Vector2(x0, y_bar), BAR_SIZE)
 	draw_rect(bar.grow(1.0), EDGE, true)

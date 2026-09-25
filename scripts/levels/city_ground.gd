@@ -87,6 +87,13 @@ const LOT_STYLES := {
 	# Un'aiuola in un parcheggio: il cordolo di cemento chiaro e dentro la
 	# terra, che l'erba di `LAYERED_GRASS` copre quasi tutta.
 	"aiuola": {"fill": Color(0.68, 0.67, 0.64), "line": Color(0.30, 0.25, 0.18)},
+	# Il piazzale della stazione degli autobus: lo stesso asfalto del
+	# parcheggio, ma la segnaletica e' gialla — i box delle fermate — come
+	# nelle stazioni vere, dove il giallo dice "qui si ferma il bus".
+	"busyard": {"fill": Color(0.205, 0.205, 0.215), "line": Color(0.93, 0.76, 0.22, 0.80)},
+	# Le banchine e il marciapiede davanti alla stazione: cemento chiaro, col
+	# bordo giallo di sicurezza sul lato dove si ferma l'autobus.
+	"platform": {"fill": Color(0.62, 0.61, 0.58), "line": Color(0.93, 0.76, 0.22)},
 }
 
 # --- Le piastrelle stradali -------------------------------------------------
@@ -134,8 +141,8 @@ const TREE_TRUNK := Color(0.30, 0.23, 0.17)
 const TREE_LEAVES := Color(0.22, 0.34, 0.20)
 const TREE_LEAVES_LIT := Color(0.28, 0.42, 0.24)
 
-const LABEL_SIZE := 8
-const DISTRICT_LABEL_SIZE := 16
+const LABEL_SIZE := 11
+const DISTRICT_LABEL_SIZE := 22
 
 ## Il nome della strada, stampato **sul marciapiede**.
 ##
@@ -153,7 +160,7 @@ const DISTRICT_LABEL_SIZE := 16
 ## Sta su un lato solo (nord per le orizzontali, ovest per le verticali): su
 ## tutti e due sarebbe il doppio delle scritte per la stessa informazione.
 const STREET_LABEL := Color(0.19, 0.20, 0.24, 0.55)
-const STREET_LABEL_SIZE := 13
+const STREET_LABEL_SIZE := 17
 ## Ogni quanto si ripete lungo la stessa strada. A 900 px se ne incontra uno
 ## ogni schermata e mezza alla vista di default: abbastanza da trovarlo
 ## camminando, non tanto da diventare una decorazione a righe.
@@ -166,6 +173,17 @@ func _ready() -> void:
 	# chilometri diventa una singola piastrella spalmata.
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_build_landscape()
+	# Le scritte (nomi delle strade, dei quartieri, dei lotti) col pennello, su
+	# un figlio a parte: il pennello rimpicciolito vuole il filtro lineare, e
+	# le piastrelle delle strade quello "nearest" del progetto. Sullo stesso
+	# nodo uno dei due sarebbe sbagliato.
+	var scritte := Node2D.new()
+	scritte.name = "Scritte"
+	scritte.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	scritte.draw.connect(func() -> void:
+		_draw_street_names(scritte)
+		_draw_labels(scritte))
+	add_child(scritte)
 
 func _draw() -> void:
 	_draw_districts()
@@ -180,9 +198,7 @@ func _draw() -> void:
 		_draw_asphalt(road, false)
 	_draw_junctions()
 	_draw_exit_roads()
-	_draw_street_names()
 	_draw_trees()
-	_draw_labels()
 
 # --- Quartieri -------------------------------------------------------------
 
@@ -215,6 +231,10 @@ func _draw_lots() -> void:
 				draw_rect(rect.grow(-4.0), line, false, 2.0)
 			"asphalt":
 				_draw_parking_bays(rect, line)
+			"busyard":
+				_draw_bus_bays(line)
+			"platform":
+				_draw_platform(rect, fill, line)
 			"aiuola":
 				draw_rect(rect.grow(-3.0), line, true)
 				# L'ombra del cordolo sul lato basso, verso la camera: senza,
@@ -284,6 +304,37 @@ func _draw_bay_row(rect: Rect2, line: Color, top: float) -> void:
 		x += BAY.x
 	draw_line(Vector2(rect.position.x + 8.0, top),
 		Vector2(rect.end.x - 8.0, top), line * Color(1, 1, 1, 0.7), 1.0)
+
+## I box gialli delle fermate, uno per fermata di ogni corsia, e fra una
+## corsia e l'altra la riga bianca tratteggiata. Le misure vengono dalla pianta
+## (`CityMap.BUS_LANES`, `BUS_STOPS_X`): e' li' che si ferma `BusDepot`, e un
+## autobus fermo fuori dal suo box si vedrebbe subito.
+func _draw_bus_bays(line: Color) -> void:
+	var box := Vector2(88.0, 38.0)
+	for y: float in CityMap.BUS_LANES:
+		for x: float in CityMap.BUS_STOPS_X:
+			var r := Rect2(Vector2(x, y) - box * 0.5, box)
+			draw_rect(r, line, false, 1.0)
+			# La diagonale del box, come in un "non fermarti qui se non sei un
+			# autobus": mezza trasparente, se no il box sembra una X.
+			draw_line(r.position, r.end, line * Color(1, 1, 1, 0.35), 1.0)
+	var dash := Color(0.90, 0.90, 0.86, 0.45)
+	var yard: Rect2 = CityMap.BUS_YARD
+	for i in CityMap.BUS_LANES.size() - 1:
+		# A meta' strada fra una corsia e la banchina dopo: la riga che divide
+		# chi e' fermo da chi passa.
+		var y := (float(CityMap.BUS_LANES[i]) + (CityMap.BUS_PLATFORMS[i] as Rect2).position.y) * 0.5
+		var x := yard.position.x + 12.0
+		while x < yard.end.x - 12.0:
+			draw_line(Vector2(x, y), Vector2(minf(x + 10.0, yard.end.x - 12.0), y), dash, 1.0)
+			x += 20.0
+
+## Una banchina: il cemento, le lastre, il bordo giallo di sicurezza sul lato
+## sud — quello a cui si accosta l'autobus — e l'ombra del cordolo.
+func _draw_platform(rect: Rect2, fill: Color, line: Color) -> void:
+	_draw_paving(rect, fill.darkened(0.12))
+	draw_rect(Rect2(rect.position.x, rect.end.y - 5.0, rect.size.x, 2.0), line, true)
+	draw_rect(Rect2(rect.position.x, rect.end.y - 2.0, rect.size.x, 2.0), fill.darkened(0.40), true)
 
 ## Rottami, cassoni, macchie d'olio: dà l'idea di un piazzale usato.
 func _draw_scatter(rect: Rect2, line: Color) -> void:
@@ -533,10 +584,8 @@ func _noise_image(fractal: FastNoiseLite.FractalType, frequency: float, octaves:
 ## Niente nomi dentro agli incroci: lì sotto ci sono già le strisce pedonali, e
 ## una scritta che ci passa sopra si legge come un errore di disegno. È la
 ## stessa regola della mezzeria tratteggiata, che pure si interrompe.
-func _draw_street_names() -> void:
-	var font := ThemeDB.fallback_font
-	if font == null:
-		return
+func _draw_street_names(canvas: CanvasItem) -> void:
+	var font := UiTheme.WINDOW_FILE
 	# Mezza fascia sopra all'asfalto: il marciapiede è profondo 32 px, quindi la
 	# scritta gli finisce in mezzo.
 	var band := CityMap.SIDEWALK_DEPTH * 0.5
@@ -553,7 +602,7 @@ func _draw_street_names() -> void:
 			# controllano tutti e due i capi, non solo il centro, o una scritta
 			# lunga ci entra per metà.
 			if not _crosses_road(CityMap.ROADS_V, x - width * 0.5, x + width * 0.5, y):
-				draw_string(
+				canvas.draw_string(
 					font, Vector2(x - width * 0.5, y + STREET_LABEL_SIZE * 0.36), name,
 					HORIZONTAL_ALIGNMENT_LEFT, -1, STREET_LABEL_SIZE, STREET_LABEL)
 			x += STREET_LABEL_STEP
@@ -572,11 +621,11 @@ func _draw_street_names() -> void:
 				# senso orario, così si legge dall'alto verso il basso: è l'unico
 				# verso che non costringe a piegare la testa dalla parte opposta
 				# a come si guarda la mappa.
-				draw_set_transform(Vector2(x, y), PI * 0.5, Vector2.ONE)
-				draw_string(
+				canvas.draw_set_transform(Vector2(x, y), PI * 0.5, Vector2.ONE)
+				canvas.draw_string(
 					font, Vector2(-width * 0.5, STREET_LABEL_SIZE * 0.36), name,
 					HORIZONTAL_ALIGNMENT_LEFT, -1, STREET_LABEL_SIZE, STREET_LABEL)
-				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+				canvas.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 			y += STREET_LABEL_STEP
 
 ## Se il tratto orizzontale da `from` a `to` alla quota `y` incrocia una di
@@ -612,12 +661,10 @@ func _draw_trees() -> void:
 
 ## Nomi dei quartieri e dei terreni. Sparirà tutto con la pixel art: servono
 ## adesso, per capire a occhio dove si è mentre si prova il gioco.
-func _draw_labels() -> void:
-	var font := ThemeDB.fallback_font
-	if font == null:
-		return
+func _draw_labels(canvas: CanvasItem) -> void:
+	var font := UiTheme.WINDOW_FILE
 	for district in CityMap.DISTRICTS:
-		draw_string(
+		canvas.draw_string(
 			font, district["label_at"], str(district["name"]),
 			HORIZONTAL_ALIGNMENT_LEFT, -1, DISTRICT_LABEL_SIZE, DISTRICT_LABEL)
 	for lot in CityMap.LOTS:
@@ -630,6 +677,6 @@ func _draw_labels() -> void:
 			continue
 		var rect: Rect2 = lot["rect"]
 		var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE).x
-		draw_string(
+		canvas.draw_string(
 			font, Vector2(rect.get_center().x - width * 0.5, rect.position.y + 14.0), text,
 			HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE, LOT_LABEL)

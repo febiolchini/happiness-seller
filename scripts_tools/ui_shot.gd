@@ -108,6 +108,24 @@ func _ready() -> void:
 	await get_tree().create_timer(0.4).timeout
 	await _scatta("ui_dialogo")
 
+	# Il resoconto a gioco chiuso e i messaggini dell'HUD: sono le righe piene
+	# di cifre e punteggiatura, cioè quelle che dicono se il pennello regge.
+	dialogo.close()
+	GameState.notify(tr("NOTE_STAFF_HARVESTED") % 42)
+	GameState.notify(tr("NOTE_HARVESTED") % 20)
+	var resoconto := GameState.message(tr("MSG_AWAY_SPEAKER"), "\n".join(PackedStringArray([
+		tr("AWAY_HEADER") % UiFormat.play_time(840.0),
+		"%s 883 21:07  ->  %s 886 08:07" % [tr("HUD_DAY"), tr("HUD_DAY")],
+		"",
+		tr("AWAY_HARVEST") % 1242,
+		tr("AWAY_SOLD") % [108, UiFormat.money(1548)],
+		tr("AWAY_CUT") % UiFormat.money(87),
+		tr("AWAY_WAGES") % UiFormat.money(891),
+	])))
+	await get_tree().create_timer(0.4).timeout
+	await _scatta("ui_resoconto")
+	resoconto.queue_free()
+
 	print("fatto: %s" % ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()
 

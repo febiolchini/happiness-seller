@@ -33,14 +33,20 @@ extends RefCounted
 ##
 ## ## Il terzo: il pennello
 ##
-## `menu()` è `brush.fnt`, l'alfabeto scritto a pennello ricavato da una foto
+## `menu()` è `brush.fnt`, l'alfabeto scritto a pennello ricavato da due foto
 ## da `scripts_tools/import_brush_font.py`. Nato per i menu — quello
-## principale, impostazioni, salvataggi — copre ormai **tutto il gioco tranne
-## il telefono**: HUD, finestre, i nomi sotto al puntatore, i fumetti di
-## dialogo. Come `alphabet.fnt` ha solo lettere (le minuscole sono le stesse
-## maiuscole) e l'ombra cotta dentro, quindi le voci che ci finiscono sopra
-## sono PIXEL in `strings.gd`. Il telefono resta con Nunito: è l'unica
+## principale, impostazioni, salvataggi — copre **tutto il gioco tranne il
+## telefono**: HUD, finestre, i nomi sotto al puntatore, i fumetti di dialogo,
+## i messaggini, ogni cifra. Ha lettere (le minuscole sono le stesse maiuscole)
+## e cifre, con l'ombra cotta dentro. Il telefono resta con Nunito: è l'unica
 ## schermata che tiene il suo font, apposta.
+##
+## La punteggiatura (":", "$", ".", "-"...) il pennello non ce l'ha ancora:
+## per quella Nunito sta dietro al pennello come **font di riserva**, carattere
+## per carattere (`_static_init()`). Così una riga come "Raccolto: 1242 g" è
+## tutta a pennello tranne i due punti, invece di finire tutta in Nunito per
+## colpa di un carattere. Quando arriveranno i segni a pennello basterà
+## aggiungerli all'atlante: la riserva smetterà da sola di servire.
 ##
 ## Due modi di vestirlo, a seconda di cosa c'è sotto:
 ## - `dress_menu_text()`/`dress_world_text()` — pennello **con** l'ombra
@@ -50,10 +56,6 @@ extends RefCounted
 ##   (`WINDOW_FILE`, `brush_ink.fnt`), per la carta chiara delle finestre: lì
 ##   la scrittura è scura su chiaro, e l'ombra scura la farebbe sembrare
 ##   sbavata.
-##
-## Tutti e tre scelgono da soli, testo per testo: pennello se è di sole
-## parole, Nunito se ha cifre o punteggiatura che il pennello non sa
-## disegnare (`can_brush()`).
 ##
 ## Va messo con `dress_menu_text()` e non a mano: il glifo è disegnato a 56 px
 ## e a schermo ne esce un terzo, e rimpicciolito col filtro "nearest" del
@@ -83,10 +85,6 @@ const WIN_BUTTON := 16   ## bottoni di sole parole, "chiudi"
 static func brush_size(body_size: int) -> int:
 	return int(roundf(float(body_size) * 1.4))
 
-## Quello che il pennello sa scrivere: lettere e spazio. Stessa regola PIXEL di
-## `strings.gd`, ma controllata sul testo vero, a schermo.
-const BRUSH_CHARS := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz "
-
 ## Le misure del pennello. Più grandi di quelle dell'alfabeto di prima: il
 ## pennello è più sottile e più mosso, e a sedici pixel le setole si impastano.
 const MENU_BIG := 22     ## le voci del menu principale
@@ -114,19 +112,32 @@ const HEADER := Color(1.0, 1.0, 1.0)
 ## Testo principale. Quasi nero e non nero pieno: il nero assoluto su bianco
 ## puro vibra, e questa è una schermata da leggere a lungo.
 const INK := Color(0.090, 0.098, 0.114)
-## Etichette, didascalie.
-const INK_SOFT := Color(0.337, 0.361, 0.400)
-## Note, spiegazioni, roba che si legge solo se la si cerca.
-const INK_FAINT := Color(0.541, 0.565, 0.600)
+## Etichette e didascalie, e note e spiegazioni. Erano due grigi, uno medio e
+## uno chiaro, per dire cosa conta di meno; Federico le ha volute nere come il
+## resto (2026-09-25): sul bianco, col pennello sottile, il grigio si leggeva
+## male. Restano due nomi per non riscrivere le chiamate, e perche' una
+## gerarchia, se tornasse, si rimette qui.
+const INK_SOFT := INK
+const INK_FAINT := INK
+## Il testo di un bottone spento: questo si' grigio. Non e' un'etichetta meno
+## importante, e' il modo in cui si capisce che il bottone non si preme.
+const INK_DISABLED := Color(0.541, 0.565, 0.600)
 ## Filetti e bordi.
 const LINE := Color(0.882, 0.894, 0.914)
 
-## Arancio: il colore delle cose su cui si clicca. È l'unico acceso che non
-## vuol dire "bene" o "male" — quelli sono il verde e il rosso qui sotto — e
-## quindi è libero di voler dire solo "premimi".
+## Arancio: prezzi, cassa, titoli. È l'unico acceso che non vuol dire "bene"
+## o "male" — quelli sono il verde e il rosso qui sotto. Era anche il colore dei
+## bottoni, che adesso hanno il loro rosso (`BUTTON`, qui sotto).
 const ACCENT := Color(0.937, 0.424, 0.239)
 const ACCENT_DARK := Color(0.788, 0.322, 0.165)
 const ACCENT_SOFT := Color(0.992, 0.918, 0.886)
+
+## Rosso: i bottoni. Federico li ha voluti rossi e non arancioni (2026-09-25);
+## l'arancio qui sopra resta per il resto — prezzi, cassa, titoli della guida,
+## il segnalino sugli sportelli — che non si premono.
+const BUTTON := Color(0.824, 0.208, 0.196)
+const BUTTON_DARK := Color(0.671, 0.149, 0.141)
+const BUTTON_SOFT := Color(0.988, 0.906, 0.902)
 
 ## Verde: va bene, è pronto, è guadagnato.
 const GOOD := Color(0.184, 0.627, 0.353)
@@ -172,6 +183,16 @@ const W_BOLD := 700
 static var _body_cache: Dictionary = {}
 static var _weight_tag := 0
 
+## Nunito dietro ai due pennelli, per i caratteri che il pennello non ha (vedi
+## in cima). Una volta sola, al caricamento della classe: i due `.fnt` sono
+## risorse condivise, quindi la riserva vale per ogni nodo che li usa.
+##
+## Passando per una variabile: GDScript non lascia toccare le proprietà di una
+## `const`, anche se la risorsa sotto è la stessa.
+static func _static_init() -> void:
+	for brush: Font in [MENU_FILE, WINDOW_FILE]:
+		brush.fallbacks = [body(W_MEDIUM)]
+
 ## Nunito al peso chiesto. Il risultato è in cache: un `FontVariation` nuovo per
 ## ogni Label vorrebbe dire un atlante di glifi nuovo per ognuna.
 static func body(weight: int = W_REGULAR) -> FontVariation:
@@ -198,46 +219,24 @@ static func dress_menu_text(node: Control, size := MENU_ITEM) -> void:
 	node.add_theme_font_size_override("font_size", size)
 	node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
-## Si può scrivere col pennello? Solo se ogni carattere è una lettera o uno
-## spazio. Un "VASO 3" o un "$120" no: col pennello la cifra non si disegna e
-## resterebbe un buco nella parola.
+## Veste un testo di una finestra col pennello senza ombra.
 ##
-## Si guarda il testo **tradotto**: molti nodi hanno per testo la chiave
-## ("PC_CLOSE") e la traduzione la fa Godot a schermo, e la chiave col suo
-## trattino basso non passerebbe mai.
-static func can_brush(text: String) -> bool:
-	var shown := String(TranslationServer.translate(text))
-	if shown.strip_edges().is_empty():
-		return false
-	for letter in shown:
-		if not BRUSH_CHARS.contains(letter):
-			return false
-	return true
+## `_text`, `_body_size` e `_weight` non servono più: erano per la scelta fra
+## pennello e Nunito, che non si fa più da quando il pennello ha le cifre e
+## Nunito gli fa da riserva per la punteggiatura. Restano nella firma per non
+## riscrivere le decine di chiamate che li passano.
+static func dress_window_text(node: Control, _text: String, brush_size: int,
+		_body_size := 0, _weight := W_MEDIUM) -> void:
+	node.add_theme_font_override("font", WINDOW_FILE)
+	node.add_theme_font_size_override("font_size", brush_size)
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	# Niente ombra: i titoli dell'agenzia e del grossista ne hanno una nel
+	# `.tscn` (serviva al vecchio font), e sotto al pennello sulla carta
+	# faceva sembrare la scritta sbavata.
+	node.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 
-## Veste un testo di una finestra: col pennello senza ombra se il testo lo
-## permette, altrimenti con Nunito al peso dato — **e lo decide sul testo che
-## c'è adesso**. Le righe del PC cambiano scritta mentre si gioca, quindi chi
-## riscrive il testo di un bottone o di un'etichetta la richiama.
-##
-## Il pennello esce un filo più grande di Nunito alla stessa misura dichiarata
-## ma più sottile, quindi le due misure si passano separate.
-static func dress_window_text(node: Control, text: String, brush_size: int,
-		body_size: int, weight := W_MEDIUM) -> void:
-	if can_brush(text):
-		node.add_theme_font_override("font", WINDOW_FILE)
-		node.add_theme_font_size_override("font_size", brush_size)
-		node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-		# Niente ombra: i titoli dell'agenzia e del grossista ne hanno una nel
-		# `.tscn` (serviva al vecchio font), e sotto al pennello sulla carta
-		# faceva sembrare la scritta sbavata.
-		node.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
-	else:
-		node.add_theme_font_override("font", body(weight))
-		node.add_theme_font_size_override("font_size", body_size)
-		node.texture_filter = CanvasItem.TEXTURE_FILTER_PARENT_NODE
-
-## Una Label di finestra: pennello se il testo è di sole parole, Nunito se no.
-## È `label()` con in più la scelta del font.
+## Una Label di finestra, col pennello: `label()` vestita da
+## `dress_window_text()`.
 static func window_label(text: String, brush_size: int, body_size: int,
 		color: Color, weight := W_MEDIUM) -> Label:
 	var node := label(text, body_size, color, weight)
@@ -250,34 +249,19 @@ static func window_label(text: String, brush_size: int, body_size: int,
 ## appoggiate sopra alla città, non le finestre chiare del gestionale.
 ##
 ## Pennello **con** l'ombra già dentro al disegno (`MENU_FILE`, lo stesso di
-## `dress_menu_text()`) se il testo è di sole parole; altrimenti Nunito, con
-## un'ombra dura aggiunta a mano se `shadow_color` ha alpha — serve sopra alla
-## città, dove sotto la scritta può passarci di tutto, mentre su un pannello
-## pieno (i salvataggi, le righe della guida) il default trasparente non
-## aggiunge niente che prima non ci fosse. Decide sul testo **che c'è adesso**,
-## come `dress_window_text()`.
-static func dress_world_text(node: Control, text: String, brush_size: int,
-		body_size: int, weight := W_MEDIUM,
-		shadow_color := Color(0, 0, 0, 0)) -> void:
-	if can_brush(text):
-		node.add_theme_font_override("font", MENU_FILE)
-		node.add_theme_font_size_override("font_size", brush_size)
-		node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-		# Ombra gia' cotta nel disegno: una seconda la farebbe sembrare scritta
-		# due volte.
-		node.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
-	else:
-		node.add_theme_font_override("font", body(weight))
-		node.add_theme_font_size_override("font_size", body_size)
-		node.texture_filter = CanvasItem.TEXTURE_FILTER_PARENT_NODE
-		node.add_theme_color_override("font_shadow_color", shadow_color)
-	if shadow_color.a > 0.0:
-		node.add_theme_constant_override("shadow_offset_x", 1)
-		node.add_theme_constant_override("shadow_offset_y", 1)
+## `dress_menu_text()`). Nessuna ombra aggiunta a mano: una seconda la farebbe
+## sembrare scritta due volte. Gli argomenti con `_` davanti non servono più,
+## come in `dress_window_text()`.
+static func dress_world_text(node: Control, _text: String, brush_size: int,
+		_body_size := 0, _weight := W_MEDIUM,
+		_shadow_color := Color(0, 0, 0, 0)) -> void:
+	node.add_theme_font_override("font", MENU_FILE)
+	node.add_theme_font_size_override("font_size", brush_size)
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	node.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
 
-## Una Label "sul mondo": pennello se il testo è di sole parole, Nunito se no.
-## È `label()` con in più la scelta del font, come `window_label()` ma per
-## `dress_world_text()`.
+## Una Label "sul mondo", col pennello: `label()` vestita da
+## `dress_world_text()`, come `window_label()` lo è da `dress_window_text()`.
 static func world_label(text: String, brush_size: int, body_size: int,
 		color: Color, weight := W_MEDIUM,
 		shadow_color := Color(0, 0, 0, 0)) -> Label:
@@ -333,11 +317,11 @@ static func card_box() -> StyleBoxFlat:
 
 # --- Bottoni ----------------------------------------------------------------
 
-## L'azione principale: terracotta piena, testo di carta.
+## L'azione principale: rossa piena, testo di carta.
 static func primary_boxes() -> Dictionary:
-	var normal := _box(ACCENT, 4)
-	var hover := _box(ACCENT.lightened(0.10), 4)
-	var pressed := _box(ACCENT_DARK, 4)
+	var normal := _box(BUTTON, 4)
+	var hover := _box(BUTTON.lightened(0.10), 4)
+	var pressed := _box(BUTTON_DARK, 4)
 	var disabled := _box(Color(0.886, 0.898, 0.914), 4)
 	for box: StyleBoxFlat in [normal, hover, pressed, disabled]:
 		box.content_margin_left = 10
@@ -352,8 +336,8 @@ static func primary_boxes() -> Dictionary:
 ## L'azione secondaria: solo contorno, si accende passandoci sopra.
 static func ghost_boxes() -> Dictionary:
 	var normal := _box(Color(1, 1, 1, 0), 4, 1, LINE)
-	var hover := _box(ACCENT_SOFT, 4, 1, ACCENT)
-	var pressed := _box(ACCENT_SOFT.darkened(0.06), 4, 1, ACCENT_DARK)
+	var hover := _box(BUTTON_SOFT, 4, 1, BUTTON)
+	var pressed := _box(BUTTON_SOFT.darkened(0.06), 4, 1, BUTTON_DARK)
 	var disabled := _box(Color(1, 1, 1, 0), 4, 1, Color(0.918, 0.925, 0.937))
 	for box: StyleBoxFlat in [normal, hover, pressed, disabled]:
 		box.content_margin_left = 10
@@ -369,7 +353,7 @@ static func rail_boxes() -> Dictionary:
 	var normal := _box(Color(1, 1, 1, 0), 4)
 	var hover := _box(Color(1.0, 1.0, 1.0, 0.80), 4)
 	var active := _box(CARD, 4, 1, LINE)
-	# Contorno di terracotta attorno alla voce aperta, piu' spesso sul fianco.
+	# Contorno rosso attorno alla voce aperta, piu' spesso sul fianco.
 	# Il riquadro di carta da solo dice "sono qui", ma resta dello stesso colore
 	# di tutto il resto: e' il colore a far trovare il punto in cui si e' senza
 	# doverlo cercare. Di lato e' piu' spesso perche' la colonna si legge da
@@ -381,7 +365,7 @@ static func rail_boxes() -> Dictionary:
 		box.content_margin_right = 6
 		box.content_margin_top = 4
 		box.content_margin_bottom = 5
-	active.border_color = ACCENT
+	active.border_color = BUTTON
 	# Il bordo mangia spazio al testo: senza questo, la voce aperta si sposta di
 	# tre pixel rispetto alle altre e la colonna balla a ogni click.
 	active.content_margin_left = 6
@@ -416,23 +400,23 @@ static func add_hard_shadow(node: Control, color := Color(0, 0, 0, 0.85)) -> voi
 static func dress_scrollbar(bar: ScrollBar) -> void:
 	var fondo := _box(Color(0.925, 0.933, 0.945), 3)
 	var cursore := _box(Color(0.741, 0.765, 0.800), 3)
-	var acceso := _box(ACCENT, 3)
+	var acceso := _box(BUTTON, 3)
 	bar.add_theme_stylebox_override("scroll", fondo)
 	bar.add_theme_stylebox_override("grabber", cursore)
 	bar.add_theme_stylebox_override("grabber_highlight", acceso)
 	bar.add_theme_stylebox_override("grabber_pressed", acceso)
 
-## Veste un bottone già esistente con uno dei set qui sopra.
+## Veste un bottone già esistente con uno dei set qui sopra. Il testo col
+## pennello delle finestre: i bottoni vestiti così stanno tutti sulla carta.
 static func dress_button(button: Button, boxes: Dictionary, color: Color,
-		size := SIZE_VALUE, weight := W_MEDIUM) -> void:
+		size := SIZE_VALUE, _weight := W_MEDIUM) -> void:
 	for state in ["normal", "hover", "pressed", "disabled"]:
 		if boxes.has(state):
 			button.add_theme_stylebox_override(state, boxes[state])
 	button.add_theme_stylebox_override("focus", _box(Color(1, 1, 1, 0), 4))
-	button.add_theme_font_override("font", body(weight))
-	button.add_theme_font_size_override("font_size", size)
+	dress_window_text(button, button.text, brush_size(size))
 	button.add_theme_color_override("font_color", color)
 	button.add_theme_color_override("font_hover_color", color)
 	button.add_theme_color_override("font_pressed_color", color)
 	button.add_theme_color_override("font_focus_color", color)
-	button.add_theme_color_override("font_disabled_color", INK_FAINT)
+	button.add_theme_color_override("font_disabled_color", INK_DISABLED)

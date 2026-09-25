@@ -329,9 +329,9 @@ func _check_milestones() -> void:
 	if Staff.check_driver_hello(current):
 		contact_message(Chat.DRIVER, "MSG_DRIVER_HELLO")
 		save_game()
-	# Ai centomila dollari Kevin gira il contatto fuori stato: da qui in poi la
-	# stazione degli autobus compare in COMMERCIAL DISTRICT (vedi `unlock_flag`
-	# in `CityMap.BUILDINGS`) e il messaggio mette Kevin in rubrica.
+	# Ai centomila dollari Kevin gira il contatto fuori stato: da qui in poi lo
+	# sportello della stazione degli autobus si apre (vedi `window_flag` in
+	# `CityMap.BUILDINGS`) e il messaggio mette Kevin in rubrica.
 	if BusImport.check_unlock(current):
 		contact_message(Chat.KEVIN, "MSG_KEVIN_BUS_STATION_BODY")
 		save_game()

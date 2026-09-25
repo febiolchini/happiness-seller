@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/seed_wholesale_window.gd" id="1_window"]
-[ext_resource type="FontFile" path="res://assets/sprites/ui/alphabet.fnt" id="2_font"]
+[ext_resource type="FontFile" path="res://assets/sprites/ui/brush.fnt" id="2_font"]
 [ext_resource type="PackedScene" path="res://scenes/ui/MenuTextButton.tscn" id="3_button"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]

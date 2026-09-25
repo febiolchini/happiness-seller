@@ -394,7 +394,8 @@ func _show_page() -> void:
 	var open := _state == State.OPEN
 	# Il bottone in fondo sta solo nella chat: nel menu dei tagli le righe sono
 	# già i bottoni, e lasciarne uno sotto vorrebbe dire due modi di scegliere.
-	var chat := open and _page == Page.CHAT
+	# E solo nella chat di chi ha qualcosa da fargli fare: vedi `_has_action()`.
+	var chat := open and _page == Page.CHAT and _has_action()
 	_sender.visible = _state == State.MESSAGE
 	_body.visible = _state == State.MESSAGE
 	_title.visible = open
@@ -733,6 +734,13 @@ func _build_action() -> void:
 	_call.pressed.connect(_on_action)
 	_action.add_child(_call)
 
+## Il bottone c'è solo per chi ha qualcosa da fargli fare: Brian (i semi) e
+## l'autista (il giro). Kevin per ora scrive e basta — il suo contatto si usa
+## alla stazione degli autobus, non dal telefono — e un bottone nella sua chat
+## chiamerebbe Brian, che con lui non c'entra niente.
+func _has_action() -> bool:
+	return _contact == Chat.BRIAN or _contact == Chat.DRIVER
+
 ## Il bottone fa una cosa diversa a seconda di con chi si sta parlando: a Brian
 ## si chiedono i semi, all'autista si dice di andarli a prendere — e lì serve
 ## sapere quanti, quindi si apre il menu invece di partire.
@@ -808,7 +816,7 @@ func _draw() -> void:
 	if _page == Page.CONTACTS:
 		return
 	# Il filetto sopra al bottone solo dove il bottone c'è davvero.
-	if _page == Page.CHAT:
+	if _page == Page.CHAT and _has_action():
 		_draw_rule(_action.position.y - 6.0)
 	_draw_back()
 

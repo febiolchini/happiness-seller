@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/components/room_hotspot.gd" id="1_hotspot"]
-[ext_resource type="FontFile" path="res://assets/sprites/ui/alphabet.fnt" id="2_font"]
+[ext_resource type="FontFile" path="res://assets/sprites/ui/brush.fnt" id="2_font"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_box"]
 bg_color = Color(0.0313726, 0.0313726, 0.0392157, 0.549020)
@@ -28,3 +28,4 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_box")
 text = "PC"
 script = ExtResource("1_hotspot")
 use_press_offset = false
+texture_filter = 2

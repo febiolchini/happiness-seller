@@ -2575,13 +2575,29 @@ del prologo e non alla vendita, per lo stesso motivo: i soldi entrano da
 troppe parti per ricordarsi di controllare da ognuna): dice che l'attività sta
 crescendo, e che se la sua quantità non basta più può girare un contatto che
 importa da un altro stato. Il messaggio mette **Kevin in rubrica** — è la
-prima volta che scrive di persona — e sblocca la **stazione degli autobus**.
+prima volta che scrive di persona — e apre lo **sportello della stazione degli autobus**.
 
-La stazione compare in COMMERCIAL DISTRICT, sopra HILLSIDE come il magazzino
-di Kevin, un isolato più a est su MAIN STREET. È un **segnaposto dichiarato**:
-un rettangolo con un tetto, una porta e una striscia di nastro da cantiere,
-non un disegno vero. Stessa regola di tutta l'arte del gioco — quando arriverà
-il disegno si cambia `texture` in `CityMap.BUILDINGS` e nient'altro.
+La stazione sta in COMMERCIAL DISTRICT, sopra HILLSIDE come il magazzino
+di Kevin, e prende **tutto l'isolato** fra LOCK STREET e SEVENTH STREET, su
+MAIN STREET. In fondo l'edificio (`scripts_tools/blender_stazione_bus.py`):
+mattoni, l'atrio con la volta ribassata, l'orologio e l'insegna blu. Davanti
+il piazzale, che disegna Godot (`LOTS` di tipo `busyard` e `platform`): tre
+corsie di fermata coi box gialli, due banchine con le loro pensiline — uno
+sprite a parte, due volte, perché gli autobus ci passano davanti e dietro — e
+due aiuole con i cespugli su MAIN STREET. **La stazione c'è dall'inizio**,
+autobus compresi: quello che sblocca il messaggio di Kevin è lo sportello.
+Prima, `window_flag` nella voce di `CityMap.BUILDINGS` lo tiene chiuso — il
+click non apre la finestra, non c'è il segnalino, e un messaggino dice che lì
+non ti conosce ancora nessuno.
+
+Gli autobus vanno e vengono (`BusDepot`, che usa le stesse auto e le stesse
+curve del parcheggio della steak house): arrivano da sud su LOCK STREET,
+accostano a una fermata, e ripartono tirando dritto fino a SEVENTH STREET,
+senza retromarce. Quanti ce ne sono dipende dall'ora. Lo sprite è ancora un
+**segnaposto** — il bus del traffico, `BusDepot.BUS_MODEL` — in attesa dei
+disegni veri. La pianta del piazzale (`CityMap.BUS_*`) la detta l'altezza
+della pensilina: un autobus fermo dietro a una banchina deve stare più su
+del suo tetto, o il tetto gli passa davanti.
 
 Cliccandoci si apre uno sportello (`scenes/ui/BusStationWindow.tscn`), identico
 nella forma a quello del grossista in centro: tre tagli, `BusImport.PACKS`, da

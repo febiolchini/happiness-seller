@@ -118,17 +118,15 @@ func _dress() -> void:
 	_panel.add_theme_stylebox_override("panel", UiTheme.window_box())
 	_header.add_theme_stylebox_override("panel", UiTheme.header_box())
 
-	# Titolo, "chiudi", schede ed etichette fisse col pennello delle finestre
-	# (`UiTheme.WINDOW_FILE`); cifre, prezzi e spiegazioni con Nunito.
+	# Tutto col pennello delle finestre (`UiTheme.WINDOW_FILE`), cifre e
+	# prezzi compresi.
 	UiTheme.dress_window_text(_title, _title.text, UiTheme.WIN_TITLE, UiTheme.SIZE_TITLE)
 	_title.add_theme_color_override("font_color", UiTheme.INK)
 
-	_cash.add_theme_font_override("font", UiTheme.body(UiTheme.W_BOLD))
-	_cash.add_theme_font_size_override("font_size", UiTheme.SIZE_BIG)
+	UiTheme.dress_window_text(_cash, _cash.text, UiTheme.brush_size(UiTheme.SIZE_BIG))
 	_cash.add_theme_color_override("font_color", UiTheme.ACCENT_DARK)
 
-	_clock.add_theme_font_override("font", UiTheme.body(UiTheme.W_MEDIUM))
-	_clock.add_theme_font_size_override("font_size", UiTheme.SIZE_NOTE)
+	UiTheme.dress_window_text(_clock, _clock.text, UiTheme.brush_size(UiTheme.SIZE_NOTE))
 	_clock.add_theme_color_override("font_color", UiTheme.INK_SOFT)
 
 	UiTheme.dress_button(_close_button, UiTheme.ghost_boxes(), UiTheme.INK_SOFT,
@@ -208,7 +206,7 @@ func _select_tab(index: int) -> void:
 			"hover": boxes["active"] if attiva else boxes["hover"],
 			"pressed": boxes["active"],
 			"disabled": boxes["normal"],
-		}, UiTheme.ACCENT_DARK if attiva else UiTheme.INK_SOFT, UiTheme.SIZE_TAB,
+		}, UiTheme.BUTTON_DARK if attiva else UiTheme.INK_SOFT, UiTheme.SIZE_TAB,
 			UiTheme.W_BOLD if attiva else UiTheme.W_MEDIUM)
 		UiTheme.dress_window_text(button, button.text, UiTheme.WIN_TAB, UiTheme.SIZE_TAB,
 			UiTheme.W_BOLD if attiva else UiTheme.W_MEDIUM)
@@ -934,15 +932,13 @@ func _add_field(caption: String, text: Callable, color := Callable(), pixel_capt
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
-	# Col pennello se l'etichetta e' di sole parole ("SCORTA"), con Nunito se ha
-	# cifre dentro ("VASO 3"): lo decide `UiTheme` guardando il testo.
 	var name_label := UiTheme.window_label(caption, UiTheme.WIN_LABEL, UiTheme.SIZE_LABEL,
 		UiTheme.INK_SOFT, UiTheme.W_MEDIUM if pixel_caption else UiTheme.W_REGULAR)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_label)
 
-	var value_label := UiTheme.label("", UiTheme.SIZE_VALUE, UiTheme.INK,
-		UiTheme.W_BOLD)
+	var value_label := UiTheme.window_label("", UiTheme.brush_size(UiTheme.SIZE_VALUE),
+		UiTheme.SIZE_VALUE, UiTheme.INK, UiTheme.W_BOLD)
 	value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(value_label)
 
@@ -951,7 +947,7 @@ func _add_field(caption: String, text: Callable, color := Callable(), pixel_capt
 
 ## Un bottone d'azione, dentro al riquadro in cui si sta scrivendo.
 ##
-## Pieno di terracotta e non piatto come prima: in un gestionale le righe sono
+## Pieno di rosso e non piatto come prima: in un gestionale le righe sono
 ## quasi tutte da leggere e poche da premere, e se le seconde hanno lo stesso
 ## aspetto delle prime non si trovano. Largo quanto il riquadro, perche' in
 ## colonna un bottone stretto in mezzo alla carta sembra sganciato.
@@ -987,8 +983,9 @@ func _add_note(text: String) -> void:
 	nota.scroll_active = false
 	nota.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	nota.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	nota.add_theme_font_override("normal_font", UiTheme.body())
-	nota.add_theme_font_size_override("normal_font_size", UiTheme.SIZE_NOTE)
+	nota.add_theme_font_override("normal_font", UiTheme.WINDOW_FILE)
+	nota.add_theme_font_size_override("normal_font_size", UiTheme.brush_size(UiTheme.SIZE_NOTE))
+	nota.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	nota.add_theme_color_override("default_color", UiTheme.INK_FAINT)
 	_card().add_child(nota)
 

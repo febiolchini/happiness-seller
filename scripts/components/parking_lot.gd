@@ -185,7 +185,7 @@ func _arrive() -> void:
 	var car := _park_new(start, -PI / 2.0)
 	stall["car"] = car
 	_busy = true
-	var leg := _leg([start, Vector2(lane_x, _aisle_y), Vector2(pos.x, _aisle_y), pos],
+	var leg := path_leg([start, Vector2(lane_x, _aisle_y), Vector2(pos.x, _aisle_y), pos],
 		[TURN_ROAD, TURN_LOT], ParkingCar.SPEED_LOT, false, road)
 	leg["fade_in"] = true
 	leg["stop"] = true
@@ -203,9 +203,9 @@ func _depart(stall: Dictionary) -> void:
 	# La corsia che scende verso sud: guida a destra, quella a ovest.
 	var lane_x := road.position.x + 24.0
 	var turned := Vector2(pos.x - toward * BACK_OUT, _aisle_y)
-	var back := _leg([pos, Vector2(pos.x, _aisle_y), turned], [TURN_LOT],
+	var back := path_leg([pos, Vector2(pos.x, _aisle_y), turned], [TURN_LOT],
 		ParkingCar.SPEED_REVERSE, true, Rect2())
-	var away := _leg([turned, Vector2(lane_x, _aisle_y), Vector2(lane_x, _aisle_y + RUN)],
+	var away := path_leg([turned, Vector2(lane_x, _aisle_y), Vector2(lane_x, _aisle_y + RUN)],
 		[TURN_ROAD], ParkingCar.SPEED_LOT, false, road)
 	away["fade_out"] = true
 	_busy = true
@@ -231,8 +231,9 @@ func _park_new(at: Vector2, angle: float) -> ParkingCar:
 
 ## Una tratta: la spezzata `points` con gli angoli arrotondati (un raggio per
 ## angolo, in ordine), percorsa a `speed` — e a velocita' di strada dentro a
-## `fast`, la carreggiata da cui si arriva o su cui si esce.
-func _leg(points: Array, radii: Array, speed: float, reverse: bool, fast: Rect2) -> Dictionary:
+## `fast`, la carreggiata da cui si arriva o su cui si esce. Statica: la usano
+## anche gli autobus della stazione (`BusDepot`).
+static func path_leg(points: Array, radii: Array, speed: float, reverse: bool, fast: Rect2) -> Dictionary:
 	var curve := Curve2D.new()
 	curve.bake_interval = 2.0
 	curve.add_point(points[0])

@@ -23,7 +23,10 @@ func _ready() -> void:
 	pressed.connect(_open_window)
 	# Pennello: la targhetta è sempre di sole lettere ("PC"). Niente ombra a
 	# mano, il riquadro scuro dietro basta a farla leggere.
-	UiTheme.dress_world_text(self, text, 16, 14, UiTheme.W_REGULAR)
+	# `text` non esiste su BaseButton (la base comune con TextureButton), e
+	# nemmeno un cast a Button passa l'analisi statica: il nodo però è sempre un
+	# Button vero, quindi la proprietà la si chiede per nome.
+	UiTheme.dress_world_text(self, str(get("text")), 16, 14, UiTheme.W_REGULAR)
 
 func _open_window() -> void:
 	if window_scene == null or _window != null:

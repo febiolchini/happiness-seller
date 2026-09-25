@@ -67,6 +67,9 @@ var _text := ""
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Il pennello rimpicciolito col "nearest" del progetto si sgrana: vedi
+	# `UiTheme.dress_menu_text()`.
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 func _process(_delta: float) -> void:
 	var data := GameState.current
@@ -79,7 +82,9 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if _text.is_empty():
 		return
-	var font := UiTheme.body(UiTheme.W_BOLD)
+	# Il pennello senza ombra: la sagoma e i fianchi qui sotto sono gia'
+	# un'ombra, e quella cotta dentro a `brush.fnt` ci farebbe una macchia.
+	var font := UiTheme.WINDOW_FILE
 	var width := font.get_string_size(_text, HORIZONTAL_ALIGNMENT_LEFT, -1, SIZE).x
 	# La base è la riga su cui poggiano le lettere, non il loro bordo di sopra:
 	# `draw_string()` disegna da lì, ed è il motivo per cui ci va sommato

@@ -47,6 +47,12 @@ const GROUP := "enterable"
 ## Se sono valorizzati tutti e due vince la stanza: e' il caso piu' forte, e
 ## averli entrambi e' un errore di dati, non una scelta.
 @export_file("*.tscn") var window_scene := ""
+## Il flag della partita che apre lo sportello. Vuoto: aperto sempre. Serve a
+## un edificio che sta in città da subito ma con cui si tratta solo più avanti —
+## la stazione degli autobus, finché Kevin non gira il contatto. Prima di
+## allora l'insegna si legge, ma il click non apre niente e il segnalino non
+## c'è, come per una proprietà non ancora comprata.
+@export var window_flag := ""
 
 ## L'insegna, mostrata passandoci sopra col mouse. Vuota vuol dire nessuna
 ## etichetta: l'edificio resta cliccabile, semplicemente non ha un nome da dire.
@@ -100,10 +106,12 @@ func can_open() -> bool:
 ## Senza partita in corso — la mappa aperta dall'editor — si risponde di sì:
 ## un interno che non si apre mai sarebbe indistinguibile da uno rotto.
 func is_unlocked() -> bool:
-	if not needs_ownership:
-		return true
 	var data := GameState.current
-	return data == null or data.owns(building_id)
+	if data == null:
+		return true
+	if not window_flag.is_empty() and not bool(data.get_flag(window_flag, false)):
+		return false
+	return not needs_ownership or data.owns(building_id)
 
 func contains_point(global_point: Vector2) -> bool:
 	return click_rect.has_point(to_local(global_point))
@@ -141,7 +149,7 @@ func marker_color() -> Variant:
 	if not interior_scene.is_empty():
 		return UiTheme.GOOD
 	if not window_scene.is_empty():
-		return UiTheme.ACCENT
+		return UiTheme.ACCENT if is_unlocked() else null
 	return null
 
 ## Chiamata da `atmosphere.gd` quando la luce è cambiata abbastanza da vedersi.

@@ -40,7 +40,7 @@ const WATER := Color(0.400, 0.706, 0.902)
 const READY_GLOW := Color(1.0, 0.878, 0.353)
 const LABEL := Color(0.878, 0.898, 0.851, 0.85)
 const BAR_BG := Color(0, 0, 0, 0.45)
-const LABEL_SIZE := 8
+const LABEL_SIZE := 11
 ## Sotto a questa larghezza la scritta di stato si mostra **solo passandoci
 ## sopra col mouse**.
 ##
@@ -89,6 +89,7 @@ func _has_point(point: Vector2) -> bool:
 func _ready() -> void:
 	flat = true
 	focus_mode = Control.FOCUS_NONE
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	pressed.connect(_on_pressed)
 
@@ -283,9 +284,9 @@ func _draw_locked() -> void:
 ## un contorno scuro il nome dello stadio si perde dentro alle foglie della
 ## pianta che sta dietro.
 func _draw_caption(body: Rect2, text: String, color: Color) -> void:
-	var font := ThemeDB.fallback_font
-	if font == null:
-		return
+	# Col pennello, come ogni scritta del gioco (`_ready()` gli mette il
+	# filtro lineare: rimpicciolito col "nearest" si sgrana).
+	var font := UiTheme.WINDOW_FILE
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE).x
 	var at := Vector2(body.get_center().x - width * 0.5, body.position.y + 9.0)
 	for offset in [Vector2(1, 1), Vector2(-1, 1), Vector2(1, -1), Vector2(-1, -1)]:

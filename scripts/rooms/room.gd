@@ -84,7 +84,15 @@ func _ready() -> void:
 	GameState.save_game()
 
 	for label in exits:
-		_exits_box.add_child(_build_exit(str(label), str(exits[label])))
+		var exit := _build_exit(str(label), str(exits[label]))
+		_exits_box.add_child(exit)
+		# Due pixel di respiro oltre alla misura del testo. Il contenitore
+		# stringe ogni bottone esattamente a quella, e col pennello —
+		# rimpicciolito da 56 px a 18, con le frazioni che si arrotondano —
+		# l'ultima lettera sforava di un niente e spariva: "ENTRANC". Dopo
+		# `add_child()`: fuori dall'albero la chiave non e' ancora tradotta, e
+		# si misurerebbe "ROOM_ENTRANCE".
+		exit.custom_minimum_size.x = exit.get_minimum_size().x + 2.0
 
 	_build_backdrop_animations()
 	_build_ambience()

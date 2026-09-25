@@ -1,8 +1,9 @@
 """Ricava il font a pennello del gioco da una foto di un alfabeto scritto a mano.
 
-La sorgente e' `assets/sprites/ui/_source/alfabeto_pennello.jpeg`: le ventisei
-maiuscole scritte a pennello nero su carta bianca, in quattro righe
-(ABCDEF / GHIJKLM / NOPQRST / UVWXYZ). Da li' esce un font bitmap BMFont che
+Le sorgenti sono in `assets/sprites/ui/_source/`: `alfabeto_pennello.jpeg`, le
+ventisei maiuscole scritte a pennello nero su carta bianca, in quattro righe
+(ABCDEF / GHIJKLM / NOPQRST / UVWXYZ), e `cifre_pennello.jpeg`, le dieci cifre
+(0123 / 45678 / 9). Da li' esce un font bitmap BMFont che
 Godot importa come qualunque altro `.fnt`:
 
   assets/sprites/ui/brush.png   l'atlante dei glifi
@@ -45,8 +46,10 @@ l'ombra resta scura, quindi l'hover colora la lettera e non l'ombra.
 
 L'alfabeto ha solo maiuscole. Le minuscole puntano agli stessi glifi: le voci
 dei menu sono scritte in minuscolo in `strings.gd` ("nuova partita") e a
-pennello escono maiuscole. Cifre e punteggiatura non ci sono, come in
-`alphabet.fnt`: e' la regola PIXEL di `strings.gd`, che un controllo verifica.
+pennello escono maiuscole. Le cifre ci sono, e dalla terza foto
+(`segni_pennello.jpeg`) dollaro, virgola, punto e apostrofo; il resto della
+punteggiatura lo disegna Nunito, che `UiTheme` mette dietro al pennello come
+font di riserva carattere per carattere.
 
 Uso:
   python scripts_tools/import_brush_font.py
@@ -60,13 +63,38 @@ from PIL import Image, ImageFilter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UI = os.path.join(HERE, os.pardir, "assets", "sprites", "ui")
-SOURCE = os.path.join(UI, "_source", "alfabeto_pennello.jpeg")
+# Ogni foto: il file, i glifi che contiene nell'ordine in cui sono scritti, e
+# quanta striscia in cima ignorare. In cima alla foto delle lettere c'e' una
+# sbavatura grigia che non e' una lettera; in quella delle cifre no, e lo 0 e
+# l'1 arrivano quasi al bordo.
+FOTO = [
+    (os.path.join(UI, "_source", "alfabeto_pennello.jpeg"), "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 70),
+    (os.path.join(UI, "_source", "cifre_pennello.jpeg"), "0123456789", 0),
+]
 
-LETTERE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+# La punteggiatura: `segni_pennello.jpeg`, quattro segni sparsi sul foglio. Non
+# passa da `separa()`: un punto e' cosi' piccolo che la soglia delle setole
+# staccate lo butterebbe via, e i segni non stanno in righe. Si ritagliano da
+# riquadri scritti qui (x0, y0, x1, y1 sulla foto, a piena risoluzione).
+#
+# E non si portano all'altezza di una lettera come fa `riduci_foto()`: un
+# punto alto quaranta pixel sarebbe una palla. Scala unica per tutti e quattro,
+# presa dal dollaro, e ognuno alla sua quota nella riga (`QUOTA`).
+SEGNI = os.path.join(UI, "_source", "segni_pennello.jpeg")
+RIQUADRI_SEGNI = {
+    "$": (391, 95, 675, 526),
+    ",": (917, 422, 961, 533),
+    ".": (1245, 435, 1295, 477),
+    "'": (455, 738, 526, 859),
+}
+# Il dollaro, sbarre comprese, alto una volta e un sesto una lettera: la S in
+# mezzo esce alta quanto le maiuscole, le sbarre sporgono sopra e sotto.
+DOLLARO = 1.17
+# Spazio in piu' dopo punto e virgola: sono larghi quattro pixel, e con
+# l'interlettera delle lettere si appiccicavano alla parola dopo.
+RESPIRO_SEGNI = 3
 # Quello che e' piu' scuro di cosi' e' inchiostro.
 SOGLIA = 150
-# In cima alla foto c'e' una sbavatura grigia che non e' una lettera.
-MARGINE_ALTO = 70
 # Un pezzo con meno pixel di cosi' (a meta' risoluzione) e' una setola staccata,
 # non una lettera.
 MIN_LETTERA = 300
@@ -126,18 +154,18 @@ def centro(box):
     return ((box[0] + box[2]) / 2.0, (box[1] + box[3]) / 2.0)
 
 
-def separa():
-    foto = Image.open(SOURCE).convert("L")
+def separa(sorgente, glifi, margine_alto):
+    foto = Image.open(sorgente).convert("L")
     grigio = np.asarray(foto, dtype=np.float32)
     meta = foto.resize((foto.width // 2, foto.height // 2), Image.BOX)
     scuro = np.asarray(meta) < SOGLIA
-    scuro[: MARGINE_ALTO // 2, :] = False
+    scuro[: margine_alto // 2, :] = False
     lab, pezzi = componenti(scuro)
 
     grossi = [p for p in pezzi if p["pixel"] >= MIN_LETTERA]
-    if len(grossi) != len(LETTERE):
-        raise SystemExit("trovate %d lettere invece di %d: controlla SOGLIA e MIN_LETTERA"
-                         % (len(grossi), len(LETTERE)))
+    if len(grossi) != len(glifi):
+        raise SystemExit("%s: trovati %d glifi invece di %d: controlla SOGLIA e MIN_LETTERA"
+                         % (os.path.basename(sorgente), len(grossi), len(glifi)))
     # Le righe: gruppi di centri vicini in verticale, poi da sinistra a destra.
     grossi.sort(key=lambda p: centro(p["box"])[1])
     righe, corrente = [], [grossi[0]]
@@ -173,7 +201,7 @@ def separa():
     # La maschera di ogni lettera a piena risoluzione, allargata di un pixel per
     # tenere le sfumature del bordo delle setole.
     lettere = []
-    for p, lettera in zip(ordinati, LETTERE):
+    for p, lettera in zip(ordinati, glifi):
         mask_meta = np.isin(lab, gruppi[p["id"]])
         mask = np.asarray(Image.fromarray((mask_meta * 255).astype(np.uint8)).resize(
             (foto.width, foto.height), Image.NEAREST)) > 0
@@ -221,7 +249,22 @@ def glifo(alpha, con_ombra=True):
 
 
 def main():
-    lettere = separa()
+    ridotte = []
+    for sorgente, glifi, margine in FOTO:
+        ridotte += riduci_foto(separa(sorgente, glifi, margine))
+    ridotte += segni()
+    # Due font dallo stesso alfabeto: `brush` con l'ombra, per i menu sopra
+    # alla citta'; `brush_ink` senza, per le finestre di carta chiara, dove la
+    # lettera si scrive scura e un'ombra scura sotto la farebbe sembrare
+    # sbavata.
+    scrivi("brush", ridotte, True)
+    scrivi("brush_ink", ridotte, False)
+
+
+def riduci_foto(lettere):
+    """Porta i glifi di una foto alla misura del font. Ogni foto ha la sua
+    scala: le cifre sono scritte su un foglio a parte, piu' grandi o piu'
+    piccole delle lettere, e devono uscire alte uguali."""
     altezze = sorted(l["box"][3] - l["box"][1] for l in lettere)
     tipica = altezze[len(altezze) // 2]
     scala = ALTEZZA / tipica
@@ -244,14 +287,37 @@ def main():
         scarto = max(-ONDEGGIA, min(ONDEGGIA, scarto))
         ridotte.append({"lettera": l["lettera"], "alpha": riduci(l["alpha"], w, h),
                         "yoffset": BASE - h + scarto, "larghezza": w})
+    print("%s: scala %.3f" % ("".join(l["lettera"] for l in lettere), scala))
+    return ridotte
 
-    # Due font dallo stesso alfabeto: `brush` con l'ombra, per i menu sopra
-    # alla citta'; `brush_ink` senza, per le finestre di carta chiara, dove la
-    # lettera si scrive scura e un'ombra scura sotto la farebbe sembrare
-    # sbavata.
-    scrivi("brush", ridotte, True)
-    scrivi("brush_ink", ridotte, False)
-    print("scala %.3f" % scala)
+
+def segni():
+    """Dollaro, virgola, punto e apostrofo: ritagliati dai loro riquadri,
+    ridotti tutti con la stessa scala, e piazzati ciascuno alla sua quota."""
+    grigio = np.asarray(Image.open(SEGNI).convert("L"), dtype=np.float32)
+    x0, y0, x1, y1 = RIQUADRI_SEGNI["$"]
+    scala = ALTEZZA * DOLLARO / float(y1 - y0)
+    ridotte = []
+    for segno, (x0, y0, x1, y1) in RIQUADRI_SEGNI.items():
+        inchiostro = np.clip((215.0 - grigio[y0:y1, x0:x1]) / 165.0, 0.0, 1.0)
+        w = max(2, int(round((x1 - x0) * scala)))
+        h = max(2, int(round((y1 - y0) * scala)))
+        if segno == "$":
+            # Centrato sull'altezza delle maiuscole.
+            yoffset = int(round(BASE - ALTEZZA / 2.0 - h / 2.0))
+        elif segno == ".":
+            yoffset = BASE - h
+        elif segno == ",":
+            # Parte poco sopra alla riga e scende sotto, come in corsivo.
+            yoffset = BASE - int(round(h * 0.4))
+        else:
+            # L'apostrofo in alto, dove comincia una maiuscola.
+            yoffset = BASE - ALTEZZA
+        respiro = RESPIRO_SEGNI if segno in ",." else 0
+        ridotte.append({"lettera": segno, "alpha": riduci(inchiostro, w, h),
+                        "yoffset": yoffset, "larghezza": w + respiro, "xoffset": 1 if respiro else 0})
+    print("%s: scala %.3f" % ("".join(RIQUADRI_SEGNI), scala))
+    return ridotte
 
 
 def scrivi(nome, ridotte, con_ombra):
@@ -266,10 +332,11 @@ def scrivi(nome, ridotte, con_ombra):
     righe_fnt = []
     for g in glifi:
         atlante.paste(g["img"], (x, 0))
-        for codice in (ord(g["lettera"]), ord(g["lettera"].lower())):
+        # Le minuscole puntano alle maiuscole; una cifra e' una sola.
+        for codice in sorted({ord(g["lettera"]), ord(g["lettera"].lower())}):
             righe_fnt.append(
-                "char id=%d x=%d y=0 width=%d height=%d xoffset=0 yoffset=%d xadvance=%d page=0 chnl=15"
-                % (codice, x, g["img"].width, g["img"].height, g["yoffset"],
+                "char id=%d x=%d y=0 width=%d height=%d xoffset=%d yoffset=%d xadvance=%d page=0 chnl=15"
+                % (codice, x, g["img"].width, g["img"].height, g.get("xoffset", 0), g["yoffset"],
                    g["larghezza"] + INTERLETTERA))
         x += g["img"].width + 2
     atlante.save(os.path.join(UI, nome + ".png"))

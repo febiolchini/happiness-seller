@@ -142,7 +142,7 @@ func _select(index: int) -> void:
 			"hover": boxes["active"] if active else boxes["hover"],
 			"pressed": boxes["active"],
 			"disabled": boxes["normal"],
-		}, UiTheme.ACCENT_DARK if active else UiTheme.INK_SOFT, UiTheme.SIZE_LABEL,
+		}, UiTheme.BUTTON_DARK if active else UiTheme.INK_SOFT, UiTheme.SIZE_LABEL,
 			UiTheme.W_BOLD if active else UiTheme.W_MEDIUM)
 		UiTheme.dress_window_text(_buttons[i], _buttons[i].text, UiTheme.WIN_TAB,
 			UiTheme.SIZE_LABEL, UiTheme.W_BOLD if active else UiTheme.W_MEDIUM)

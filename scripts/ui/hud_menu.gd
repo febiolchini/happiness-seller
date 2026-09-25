@@ -49,8 +49,8 @@ const BAR_GAP := 5.0
 const PANEL_TOP := 22.0
 const PANEL_WIDTH := 104.0
 
-## Le etichette col pennello dei menu (`UiTheme.menu()`), i valori col font di
-## sistema: il pennello le cifre non ce le ha.
+## Etichette e valori col pennello dei menu (`UiTheme.menu()`), cifre
+## comprese.
 const LABEL_SIZE := UiTheme.MENU_SMALL
 const VALUE_SIZE := 14
 
@@ -210,7 +210,7 @@ func _build_panel() -> void:
 
 		var value := UiTheme.label("", VALUE_SIZE, row["color"], UiTheme.W_BOLD)
 		value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		UiTheme.add_hard_shadow(value, SHADOW)
+		UiTheme.dress_menu_text(value, UiTheme.brush_size(VALUE_SIZE))
 		line.add_child(value)
 		_values.append(value)
 		_shown.append("")

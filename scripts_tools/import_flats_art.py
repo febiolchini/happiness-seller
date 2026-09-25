@@ -178,6 +178,13 @@ ASSETS = [
     # di PORT STREET: 656 px. Tre strisce animate: la porta che si apre, il
     # fumo della griglia, il neon OPEN.
     ("render_steakhouse.png", "steakhouse", 656, None),
+    # La stazione degli autobus, in fondo al suo piazzale (`blender_stazione_bus.py`).
+    # La LARGHEZZA e' l'isolato intero, dal marciapiede di LOCK STREET a quello
+    # di SEVENTH STREET: 656 px, come la steak house nel suo. Le pensiline delle
+    # banchine sono uno sprite a parte, 440 px (19,7 m), perche' gli autobus ci
+    # passano davanti e dietro.
+    ("render_stazione_bus.png", "busStation", 656, None),
+    ("render_pensilina_bus.png", "busCanopy", 440, None),
     # L'albero: un disegno e non un render, quindi la taglia si decide. 128 px
     # d'altezza sono 5,7 m a 22,3 px/m: un albero di viale, che sta fra due
     # lampioni del parcheggio senza coprirli. Si muove col vento in gioco, con

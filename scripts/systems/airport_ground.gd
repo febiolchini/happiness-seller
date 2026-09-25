@@ -24,6 +24,7 @@ const END_LIGHT := Color(0.45, 1.0, 0.55)
 
 func _ready() -> void:
 	add_to_group(Daylight.LIGHT_GROUP)
+	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 
 func on_light_changed() -> void:
 	queue_redraw()
@@ -96,10 +97,10 @@ func _draw_runway(runway: Array, name_a: String, name_b: String) -> void:
 ## Il numero della pista, scritto di traverso in modo che lo si legga
 ## arrivando da quel capo.
 func _draw_number(center: Vector2, dir: Vector2, text: String) -> void:
-	var font := ThemeDB.fallback_font
-	if font == null:
-		return
-	var size := 20
+	# Col pennello, come ogni scritta del gioco. Il nodo disegna solo forme
+	# piene, quindi il filtro lineare (`_ready()`) tocca soltanto le cifre.
+	var font := UiTheme.WINDOW_FILE
+	var size := 26
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	draw_set_transform(center, dir.angle() + PI * 0.5, Vector2.ONE)
 	draw_string(font, Vector2(-width * 0.5, size * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, size, WHITE)

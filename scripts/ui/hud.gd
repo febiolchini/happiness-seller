@@ -249,9 +249,8 @@ func _show_toast(text: String) -> void:
 
 	var label := UiTheme.label(text, 12, Color(1, 0.95, 0.78), UiTheme.W_MEDIUM)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	# Il messaggio arriva già tradotto da chi lo manda, e contiene quasi sempre
-	# numeri: pennello se per una volta è di sole parole, Nunito con l'ombra
-	# dura altrimenti — decide `UiTheme` sul testo vero.
+	# Il messaggio arriva già tradotto da chi lo manda. Pennello anche per i
+	# numeri, con la sua ombra dentro al disegno.
 	UiTheme.dress_world_text(label, text, UiTheme.brush_size(12), 12, UiTheme.W_MEDIUM,
 		Color(0, 0, 0, 0.85))
 	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED

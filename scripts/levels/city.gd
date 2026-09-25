@@ -278,6 +278,12 @@ func _build_city() -> void:
 	parking.name = "SteakhouseParking"
 	add_child(parking)
 	parking.setup(CityMap.steakhouse_parking(), _traffic, _player)
+	# Gli autobus della stazione, stesso principio. Ci sono dall'inizio, come
+	# la stazione: lo sblocco di Kevin apre solo lo sportello (vedi `BusDepot`).
+	var depot := BusDepot.new()
+	depot.name = "BusDepot"
+	add_child(depot)
+	depot.setup(CityMap.bus_depot(), _traffic, _player)
 
 ## Pianta un edificio nell'albero e, se è cliccabile, lo tiene anche in
 ## `_enterable_buildings`: vedi il commento lì.
@@ -356,6 +362,7 @@ func _make_building(entry: Dictionary) -> Node2D:
 		node.click_rect = entry["click"]
 	node.interior_scene = str(entry.get("interior", ""))
 	node.window_scene = str(entry.get("window", ""))
+	node.window_flag = str(entry.get("window_flag", ""))
 	node.display_name = str(entry.get("label", ""))
 	node.building_id = str(entry["id"])
 	node.needs_ownership = bool(entry.get("owned", false))
@@ -701,7 +708,10 @@ func _go_enter(building: EnterableBuilding) -> void:
 		# del gioco e non un muro — sapere che si apre comprandola è metà del
 		# motivo per andare in agenzia.
 		if not building.is_unlocked():
-			GameState.notify(tr("NOTE_NOT_YOURS"))
+			# Chiusa per un flag (la stazione prima del contatto di Kevin) o
+			# perche' non e' roba propria: due porte chiuse diverse.
+			GameState.notify(tr("NOTE_NO_CONTACT" if not building.window_flag.is_empty()
+				else "NOTE_NOT_YOURS"))
 		_order_move(building.entry_point())
 		return
 	_entering = building

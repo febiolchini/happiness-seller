@@ -461,6 +461,13 @@ const TEXT := {
 		"NO SEEDS  -  ASK BRIAN", "SEMI FINITI  -  CHIEDI A BRIAN", "SIN SEMILLAS  -  PIDE A BRIAN",
 	],
 	"NOTE_NO_ROOM": ["NO ROOM LEFT DOWN HERE", "QUI SOTTO NON CI STA ALTRO", "AQUI ABAJO NO CABE MAS"],
+	# La stazione degli autobus prima del messaggio di Kevin: c'e', ma allo
+	# sportello non si ha ancora nessuno con cui parlare.
+	"NOTE_NO_CONTACT": [
+		"NOBODY HERE KNOWS YOU YET",
+		"QUI NON TI CONOSCE ANCORA NESSUNO",
+		"AQUI AUN NO TE CONOCE NADIE",
+	],
 	"NOTE_NOT_YOURS": [
 		"NOT YOURS  -  BUY IT AT THE AGENCY",
 		"NON E' TUA  -  COMPRALA IN AGENZIA",

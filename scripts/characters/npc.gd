@@ -75,13 +75,10 @@ func setup(data: Dictionary) -> void:
 	entry = data
 	npc_id = str(data["id"])
 	npc_name = str(data["name"])
-	# Pennello se il nome è di sole lettere (lo è sempre, ma si controlla come
-	# ovunque), Nunito se no: stessa scelta di `city.gd::_hover_label`, per lo
-	# stesso motivo — un nome è un'insegna, non una cosa della città. Calcolati
-	# una volta sola qui: vedi `_name_font`.
-	var brush := UiTheme.can_brush(npc_name)
-	_name_font = UiTheme.menu() if brush else UiTheme.body()
-	_name_font_size = 11 if brush else 8
+	# Col pennello, come `city.gd::_hover_label`: un nome è un'insegna, non
+	# una cosa della città. Calcolati una volta sola qui: vedi `_name_font`.
+	_name_font = UiTheme.menu()
+	_name_font_size = 11
 	_name_width = _name_font.get_string_size(
 		npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, _name_font_size).x
 	role = str(data["role"])

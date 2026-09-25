@@ -55,8 +55,7 @@ func _ready() -> void:
 	_field = LineEdit.new()
 	_field.placeholder_text = tr("ORG_NAME_PLACEHOLDER")
 	_field.max_length = MAX_LEN
-	_field.add_theme_font_override("font", UiTheme.body(UiTheme.W_BOLD))
-	_field.add_theme_font_size_override("font_size", UiTheme.SIZE_VALUE)
+	UiTheme.dress_window_text(_field, "", UiTheme.brush_size(UiTheme.SIZE_VALUE))
 	_field.text_changed.connect(func(_t: String) -> void: _update())
 	_field.text_submitted.connect(func(_t: String) -> void: _confirm())
 	box.add_child(_field)

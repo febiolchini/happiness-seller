@@ -370,6 +370,34 @@ const DISTRICTS := [
 	},
 ]
 
+
+## --- La pianta del piazzale della stazione degli autobus -------------------
+##
+## Dall'alto: l'edificio (base -234), il marciapiede davanti, e tre corsie di
+## fermata, ciascuna appoggiata a sud di un marciapiede — la prima a quello
+## dell'edificio, le altre due alle banchine. Gli autobus si fermano sempre
+## DAVANTI (a sud) al marciapiede da cui si sale, cioè davanti alla pensilina e
+## non dietro: è il lato che si vede.
+##
+## **Le distanze le decide l'altezza della pensilina.** Il disegno sale di 92
+## px sopra al piede dei pali (`blender_stazione_bus.py`): un autobus fermo a
+## nord di una banchina deve stare tutto sopra a quella quota, o il tetto gli
+## passa davanti. Per questo le banchine non sono equidistanti dall'edificio:
+## -96 e 54 sono le prime quote in cui il tetto non tocca l'autobus fermo alla
+## corsia prima.
+##
+## Si entra da LOCK STREET e si esce su SEVENTH STREET: ogni corsia si
+## attraversa da ovest a est, senza retromarce. Vedi `BusDepot`.
+const BUS_YARD := Rect2(6016, -234, 656, 392)
+const BUS_FORECOURT := Rect2(6016, -234, 656, 28)
+const BUS_PLATFORMS := [Rect2(6080, -96, 528, 40), Rect2(6080, 54, 528, 40)]
+## La y della mezzeria dell'autobus fermo, corsia per corsia: venti pixel a
+## sud del marciapiede, cioè mezzo autobus (35 px) e un filo di cordolo.
+const BUS_LANES := [-186.0, -36.0, 114.0]
+## Le due fermate di ogni corsia, da ovest a est: sotto alla pensilina, fra i
+## pali, e lontane abbastanza da non toccarsi (l'autobus è lungo 76 px).
+const BUS_STOPS_X := [6236.0, 6452.0]
+
 # --- Superfici particolari -------------------------------------------------
 ## Pezzi di terreno che non sono né strada né edificio: prato del parco, piazza,
 ## ghiaia dello sfasciacarrozze. Gli stili sono in `city_ground.gd`, qui c'è
@@ -414,6 +442,17 @@ const LOTS := [
 	# differenza di quello del grossista, quindi basta la profondita' di un
 	# isolato normale.
 	{"rect": Rect2(5656, 614, 200, 330), "kind": "asphalt"},
+	# Il piazzale della stazione degli autobus: l'asfalto, il marciapiede
+	# davanti all'edificio, le due banchine e le due aiuole su MAIN STREET.
+	# La pianta sta in `BUS_YARD` e compagnia, più su.
+	{"rect": BUS_YARD, "kind": "busyard"},
+	{"rect": BUS_FORECOURT, "kind": "platform"},
+	{"rect": BUS_PLATFORMS[0], "kind": "platform"},
+	{"rect": BUS_PLATFORMS[1], "kind": "platform"},
+	{"rect": Rect2(6024, 160, 296, 72), "kind": "aiuola"},
+	{"rect": Rect2(6368, 160, 296, 72), "kind": "aiuola"},
+	# Il vialetto fra le due aiuole: da MAIN STREET si entra a piedi di qui.
+	{"rect": Rect2(6320, 158, 48, 82), "kind": "plaza"},
 ]
 
 ## L'aeroporto, in basso a sinistra: i quattro isolati fra MILL ROAD e FURNACE
@@ -481,7 +520,15 @@ const BUSHES := [
 	# quasi quanto l'aiuola (72 px) e col piede tre pixel sopra al suo bordo
 	# basso (-58), cosi' non sborda sull'asfalto.
 	{"at": Vector2(4628, -70), "scale":1.35},
-	{"at": Vector2(4796, -70), "scale":1.35}
+	{"at": Vector2(4796, -70), "scale":1.35},
+	# Le due aiuole della stazione degli autobus su MAIN STREET: tre cespugli
+	# per aiuola, sul fondo, cosi' l'erba davanti resta a vista dal marciapiede.
+	{"at": Vector2(6080, 200)},
+	{"at": Vector2(6172, 196), "scale": 1.2},
+	{"at": Vector2(6262, 202)},
+	{"at": Vector2(6426, 202)},
+	{"at": Vector2(6516, 196), "scale": 1.2},
+	{"at": Vector2(6608, 200)},
 ]
 
 ## I prati di una voce di `LAYERED_GRASS`, in coordinate mondo.
@@ -1113,29 +1160,57 @@ const BUILDINGS := [
 		# cassetta, lo sconto più alto del gioco — il prezzo di essersi fatti un
 		# nome vero, non solo di essere passati in centro.
 		#
-		# **Segnaposto dichiarato.** Non è ancora un disegno vero: è un
-		# rettangolo con un tetto, una porta e una striscia di nastro da
-		# cantiere, per dire "qui c'è qualcosa" senza fingere un edificio che
-		# non esiste. Stessa regola di `render_buildings.py` per tutto il
-		# resto — quando arriverà il disegno vero basta cambiare `texture`,
-		# niente altro qui sotto si tocca.
+		# Occupa tutto l'isolato fra LOCK STREET e SEVENTH STREET, sopra MAIN
+		# STREET: l'edificio in fondo, e davanti il piazzale con le banchine e
+		# gli autobus che vanno e vengono (`BusDepot`, pianta in `bus_depot()`).
+		# La costruisce `scripts_tools/blender_stazione_bus.py`: mattoni, l'atrio
+		# con la volta ribassata, l'orologio e l'insegna blu.
 		#
-		# **Compare solo dopo il traguardo.** `unlock_flag` la tiene fuori
-		# dalla città finché Kevin non manda il messaggio, esattamente come il
-		# suo magazzino resta fuori finché non c'è il furgone.
+		# Largo quanto l'isolato come la steak house nel suo, dal marciapiede di
+		# LOCK STREET (6016) a quello di SEVENTH STREET (6672). La base è il
+		# piede dell'atrio, che sporge ed è il punto più basso del disegno; la
+		# cima arriva a -476, quattro pixel sotto al marciapiede di HILLTOP
+		# ROAD, come quella della steak house.
 		#
-		# Sta nello stesso quartiere del grossista — COMMERCIAL DISTRICT, sopra
-		# HILLSIDE — su MAIN STREET un isolato più a est, fra SEVENTH STREET e
-		# LOCK STREET: c'è terreno libero e la stessa quota di base (240) degli
-		# altri punti di riferimento affacciati su questa strada.
-		"id": "BusStation", "base": Vector2(6200, 240),
+		# **C'è dall'inizio, lo sportello no.** La stazione è un pezzo di città
+		# come un altro — piazzale, pensiline e autobus compresi — e ci si passa
+		# davanti da subito. Quello che sblocca il messaggio di Kevin è il
+		# contatto: `window_flag` tiene chiuso lo sportello (niente finestra al
+		# click, niente segnalino) finché il flag non è acceso.
+		"id": "BusStation", "base": Vector2(6344, -234),
 		"district": "COMMERCIAL DISTRICT",
-		"unlock_flag": BusImport.UNLOCK_FLAG,
+		"window_flag": BusImport.UNLOCK_FLAG,
 		"label": "BS_NAME",
-		"texture": "res://assets/sprites/buildings/busStationPlaceholder.png",
-		"offset": Vector2(-100, -150), "click": Rect2(-100, -150, 200, 150),
-		"entry": Vector2(0, 20),
+		"texture": "res://assets/sprites/buildings/busStation.png",
+		"lit": "res://assets/sprites/buildings/busStationLit.png",
+		"offset": Vector2(-328, -242), "click": Rect2(-328, -242, 656, 242),
+		# Le porte a vetri sotto all'insegna, in mezzo all'atrio.
+		"entry": Vector2(0, 14),
 		"window": "res://scenes/ui/BusStationWindow.tscn",
+	},
+	# Le pensiline delle due banchine del piazzale: lo stesso disegno due volte.
+	# Sono sprite a parte e non dentro a quello della stazione perché gli
+	# autobus ci passano davanti e dietro, e vanno Y-sortate con loro.
+	#
+	# La base è il piede dei pali, a metà banchina (vedi `BUS_PLATFORMS`).
+	# `click` qui non si clicca — sono fondale — ma è l'ingombro a terra per
+	# chi cammina: la fila dei pali e il riparo di vetro, non il tetto, sotto
+	# al quale la gente aspetta.
+	{
+		"id": "BusCanopyNorth", "base": Vector2(6344, -76),
+		"district": "COMMERCIAL DISTRICT",
+		"backdrop": true,
+		"texture": "res://assets/sprites/buildings/busCanopy.png",
+		"lit": "res://assets/sprites/buildings/busCanopyLit.png",
+		"offset": Vector2(-220, -92), "click": Rect2(-220, -8, 440, 8),
+	},
+	{
+		"id": "BusCanopySouth", "base": Vector2(6344, 74),
+		"district": "COMMERCIAL DISTRICT",
+		"backdrop": true,
+		"texture": "res://assets/sprites/buildings/busCanopy.png",
+		"lit": "res://assets/sprites/buildings/busCanopyLit.png",
+		"offset": Vector2(-220, -92), "click": Rect2(-220, -8, 440, 8),
 	},
 	{
 		# COPPER STEER, la steak house sopra al parcheggio del grossista: in
@@ -1960,6 +2035,14 @@ static func junctions() -> Array:
 static func lot_lamps() -> Array:
 	var list: Array = []
 	for lot in LOTS:
+		# Le banchine della stazione degli autobus: un lampione per testata, a
+		# meta' banchina. Le pensiline hanno le loro luci, ma sotto al tetto, e
+		# da questa inquadratura il tetto le copre.
+		if str(lot["kind"]) == "platform" and lot["rect"] in BUS_PLATFORMS:
+			var banchina: Rect2 = lot["rect"]
+			for x in [banchina.position.x + 12.0, banchina.end.x - 12.0]:
+				list.append({"pos": Vector2(x, banchina.get_center().y), "reach": Vector2(0, 1)})
+			continue
 		if str(lot["kind"]) != "asphalt":
 			continue
 		var rect: Rect2 = lot["rect"]
@@ -2008,6 +2091,18 @@ static func steakhouse_parking() -> Dictionary:
 		"east": ROADS_V[5],
 		"door_x": door_x,
 		"islands": islands,
+	}
+
+## La stazione degli autobus, per `BusDepot`: le corsie di fermata, le due
+## fermate di ciascuna, e le due strade — LOCK STREET a ovest, da cui gli
+## autobus arrivano, e SEVENTH STREET a est, su cui escono.
+static func bus_depot() -> Dictionary:
+	return {
+		"yard": BUS_YARD,
+		"lanes": BUS_LANES,
+		"stops_x": BUS_STOPS_X,
+		"west": ROADS_V[6],
+		"east": ROADS_V[7],
 	}
 
 # --- Le strutture del campo da football ------------------------------------

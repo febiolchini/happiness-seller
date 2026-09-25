@@ -32,7 +32,6 @@ extends CanvasLayer
 ## Si chiude da solo, e un click lo chiude subito: chi l'ha già visto dieci
 ## volte non deve aspettarlo.
 
-const GAME_FONT := preload("res://assets/sprites/ui/alphabet.fnt")
 const VAN := preload("res://assets/sprites/props/cars/pickupTruck02.png")
 
 ## Sopra a tutto, vignette comprese (che stanno a 50).
@@ -119,8 +118,7 @@ func _ready() -> void:
 	_frame.add_child(_stage)
 
 	_caption = Label.new()
-	_caption.add_theme_font_override("font", GAME_FONT)
-	_caption.add_theme_font_size_override("font_size", 16)
+	UiTheme.dress_menu_text(_caption, 18)
 	# Chiaro, e non nero come nelle vignette: l'ombra del font è dipinta dentro
 	# ai glifi e non si toglie, quindi la si fa sparire nel fondo. Sulla carta
 	# bianca del fumetto il fondo è chiaro e quindi si scrive nero; qui la
