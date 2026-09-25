@@ -468,7 +468,9 @@ func _build_seeds() -> void:
 				return tr("SW_ON_THE_WAY") % UiFormat.duration(SeedRun.hours_left(d, now))
 			return tr("PC_SEND_DRIVER")
 		var driver_enabled := func(d: SaveData) -> bool:
-			return not SeedRun.is_running(d) and not Delivery.is_running(d)
+			return (
+				not SeedRun.is_running(d) and not Delivery.is_running(d)
+				and not BusImport.is_running(d))
 		_add_action(driver_text, driver_enabled, _send_driver)
 		_add_note(tr("PC_DRIVER_NOTE"))
 

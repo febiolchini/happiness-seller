@@ -115,13 +115,13 @@ static func pack_price(pack: Dictionary, strain_id := Economy.DEFAULT_STRAIN) ->
 	return maxi(1, int(roundf(unit * float(seeds))))
 
 ## Si può ordinare? No se il grossista non si è ancora fatto vivo, se il furgone
-## è già in giro (per i semi o per la merce: è lo stesso mezzo), o se i soldi
-## non bastano.
+## è già in giro (per i semi, per la merce, o per il contatto fuori stato di
+## Kevin: è sempre lo stesso mezzo), o se i soldi non bastano.
 static func can_order(data: SaveData, pack: Dictionary,
 		strain_id := Economy.DEFAULT_STRAIN) -> bool:
 	if data == null or not is_unlocked(data) or is_running(data):
 		return false
-	if Delivery.is_running(data):
+	if Delivery.is_running(data) or BusImport.is_running(data):
 		return false
 	return data.cash >= pack_price(pack, strain_id)
 

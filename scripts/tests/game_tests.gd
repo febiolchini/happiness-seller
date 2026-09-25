@@ -78,6 +78,7 @@ func _ready() -> void:
 		["il tempo a gioco chiuso", _test_offline],
 		["l'agenzia immobiliare", _test_real_estate],
 		["il grossista dei semi", _test_seed_run],
+		["il contatto fuori stato di kevin", _test_bus_import],
 		["il nome e il prestigio", _test_org_prestige],
 	]:
 		print("- %s" % test[0])
@@ -2919,4 +2920,99 @@ func _test_seed_run() -> void:
 	_check(SeedRun.is_running(reloaded), "il viaggio si ritrova ricaricando")
 	_check(
 		is_equal_approx(float(reloaded.seed_run["back_at"]), 12.25 + SeedRun.TRIP_HOURS),
+		"con l'ora di rientro intatta, mezz'ora compresa")
+
+# ---------------------------------------------------------------------------
+
+## Il contatto fuori stato di Kevin: lo sblocco ai centomila dollari, l'ordine
+## fino a duecentocinquanta semi, e le sei ore d'attesa. Stessa forma di
+## `_test_seed_run()`.
+func _test_bus_import() -> void:
+	var data := _fresh()
+
+	# --- Lo sblocco -----------------------------------------------------
+	_check(not BusImport.is_unlocked(data), "senza centomila dollari il contatto non esiste")
+	_check(not BusImport.check_unlock(data), "e non si sblocca da solo")
+	data.cash = BusImport.UNLOCK_CASH - 1
+	_check(not BusImport.check_unlock(data), "manca un dollaro e ancora niente")
+	data.cash = BusImport.UNLOCK_CASH
+	_check(BusImport.check_unlock(data), "arrivati ai centomila, kevin manda il messaggio")
+	_check(
+		not BusImport.check_unlock(data),
+		"ma una volta sola: il messaggio non si ripete")
+	_check(
+		Chat.KEVIN in Chat.contacts(data).map(func(c: Dictionary) -> String: return str(c["id"])),
+		"e kevin compare in rubrica")
+
+	# --- L'ordine ---------------------------------------------------------
+	var pack: Dictionary = BusImport.PACKS[-1]
+	var seeds := int(pack["seeds"])
+	_check_eq(seeds, 250, "il taglio piu' grande arriva a duecentocinquanta semi")
+	var price := BusImport.pack_price(pack)
+	_check(
+		price < Economy.seed_price(Economy.DEFAULT_STRAIN) * seeds,
+		"anche qui il seme costa meno che da Brian")
+	var seed_run_price := SeedRun.pack_price(SeedRun.PACKS[-1])
+	_check(
+		float(price) / float(seeds) < float(seed_run_price) / float(SeedRun.PACKS[-1]["seeds"]),
+		"e lo sconto e' il piu' alto del gioco, sopra a quello del grossista in centro")
+
+	data.cash = price - 1
+	_check(not BusImport.can_order(data, pack), "con i soldi corti non si ordina")
+	data.cash = price
+	var before := Economy.seeds_owned(data)
+	var now := 10.0
+	_check_eq(BusImport.order(data, pack, now), seeds, "ordine partito")
+	_check_eq(data.cash, 0, "e pagato subito, non al ritorno")
+	_check(BusImport.is_running(data), "il furgone e' in viaggio")
+	_check_eq(
+		Economy.seeds_owned(data), before,
+		"i semi NON sono ancora in mano: il viaggio dura")
+
+	# --- L'attesa -----------------------------------------------------------
+	_check_eq(
+		BusImport.tick(data, now + BusImport.TRIP_HOURS - 0.1), 0,
+		"prima dell'ora il furgone non rientra")
+	_check_eq(
+		BusImport.tick(data, now + BusImport.TRIP_HOURS), seeds,
+		"scadute le sei ore rientra coi semi")
+	_check_eq(
+		Economy.seeds_owned(data), before + seeds,
+		"e i semi entrano in inventario")
+	_check(not BusImport.is_running(data), "il viaggio e' chiuso")
+	_check_eq(BusImport.tick(data, now + 99.0), 0, "e non si scarica due volte")
+
+	# --- Un furgone solo, un viaggio alla volta -----------------------------
+	# E' la stessa regola di `SeedRun`, estesa a tre viaggi: la merce
+	# all'ingrosso, i semi dal grossista in centro, i semi dal contatto fuori
+	# stato. Uno alla volta, in tutte e tre le direzioni.
+	data.cash = BusImport.pack_price(pack)
+	data.set_flag(Delivery.UNLOCK_FLAG, true)
+	data.add_item(Economy.PRODUCT, Delivery.LOADS[0])
+	_check_eq(
+		Delivery.dispatch(data, Delivery.LOADS[0], now), Delivery.LOADS[0],
+		"il carico per l'ingrosso e' partito")
+	_check(
+		not BusImport.can_order(data, pack),
+		"col furgone gia' in giro per l'ingrosso non si ordina da kevin")
+
+	var busy := _fresh()
+	busy.set_flag(BusImport.UNLOCK_FLAG, true)
+	busy.set_flag(SeedRun.UNLOCK_FLAG, true)
+	busy.cash = BusImport.pack_price(BusImport.PACKS[0])
+	BusImport.order(busy, BusImport.PACKS[0], now)
+	busy.cash = SeedRun.pack_price(SeedRun.PACKS[0])
+	_check(
+		not SeedRun.can_order(busy, SeedRun.PACKS[0]),
+		"e col furgone in giro dal contatto fuori stato non si ordina dal grossista in centro")
+
+	# --- Il viaggio sopravvive al salvataggio -------------------------------
+	var fresh := _fresh()
+	fresh.set_flag(BusImport.UNLOCK_FLAG, true)
+	fresh.cash = BusImport.pack_price(pack)
+	BusImport.order(fresh, pack, 12.25)
+	var reloaded := SaveData.from_dict(fresh.to_dict())
+	_check(BusImport.is_running(reloaded), "il viaggio si ritrova ricaricando")
+	_check(
+		is_equal_approx(float(reloaded.bus_run["back_at"]), 12.25 + BusImport.TRIP_HOURS),
 		"con l'ora di rientro intatta, mezz'ora compresa")

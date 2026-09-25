@@ -2561,6 +2561,48 @@ valido appena il chilo arriva.
 Il **furgone** invece serve solo al giocatore: i dealer hanno i loro giri, non le
 chiavi del mezzo.
 
+### Il contatto fuori stato di Kevin
+
+Il grossista dei semi in COMMERCIAL DISTRICT ha un nome: **Kevin**. Arriva a
+sessanta semi a cassetta (vedi "L'ingrosso: il chilo, il furgone, il viaggio"),
+che va bene per riempire cantina e garage in un colpo o due, ma un'attività a
+pieno organico li brucia più in fretta di quanto convenga tornare in centro
+ogni volta.
+
+La prima volta che la cassa tocca **100.000 $** Kevin manda un messaggio, una
+volta sola (`BusImport.check_unlock()`, agganciato all'orologio come la fine
+del prologo e non alla vendita, per lo stesso motivo: i soldi entrano da
+troppe parti per ricordarsi di controllare da ognuna): dice che l'attività sta
+crescendo, e che se la sua quantità non basta più può girare un contatto che
+importa da un altro stato. Il messaggio mette **Kevin in rubrica** — è la
+prima volta che scrive di persona — e sblocca la **stazione degli autobus**.
+
+La stazione compare in COMMERCIAL DISTRICT, sopra HILLSIDE come il magazzino
+di Kevin, un isolato più a est su MAIN STREET. È un **segnaposto dichiarato**:
+un rettangolo con un tetto, una porta e una striscia di nastro da cantiere,
+non un disegno vero. Stessa regola di tutta l'arte del gioco — quando arriverà
+il disegno si cambia `texture` in `CityMap.BUILDINGS` e nient'altro.
+
+Cliccandoci si apre uno sportello (`scenes/ui/BusStationWindow.tscn`), identico
+nella forma a quello del grossista in centro: tre tagli, `BusImport.PACKS`, da
+**cento, centocinquanta e duecentocinquanta semi**, con lo sconto più alto del
+gioco (35/40/45%, contro il 10/20/30% dei tagli di Kevin in centro). Il
+prezzo scende sul listino di `Economy.seed_price()`, come ovunque.
+
+Stessa forma di `SeedRun` in tutto il resto: **il viaggio non è simulato**, si
+salva l'ora di rientro e lo stato è una funzione di che ore sono adesso — va
+avanti anche col gioco chiuso. Dura di più, **sei ore di gioco** invece di
+due: il pacco arriva fuori stato in autobus, e il furgone lo va a prendere
+alla stazione.
+
+**È sempre lo stesso furgone** di `Delivery` e `SeedRun` — un mezzo, un
+viaggio alla volta — quindi i tre si escludono a vicenda: si può mandare per
+la merce all'ingrosso, dal grossista in centro, o dal contatto fuori stato,
+ma non due cose insieme. `BusImport.can_order()` lo sa già, e tutti i posti
+che mostravano "il furgone è fuori" per gli altri due — lo sportello di
+Kevin, la scheda PERSONALE del PC, la chat dell'autista sul telefono — lo
+dicono anche per questo.
+
 ### La bolletta della luce
 
 Il seminterrato consuma. Ogni **30 giorni di gioco** (`Economy.BILL_DAYS`)

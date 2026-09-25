@@ -1,26 +1,16 @@
 extends CanvasLayer
 
-## Il banco del grossista dei semi: i tagli ordinabili e quanto costano.
+## Lo sportello del contatto fuori stato di Kevin: i tagli ordinabili e quanto
+## costano.
 ##
-## Si apre cliccando sul magazzino in centro, e come all'agenzia il protagonista
-## resta sul marciapiede: è uno sportello a cui ci si affaccia, non una stanza
-## in cui si entra. Se ne occupa `city.gd`, che per gli edifici con un `window`
-## invece di un `interior` istanzia la scena indicata.
+## Stessa forma di `seed_wholesale_window.gd`, e per lo stesso motivo: non
+## consegna i semi, manda il furgone. Ordinato un taglio la finestra si chiude,
+## e da lì in poi il lavoro è di `BusImport` — sei ore di gioco, e i semi
+## arrivano anche a partita chiusa.
 ##
-## ## Cosa fa davvero il bottone
-##
-## Non consegna i semi: manda il furgone. Ordinato un taglio, la finestra si
-## chiude e da lì in poi il lavoro è di `SeedRun` — due ore di gioco, e i semi
-## arrivano anche a partita chiusa. Chiudere la finestra subito è voluto: da qui
-## in avanti non c'è più niente da decidere, e lasciarla aperta su tre bottoni
-## spenti farebbe sembrare rotto l'ordine appena fatto.
-##
-## ## Le righe sono costruite dal codice
-##
-## Come nel gestionale e all'agenzia: i tagli vengono da `SeedRun.PACKS` e i
-## prezzi dal listino del giorno, quindi sarebbero comunque da riempire a
-## runtime. Tenerli anche nella scena vorrebbe dire mantenere due volte la
-## stessa lista.
+## Le righe vengono da `BusImport.PACKS` e i prezzi dal listino del giorno,
+## quindi sono comunque da riempire a runtime: tenerle anche nella scena
+## vorrebbe dire mantenere due volte la stessa lista.
 
 const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
 
@@ -70,28 +60,28 @@ func _rebuild() -> void:
 	var cash := data.cash if data != null else 0
 	_cash.text = UiFormat.money(cash)
 
-	# Il furgone è uno solo e fa un viaggio alla volta: se è già in giro — per i
-	# semi o per l'ingrosso della merce — qui non c'è niente da ordinare, e
-	# dirlo è meglio che mostrare tre bottoni spenti senza spiegare perché.
-	if SeedRun.is_running(data):
+	# Il furgone è uno solo e fa un viaggio alla volta: se è già in giro — per
+	# la merce, per il grossista in centro, o per questo stesso contatto — qui
+	# non c'è niente da ordinare.
+	if BusImport.is_running(data):
 		_content.add_child(_card([_label(
 			tr("SW_ON_THE_WAY") % UiFormat.duration(
-				SeedRun.hours_left(data, GameState.total_hours())),
+				BusImport.hours_left(data, GameState.total_hours())),
 			UiTheme.INK, UiTheme.SIZE_VALUE, UiTheme.W_BOLD, true)]))
 		return
-	if Delivery.is_running(data) or BusImport.is_running(data):
+	if Delivery.is_running(data) or SeedRun.is_running(data):
 		_content.add_child(_card([_label(tr("SW_VAN_OUT"), UiTheme.WARN,
 			UiTheme.SIZE_VALUE, UiTheme.W_BOLD, true)]))
 		return
 
-	for entry in SeedRun.PACKS:
+	for entry in BusImport.PACKS:
 		_content.add_child(_pack_card(entry, data, cash))
-	_content.add_child(_card([_label(tr("SW_NOTE"), UiTheme.INK_FAINT,
+	_content.add_child(_card([_label(tr("BS_NOTE"), UiTheme.INK_FAINT,
 		UiTheme.SIZE_NOTE, UiTheme.W_REGULAR, true)]))
 
 func _pack_card(pack: Dictionary, data: SaveData, cash: int) -> Control:
 	var seeds := int(pack["seeds"])
-	var price := SeedRun.pack_price(pack)
+	var price := BusImport.pack_price(pack)
 
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 8)
@@ -131,12 +121,12 @@ func _pack_card(pack: Dictionary, data: SaveData, cash: int) -> Control:
 	return _card([head, nota, action])
 
 func _on_order(pack: Dictionary) -> void:
-	var seeds := SeedRun.order(GameState.current, pack, GameState.total_hours())
+	var seeds := BusImport.order(GameState.current, pack, GameState.total_hours())
 	if seeds <= 0:
 		_rebuild()
 		return
 	# Il furgone parte: la City lo fa uscire da casa e lo riporta quando è ora.
-	GameState.seed_run_left.emit(seeds)
+	GameState.bus_order_left.emit(seeds)
 	GameState.save_game()
 	queue_free()
 

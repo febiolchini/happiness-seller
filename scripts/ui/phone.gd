@@ -463,9 +463,12 @@ func _mark() -> String:
 		return str(Chat.thread(data, _contact, now))
 	var mark := str(GameState.last_text.get("contact", "")) if _unread else ""
 	if _page == Page.PICK:
-		# Il menu cambia quando cambiano i soldi: una riga che diventa
+		# Il menu cambia quando cambiano i soldi, o quando il furgone parte o
+		# rientra per uno qualunque dei suoi tre lavori: una riga che diventa
 		# raggiungibile mentre la si guarda deve accendersi da sola.
-		return "pick|%d|%s" % [data.cash, SeedRun.is_running(data)]
+		return "pick|%d|%s|%s|%s" % [
+			data.cash, SeedRun.is_running(data), Delivery.is_running(data),
+			BusImport.is_running(data)]
 	for entry in Chat.contacts(data):
 		var thread := Chat.thread(data, str(entry["id"]), now)
 		mark += "|" + (str(thread[-1]) if not thread.is_empty() else "")
@@ -766,9 +769,11 @@ func _refresh() -> void:
 		_call.disabled = true
 		return
 	if _contact == Chat.DRIVER:
-		# Fuori è fuori: che sia andato a prendere i semi o a portare la merce,
-		# il furgone è uno e non si sdoppia.
-		var fuori := SeedRun.is_running(data) or Delivery.is_running(data)
+		# Fuori è fuori: che sia andato a prendere i semi, a portare la merce, o
+		# dal contatto fuori stato di Kevin, il furgone è uno e non si sdoppia.
+		var fuori := (
+			SeedRun.is_running(data) or Delivery.is_running(data)
+			or BusImport.is_running(data))
 		_call.text = tr("PHONE_DRIVER_OUT") if fuori else tr("PHONE_SEND_DRIVER")
 		_call.disabled = fuori
 		return

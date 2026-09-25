@@ -1107,6 +1107,37 @@ const BUILDINGS := [
 		"window": "res://scenes/ui/SeedWholesaleWindow.tscn",
 	},
 	{
+		# La stazione degli autobus: il contatto fuori stato che Kevin gira al
+		# giocatore ai centomila dollari (vedi `BusImport` e
+		# `GameState._check_milestones()`). Fino a duecentocinquanta semi a
+		# cassetta, lo sconto più alto del gioco — il prezzo di essersi fatti un
+		# nome vero, non solo di essere passati in centro.
+		#
+		# **Segnaposto dichiarato.** Non è ancora un disegno vero: è un
+		# rettangolo con un tetto, una porta e una striscia di nastro da
+		# cantiere, per dire "qui c'è qualcosa" senza fingere un edificio che
+		# non esiste. Stessa regola di `render_buildings.py` per tutto il
+		# resto — quando arriverà il disegno vero basta cambiare `texture`,
+		# niente altro qui sotto si tocca.
+		#
+		# **Compare solo dopo il traguardo.** `unlock_flag` la tiene fuori
+		# dalla città finché Kevin non manda il messaggio, esattamente come il
+		# suo magazzino resta fuori finché non c'è il furgone.
+		#
+		# Sta nello stesso quartiere del grossista — COMMERCIAL DISTRICT, sopra
+		# HILLSIDE — su MAIN STREET un isolato più a est, fra SEVENTH STREET e
+		# LOCK STREET: c'è terreno libero e la stessa quota di base (240) degli
+		# altri punti di riferimento affacciati su questa strada.
+		"id": "BusStation", "base": Vector2(6200, 240),
+		"district": "COMMERCIAL DISTRICT",
+		"unlock_flag": BusImport.UNLOCK_FLAG,
+		"label": "BS_NAME",
+		"texture": "res://assets/sprites/buildings/busStationPlaceholder.png",
+		"offset": Vector2(-100, -150), "click": Rect2(-100, -150, 200, 150),
+		"entry": Vector2(0, 20),
+		"window": "res://scenes/ui/BusStationWindow.tscn",
+	},
+	{
 		# COPPER STEER, la steak house sopra al parcheggio del grossista: in
 		# ordine dall'alto ristorante, parcheggio, grossista, con la facciata
 		# rivolta verso il parcheggio. La costruisce

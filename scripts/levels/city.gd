@@ -150,6 +150,10 @@ func _ready() -> void:
 	# stesse due animazioni: esce da casa e rientra. Vedi `SeedRun`.
 	GameState.seed_run_left.connect(_on_van_left)
 	GameState.seed_run_back.connect(_on_van_back)
+	# Il contatto fuori stato di Kevin muove lo stesso furgone: stessa ragione
+	# del grossista in centro. Vedi `BusImport`.
+	GameState.bus_order_left.connect(_on_van_left)
+	GameState.bus_order_back.connect(_on_van_back)
 	_build_hover_label()
 	# Arrivare in strada è un punto di controllo: da qui in poi la partita
 	# ricomincerebbe fuori, non nella stanza da cui si è appena usciti.
@@ -451,18 +455,19 @@ var _parked_van: Node2D = null
 ## serve, non si tiene in vita un contatore.
 func _refresh_parked_van() -> void:
 	var data := GameState.current
-	# **Tutti e due i viaggi, non solo la consegna.** Il furgone è uno: quello
+	# **Tutti e tre i viaggi, non solo la consegna.** Il furgone è uno: quello
 	# che porta la merce all'ingrosso è lo stesso che va a ritirare i semi dal
-	# grossista (`SeedRun`), e `can_order` lo sa già — non si può ordinare
-	# mentre è fuori. Qui invece si guardava solo `Delivery`, e il risultato era
-	# che ordinati i semi il furgone restava parcheggiato nel vialetto per tutte
-	# e due le ore del viaggio. Peggio: al rientro `_on_van_back` trova un
-	# furgone già in sosta e non fa niente, quindi non si vedeva nemmeno
-	# arrivare. Il giro dei semi è proprio quello in cui si torna a casa a
-	# piedi, cioè quello in cui lo si guarda.
+	# grossista (`SeedRun`) o dal contatto fuori stato di Kevin (`BusImport`),
+	# e `can_order` lo sa già — non si può ordinare mentre è fuori. Qui invece
+	# si guardava solo `Delivery`, e il risultato era che ordinati i semi il
+	# furgone restava parcheggiato nel vialetto per tutte le ore del viaggio.
+	# Peggio: al rientro `_on_van_back` trova un furgone già in sosta e non fa
+	# niente, quindi non si vedeva nemmeno arrivare. Il giro dei semi è proprio
+	# quello in cui si torna a casa a piedi, cioè quello in cui lo si guarda.
 	var should_park := (
 		data != null and Delivery.has_van(data)
-		and not Delivery.is_running(data) and not SeedRun.is_running(data))
+		and not Delivery.is_running(data) and not SeedRun.is_running(data)
+		and not BusImport.is_running(data))
 	if not should_park:
 		if _parked_van != null and is_instance_valid(_parked_van):
 			_parked_van.queue_free()

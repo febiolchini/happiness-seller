@@ -521,6 +521,35 @@ const TEXT := {
 		"Pides y la furgoneta va a por ellas. Tarda un par de horas, y es la misma furgoneta del mayoreo: un viaje cada vez.",
 	],
 
+	# --- Il contatto fuori stato di Kevin (PIXEL il titolo) -----------------
+	"BS_TITLE": ["OUT OF STATE CONTACT", "CONTATTO FUORI STATO", "CONTACTO DE OTRO ESTADO"],
+	"BS_NAME": ["BUS STATION", "STAZIONE DEGLI AUTOBUS", "ESTACION DE AUTOBUSES"],
+	"BS_NOTE": [
+		"Order and the van goes to fetch them. It takes about six hours, and it is the same van that does the wholesale runs and the trips to the clinic supplier: one job at a time.",
+		"Si ordina e il furgone va a prenderli. Ci mette circa sei ore, ed e' lo stesso furgone dell'ingrosso e del grossista in centro: un viaggio alla volta.",
+		"Pides y la furgoneta va a por ellas. Tarda unas seis horas, y es la misma furgoneta del mayoreo y del mayorista del centro: un viaje cada vez.",
+	],
+	## Il messaggio di Kevin ai centomila dollari: apre il contatto fuori stato
+	## e mette Kevin in rubrica. PIXEL, quindi niente accenti ne punteggiatura.
+	"MSG_KEVIN_SPEAKER": ["KEVIN", "KEVIN", "KEVIN"],
+	"MSG_KEVIN_BUS_STATION_BODY": [
+		"Hey your crew is really growing now
+If my numbers are not enough for you anymore
+I can put you in touch with someone
+he imports straight from another state
+Ask for him at the bus station",
+		"Ehi la tua banda sta crescendo sul serio
+Se le mie quantita non ti bastano piu
+ti posso passare un contatto
+lui li importa da un altro stato
+Chiedi di lui alla stazione degli autobus",
+		"Oye tu banda esta creciendo de verdad
+Si mis cantidades ya no te alcanzan
+te puedo pasar un contacto
+el las importa desde otro estado
+Preguntale en la estacion de autobuses",
+	],
+
 	# --- Il telefono (PIXEL le voci del menu) ------------------------------
 	# I mittenti sono quelli che ci sono gia': `MSG_STAFF_SPEAKER` e
 	# `MSG_COUSIN_SPEAKER`. Chi scrive e' la stessa persona, che il messaggio
@@ -1221,6 +1250,7 @@ const PIXEL_KEYS := [
 	"MSG_ORG_NAME_BODY", "ORG_NAME_TITLE", "PRESTIGE_ROOKIES",
 	"MSG_SEED_WHOLESALE_BODY", "MSG_DRIVER_BODY", "MSG_DRIVER_HELLO", "SW_TITLE",
 	"MSG_DRIVER_SPEAKER",
+	"MSG_KEVIN_SPEAKER", "MSG_KEVIN_BUS_STATION_BODY", "BS_TITLE",
 	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE", "CHAT_TITLE",
 	# Della guida solo la voce in rubrica: dentro si legge col font di
 	# sistema, e le cifre servono.
