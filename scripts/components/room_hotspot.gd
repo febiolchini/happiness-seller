@@ -21,6 +21,9 @@ func _ready() -> void:
 	super()
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	pressed.connect(_open_window)
+	# Pennello: la targhetta è sempre di sole lettere ("PC"). Niente ombra a
+	# mano, il riquadro scuro dietro basta a farla leggere.
+	UiTheme.dress_world_text(self, text, 16, 14, UiTheme.W_REGULAR)
 
 func _open_window() -> void:
 	if window_scene == null or _window != null:

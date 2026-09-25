@@ -65,6 +65,11 @@ func _ready() -> void:
 	Input.set_custom_mouse_cursor(HAND_CURSOR, Input.CURSOR_ARROW, HAND_HOTSPOT)
 	_background.color = background_color
 	_title.text = room_name
+	# Pennello (il nome di una stanza è sempre di sole parole) con l'ombra
+	# dura già scritta nella scena, Nunito altrimenti — come ovunque il testo
+	# sta sopra a un fondale e non su carta.
+	UiTheme.dress_world_text(_title, room_name, 24, 18, UiTheme.W_REGULAR,
+		Color(0, 0, 0, 0.7))
 
 	# Aprendo una stanza direttamente dall'editor non si passa dal menu.
 	if GameState.current == null:
