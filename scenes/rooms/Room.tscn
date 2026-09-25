@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/rooms/room.gd" id="1_room"]
-[ext_resource type="Texture2D" path="res://assets/sprites/characters/placeholdercharater.png" id="2_char"]
+[ext_resource type="Texture2D" path="res://assets/sprites/characters/protagonista.png" id="2_char"]
 [ext_resource type="FontFile" path="res://assets/sprites/ui/brush.fnt" id="3_font"]
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
 
@@ -39,6 +39,9 @@ stretch_mode = 6
 position = Vector2(320, 196)
 scale = Vector2(4, 4)
 texture = ExtResource("2_char")
+offset = Vector2(0, -1)
+hframes = 9
+frame = 8
 
 [node name="Shadow" type="Polygon2D" parent="Character"]
 z_index = -1

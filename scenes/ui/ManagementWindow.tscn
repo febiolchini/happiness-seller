@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/management_window.gd" id="1_window"]
+[ext_resource type="Texture2D" path="res://assets/sprites/ui/foglia.png" id="2_leaf"]
 
 [node name="ManagementWindow" type="CanvasLayer"]
 layer = 4
@@ -51,6 +52,15 @@ layout_mode = 2
 [node name="Row" type="HBoxContainer" parent="Root/Window/Layout/Header"]
 layout_mode = 2
 theme_override_constants/separation = 10
+
+[node name="Leaf" type="TextureRect" parent="Root/Window/Layout/Header/Row"]
+texture_filter = 2
+custom_minimum_size = Vector2(20, 22)
+layout_mode = 2
+mouse_filter = 2
+texture = ExtResource("2_leaf")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="Title" type="Label" parent="Root/Window/Layout/Header/Row"]
 layout_mode = 2

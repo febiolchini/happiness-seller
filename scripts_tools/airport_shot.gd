@@ -17,8 +17,8 @@ const CENTER := Vector2(1760, 7824)
 
 ## [dove guarda, secondi della sequenza (o ora se negativo: -ora), nome, zoom]
 const SHOTS := [
-	[CENTER, -8.0, "aero_mattina", 2],
-	[CENTER, -8.0, "aero_largo", 1],
+	[CENTER, -6.0, "aero_mattina", 2],
+	[CENTER, -6.0, "aero_largo", 1],
 	[Vector2(300, 8250), 6.0, "aero_avvicinamento", 2],
 	[Vector2(1000, 8250), 12.5, "aero_atterraggio", 3],
 	[Vector2(1800, 8250), 18.0, "aero_frenata", 3],
@@ -27,10 +27,15 @@ const SHOTS := [
 	[Vector2(2100, 7800), 51.0, "aero_mezzi", 3],
 	[Vector2(1800, 7760), 61.0, "aero_scala", 4],
 	[Vector2(1700, 7850), 72.0, "aero_bimotore", 3],
+	[Vector2(2150, 7800), 78.0, "aero_mezzi_via", 3],
 	[Vector2(2150, 7850), 81.0, "aero_virata", 4],
 	[Vector2(1800, 8000), 88.0, "aero_decollo", 3],
-	[Vector2(1000, 8450), 95.0, "aero_salita", 2],
-	[Vector2(0, 9000), 102.0, "aero_uscita", 1],
+	[Vector2(2000, 7760), 96.0, "aero_jet_gira", 3],
+	[Vector2(2350, 7950), 106.0, "aero_jet_rullaggio", 3],
+	[Vector2(2000, 8250), 119.0, "aero_jet_pista", 3],
+	[Vector2(1000, 8250), 125.0, "aero_jet_decollo", 2],
+	[Vector2(0, 8250), 131.0, "aero_jet_salita", 1],
+	[Vector2(1000, 8250), 154.3 + 12.5, "aero_secondo_atterraggio", 3],
 	[CENTER, -22.5, "aero_notte", 2],
 	[CENTER, -3.3, "aero_reset", 2],
 ]

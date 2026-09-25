@@ -70,7 +70,8 @@ func _rebuild() -> void:
 				BusImport.hours_left(data, GameState.total_hours())),
 			UiTheme.INK, UiTheme.SIZE_VALUE, UiTheme.W_BOLD, true)]))
 		return
-	if Delivery.is_running(data) or SeedRun.is_running(data):
+	if not BusImport.has_own_driver(data) and (
+			Delivery.is_running(data) or SeedRun.is_running(data)):
 		_content.add_child(_card([_label(tr("SW_VAN_OUT"), UiTheme.WARN,
 			UiTheme.SIZE_VALUE, UiTheme.W_BOLD, true)]))
 		return

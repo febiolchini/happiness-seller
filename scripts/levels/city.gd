@@ -485,7 +485,7 @@ func _refresh_parked_van() -> void:
 	var should_park := (
 		data != null and Delivery.has_van(data)
 		and not Delivery.is_running(data) and not SeedRun.is_running(data)
-		and not BusImport.is_running(data))
+		and not BusImport.holds_van(data))
 	if not should_park:
 		if _parked_van != null and is_instance_valid(_parked_van):
 			_parked_van.queue_free()

@@ -774,9 +774,10 @@ func _refresh() -> void:
 	if _contact == Chat.DRIVER:
 		# Fuori è fuori: che sia andato a prendere i semi, a portare la merce, o
 		# dal contatto fuori stato di Kevin, il furgone è uno e non si sdoppia.
+		# La stazione conta solo se non c'è il secondo autista a farla.
 		var fuori := (
 			SeedRun.is_running(data) or Delivery.is_running(data)
-			or BusImport.is_running(data))
+			or BusImport.holds_van(data))
 		_call.text = tr("PHONE_DRIVER_OUT") if fuori else tr("PHONE_SEND_DRIVER")
 		_call.disabled = fuori
 		return

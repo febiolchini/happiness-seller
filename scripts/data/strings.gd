@@ -419,9 +419,9 @@ const TEXT := {
 	],
 	"STAFF_DRIVER": ["DRIVER", "AUTISTA", "CHOFER"],
 	"STAFF_DRIVER_NOTE": [
-		"Takes the van to the supplier for you: with him on the payroll you order the seeds from the PC instead of walking downtown. One van, one driver, and he gets paid whether he drives or not.",
-		"Porta lui il furgone dal grossista: assunto, i semi si ordinano dal PC invece di farsi la strada fino in centro. Un furgone, un autista, e la paga la prende che guidi o no.",
-		"Lleva el la furgoneta al mayorista: contratado, las semillas se piden desde el PC en vez de cruzar la ciudad. Una furgoneta, un chofer, y cobra conduzca o no.",
+		"Takes the van to the supplier for you: with him on the payroll you order the seeds from the PC instead of walking downtown. One van, one driver, and he gets paid whether he drives or not. Once the bus station opens you can hire a second one: he does the station pickups, and the van stays free.",
+		"Porta lui il furgone dal grossista: assunto, i semi si ordinano dal PC invece di farsi la strada fino in centro. Un furgone, un autista, e la paga la prende che guidi o no. Quando apre la stazione degli autobus se ne puo' assumere un secondo: fa lui i ritiri alla stazione, e il furgone resta libero.",
+		"Lleva el la furgoneta al mayorista: contratado, las semillas se piden desde el PC en vez de cruzar la ciudad. Una furgoneta, un chofer, y cobra conduzca o no. Cuando abre la estacion de autobuses puedes contratar un segundo: hace el los retiros en la estacion, y la furgoneta queda libre.",
 	],
 	"STAFF_DEALER": ["DEALER", "SPACCIATORE", "VENDEDOR"],
 	"STAFF_DEALER_NOTE": [
@@ -523,8 +523,8 @@ const TEXT := {
 		"Furgoneta en camino: faltan %s.",
 	],
 	"SW_NOTE": [
-		"Order and the van goes to fetch them. It takes about two hours, and it is the same van that does the wholesale runs: one job at a time.",
-		"Si ordina e il furgone va a prenderli. Ci mette un paio d'ore, ed e' lo stesso furgone dell'ingrosso: un viaggio alla volta.",
+		"Order and the van goes to fetch them. It takes about two hours, and it is the same van that does the wholesale runs: one job at a time. With a second driver on the payroll he goes instead, and the van stays free.",
+		"Si ordina e il furgone va a prenderli. Ci mette un paio d'ore, ed e' lo stesso furgone dell'ingrosso: un viaggio alla volta. Con un secondo autista in organico ci va lui, e il furgone resta libero.",
 		"Pides y la furgoneta va a por ellas. Tarda un par de horas, y es la misma furgoneta del mayoreo: un viaje cada vez.",
 	],
 
@@ -532,9 +532,9 @@ const TEXT := {
 	"BS_TITLE": ["OUT OF STATE CONTACT", "CONTATTO FUORI STATO", "CONTACTO DE OTRO ESTADO"],
 	"BS_NAME": ["BUS STATION", "STAZIONE DEGLI AUTOBUS", "ESTACION DE AUTOBUSES"],
 	"BS_NOTE": [
-		"Order and the van goes to fetch them. It takes about six hours, and it is the same van that does the wholesale runs and the trips to the clinic supplier: one job at a time.",
-		"Si ordina e il furgone va a prenderli. Ci mette circa sei ore, ed e' lo stesso furgone dell'ingrosso e del grossista in centro: un viaggio alla volta.",
-		"Pides y la furgoneta va a por ellas. Tarda unas seis horas, y es la misma furgoneta del mayoreo y del mayorista del centro: un viaje cada vez.",
+		"Order and the van goes to fetch them. It takes about six hours, and it is the same van that does the wholesale runs and the trips to the clinic supplier: one job at a time. With a second driver on the payroll he goes instead, and the van stays free.",
+		"Si ordina e il furgone va a prenderli. Ci mette circa sei ore, ed e' lo stesso furgone dell'ingrosso e del grossista in centro: un viaggio alla volta. Con un secondo autista in organico ci va lui, e il furgone resta libero.",
+		"Pides y la furgoneta va a por ellas. Tarda unas seis horas, y es la misma furgoneta del mayoreo y del mayorista del centro: un viaje cada vez. Con un segundo chofer en plantilla va el, y la furgoneta queda libre.",
 	],
 	## Il messaggio di Kevin ai centomila dollari: apre il contatto fuori stato
 	## e mette Kevin in rubrica. PIXEL, quindi niente accenti ne punteggiatura.

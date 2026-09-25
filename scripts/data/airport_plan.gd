@@ -18,7 +18,11 @@ extends RefCounted
 ##
 ## - dalle `START_HOUR` parte la sequenza, lunga un paio di minuti veri (a
 ##   quattro minuti di gioco al secondo sono qualche ora sull'orologio);
-## - finita, tutto resta com'e' per il resto della giornata e la notte;
+## - l'aereo di linea atterra, riceve scala e trattorino, e dopo una sosta i
+##   mezzi tornano al deposito e lui ridecolla dalla pista principale;
+## - dopo `JET_PAUSE_HOURS` ne atterra un altro, e cosi' via finche' un giro
+##   intero ci sta prima della notte (`cycles()`). Il bimotore parte una volta
+##   al giorno, al primo giro;
 ## - fra `RESET_FROM` e `RESET_TO` si torna alla mattina: aereo di linea, scala
 ##   e trattorino svaniscono, i mezzi ricompaiono al deposito, il bimotore al
 ##   suo posto. In dissolvenza, e alle tre di notte, quando e' meno probabile
@@ -29,7 +33,7 @@ extends RefCounted
 ## aerei hanno senso in pixel al secondo.
 
 ## Ore di gioco.
-const START_HOUR := 9.0
+const START_HOUR := 7.0
 const RESET_FROM := 3.0
 const RESET_TO := 3.6
 ## Quanti secondi veri dura un'ora di gioco (`GameState.GAME_MINUTES_PER_SECOND`).
@@ -65,6 +69,11 @@ const PARKED := [
 ## sud, vicino al muso (`DOOR`).
 const JET_STAND := Vector2(2015, 7740)
 const DOOR := Vector2(-122, 0)
+## Quanto resta fermo l'aereo di linea dopo che scala e trattorino l'hanno
+## raggiunto, prima che se ne vadano; e quanto passa, ripartito, prima che ne
+## atterri un altro. Secondi veri il primo, ore di gioco il secondo.
+const SERVICE_DWELL := 8.0
+const JET_PAUSE_HOURS := 1.25
 ## Il bimotore aspetta davanti all'hangar grande, col muso verso le piste.
 const TWIN_STAND := Vector2(1350, 7700)
 ## Il deposito dei mezzi, accanto alla torre.
@@ -81,11 +90,27 @@ const ACTORS := ["jet", "twin", "stairs", "tug"]
 
 static var _tracks := {}
 static var _end := 0.0
+static var _jet_end := 0.0
 
 ## Quanto dura la sequenza, in secondi veri.
 static func duration() -> float:
 	_build()
 	return _end
+
+## Quanto dura un giro dell'aereo di linea, dall'avvicinamento al decollo.
+static func jet_duration() -> float:
+	_build()
+	return _jet_end
+
+## Ogni quanti secondi veri comincia un giro dell'aereo di linea.
+static func cycle_seconds() -> float:
+	return jet_duration() + JET_PAUSE_HOURS * SECONDS_PER_HOUR
+
+## Quanti giri ci stanno fra `START_HOUR` e la notte: l'ultimo deve finire
+## prima di `RESET_FROM`, o il cambio notturno lo taglierebbe a meta'.
+static func cycles() -> int:
+	var window := (24.0 - START_HOUR + RESET_FROM) * SECONDS_PER_HOUR
+	return maxi(1, floori((window - jet_duration()) / cycle_seconds()) + 1)
 
 ## Quando comincia e finisce ogni tratto di ogni attore, in secondi: serve
 ## agli strumenti di scatto per fotografare i momenti giusti.
@@ -111,9 +136,13 @@ static func pose(actor: String, hour: float) -> Dictionary:
 	if h >= START_HOUR:
 		t = (h - START_HOUR) * SECONDS_PER_HOUR
 	elif h < RESET_FROM:
-		t = INF
+		t = (h + 24.0 - START_HOUR) * SECONDS_PER_HOUR
 	else:
 		t = -INF
+	# L'aereo di linea e i suoi mezzi girano in tondo; il bimotore no.
+	if actor != "twin" and t > 0.0:
+		var k := floori(t / cycle_seconds())
+		t = INF if k >= cycles() else t - k * cycle_seconds()
 	return _pose_at(actor, track, t)
 
 ## Il secondo della sequenza a quell'ora, o -1 fuori dalla sequenza. Serve a
@@ -139,8 +168,8 @@ static func _pose_at(actor: String, track: Array, t: float) -> Dictionary:
 		return p
 	if t >= float(last["t1"]):
 		var p := _leg_pose(last, float(last["t1"]))
-		# Il bimotore, decollato, e' uscito dalla mappa.
-		p["visible"] = actor != "twin"
+		# I due aerei, decollati, sono usciti dalla mappa.
+		p["visible"] = actor != "twin" and actor != "jet"
 		return p
 	var held: Dictionary = first
 	for leg: Dictionary in track:
@@ -247,6 +276,7 @@ static func _build() -> void:
 		Vector2(door.x - 66, 7860)]), t + 1.5, 120.0, 120.0)
 	g_end = _move(tug, [Vector2(door.x - 66, 7860), door + Vector2(-66, 84)], g_end, 120.0, 0.0)
 	t = maxf(s_end, g_end) + 2.5
+	var leave := t + SERVICE_DWELL
 
 	# Il bimotore: giu' dal suo posto, a est sul raccordo sud, in testa alla
 	# pista incrociata; si gira, rulla, decolla verso sud-ovest ed esce.
@@ -261,10 +291,54 @@ static func _build() -> void:
 	t += 4.0
 	var lift := head + along * 760.0
 	t = _move(twin, [head, lift], t, 0.0, 240.0)
+	var twin_up := t
 	t = _move(twin, [lift, lift + along * 4200.0], t, 240.0, 300.0, 0.0, 520.0, 1.35)
+	var twin_end := t
+
+	# Finita la sosta, la scala si abbassa e i mezzi tornano al deposito per la
+	# strada da cui erano venuti. Prima la scala: al deposito passa davanti al
+	# posto del trattorino, e cosi' lo trova ancora vuoto. Arrivati, si girano
+	# col muso come la mattina, pronti per il giro dopo.
+	var north := -PI * 0.5
+	var south := PI * 0.5
+	stairs.append({"type": "frames", "t0": leave, "t1": leave + 3.0, "pos": door + Vector2(0, 60),
+		"heading": north, "f0": STAIRS_FRAMES - 1, "f1": 0})
+	s_end = _turn(stairs, door + Vector2(0, 60), north, south, leave + 3.2, 2.0)
+	s_end = _move(stairs, _smooth([door + Vector2(0, 60), Vector2(door.x, 7835),
+		Vector2(door.x + 60, 7860), Vector2(STAIRS_DEPOT.x, 7860), Vector2(STAIRS_DEPOT.x, 7700)]),
+		s_end, 40.0, 110.0)
+	s_end = _move(stairs, [Vector2(STAIRS_DEPOT.x, 7700), STAIRS_DEPOT], s_end, 110.0, 0.0)
+	s_end = _turn(stairs, STAIRS_DEPOT, north, south, s_end + 0.3, 2.5)
+	g_end = _turn(tug, door + Vector2(-66, 84), north, south, leave + 8.0, 2.0)
+	g_end = _move(tug, _smooth([door + Vector2(-66, 84), Vector2(door.x - 66, 7860),
+		Vector2(door.x - 20, 7885), Vector2(TUG_DEPOT.x, 7885), Vector2(TUG_DEPOT.x, 7790)]),
+		g_end, 40.0, 120.0)
+	g_end = _move(tug, [Vector2(TUG_DEPOT.x, 7790), TUG_DEPOT], g_end, 120.0, 0.0)
+	g_end = _turn(tug, TUG_DEPOT, north, south, g_end + 0.3, 2.5)
+
+	# L'aereo di linea riparte: si gira sul posto col muso che passa a sud (a
+	# nord c'e' il terminal), rulla a est e giu' per il raccordo da cui era
+	# salito, e decolla verso ovest sulla pista principale, uscendo dalla
+	# parte da cui era arrivato. Aspetta che il bimotore sia in aria: la pista
+	# incrociata taglia la principale.
+	var go := maxf(maxf(s_end, g_end), twin_up + 3.0) + 1.0
+	go = _turn(jet, JET_STAND, PI, south, go, 3.0)
+	go = _turn(jet, JET_STAND, south, 0.0, go, 3.0)
+	go = _move(jet, _smooth([JET_STAND, Vector2(2150, JET_STAND.y), Vector2(2320, JET_STAND.y),
+		Vector2(2440, JET_STAND.y + 10), Vector2(2450, 7790), Vector2(2450, main_y - 40),
+		Vector2(2330, main_y), Vector2(2200, main_y)]), go, 40.0, 80.0)
+	var rotate_at := Vector2(1250, main_y)
+	go = _move(jet, [Vector2(2200, main_y), rotate_at], go, 80.0, 235.0)
+	go = _move(jet, [rotate_at, Vector2(-2300, main_y)], go, 235.0, 300.0, 0.0, 560.0, 1.35)
 
 	_tracks = {"jet": jet, "twin": twin, "stairs": stairs, "tug": tug}
-	_end = t
+	_jet_end = go
+	_end = maxf(go, twin_end)
+
+## Una rotazione sul posto, da `h0` a `h1`. Restituisce il secondo in cui finisce.
+static func _turn(track: Array, pos: Vector2, h0: float, h1: float, t0: float, secs: float) -> float:
+	track.append({"type": "turn", "t0": t0, "t1": t0 + secs, "pos": pos, "h0": h0, "h1": h1})
+	return t0 + secs
 
 ## Un tratto di strada lungo la polilinea `pts`, da `v0` a `v1` px/s, con la
 ## quota da `alt0` a `alt1`. Restituisce il secondo in cui finisce.

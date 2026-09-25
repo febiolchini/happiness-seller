@@ -142,11 +142,14 @@ func _select(index: int) -> void:
 			"hover": boxes["active"] if active else boxes["hover"],
 			"pressed": boxes["active"],
 			"disabled": boxes["normal"],
-		}, UiTheme.BUTTON_DARK if active else UiTheme.INK_SOFT, UiTheme.SIZE_LABEL,
+		}, UiTheme.INK, UiTheme.SIZE_LABEL,
 			UiTheme.W_BOLD if active else UiTheme.W_MEDIUM)
 		UiTheme.dress_window_text(_buttons[i], _buttons[i].text, UiTheme.WIN_TAB,
 			UiTheme.SIZE_LABEL, UiTheme.W_BOLD if active else UiTheme.W_MEDIUM)
 		_buttons[i].alignment = HORIZONTAL_ALIGNMENT_LEFT
+		# Stretta sulla parola: il cerchio d'oro deve girarle intorno, non
+		# allungarsi su tutta la colonna.
+		_buttons[i].size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_build_page()
 
 func _build_page() -> void:

@@ -1,7 +1,7 @@
 extends CharacterBody2D
 
-## Protagonista. Per ora è un segnaposto: uno Sprite2D con un PNG provvisorio,
-## che verrà sostituito da un AnimatedSprite2D con le animazioni vere.
+## Protagonista. Lo Sprite2D ha lo spritesheet di `import_protagonista.py`:
+## otto frame di camminata e per ultimo quello da fermo.
 ##
 ## L'origine del nodo è ai PIEDI del personaggio: è quel punto a terra che conta
 ## sia per l'Y-sort sia per il click-to-move.
@@ -29,12 +29,11 @@ extends CharacterBody2D
 @export var brake_time := 0.12
 ## Sotto questa distanza dal bersaglio il personaggio ci si incolla e si ferma.
 @export var arrive_distance := 1.5
-## Ampiezza del saltello durante il cammino: sostituto temporaneo dell'animazione.
-@export var bob_height := 1.0
 ## Quanti pixel di strada fa un passo.
 ##
-## Il saltello va a PASSI e non a tempo: legandolo ai secondi, un personaggio che
-## rallenta continua a sobbalzare alla stessa cadenza e sembra che pattini.
+## La camminata va a PASSI e non a tempo: legandola ai secondi, un personaggio
+## che rallenta continua a muovere le gambe alla stessa cadenza e sembra che
+## pattini.
 ## Venti pixel su un personaggio alto quarantotto sono la falcata giusta — un
 ## metro e settanta di persona fa un passo di settanta centimetri — e a 48 px/s
 ## vengono due passi e mezzo al secondo, che è la cadenza di chi va di fretta.
@@ -52,8 +51,8 @@ var _path := PackedVector2Array()
 var _path_index := 0
 var _target := Vector2.ZERO
 var _moving := false
-var _bob_time := 0.0
-var _sprite_rest_y := 0.0
+## Passi fatti dall'ultima fermata: la parte decimale e' il punto del passo.
+var _steps := 0.0
 ## Quanto sta andando adesso: sale verso `speed` e scende a zero, non ci salta.
 var _current_speed := 0.0
 ## Da quanto è fermo sul cordolo ad aspettare un buco nel traffico. Zero quando
@@ -71,6 +70,9 @@ const CROSSING_LOOKAHEAD := 320.0
 const CROSSING_STEP := 8.0
 ## Ogni quanto gira la testa chi aspetta di attraversare.
 const LOOK_INTERVAL := 0.55
+## Lo spritesheet: `WALK_FRAMES` di camminata, poi quello da fermo.
+const WALK_FRAMES := 8
+const IDLE_FRAME := 8
 
 func _ready() -> void:
 	add_to_group(GROUP)
@@ -78,7 +80,6 @@ func _ready() -> void:
 	# resterebbe indietro mentre quella di tutto il resto gira col sole.
 	add_to_group(Daylight.LIGHT_GROUP)
 	_target = global_position
-	_sprite_rest_y = _sprite.offset.y
 
 ## Chiamata da `atmosphere.gd` quando la luce è cambiata abbastanza da vedersi.
 func on_light_changed() -> void:
@@ -192,11 +193,9 @@ func _physics_process(delta: float) -> void:
 	if absf(velocity.x) > 1.0:
 		_sprite.flip_h = velocity.x < 0.0
 
-	# Il saltello va a PASSI: si avanza di `stride` pixel, si fa un passo. Legato
-	# al tempo invece che alla strada, un personaggio che rallenta continuerebbe
-	# a sobbalzare alla stessa cadenza e sembrerebbe pattinare.
-	_bob_time += global_position.distance_to(before) / stride * PI
-	_sprite.offset.y = _sprite_rest_y - absf(sin(_bob_time)) * bob_height
+	# Si avanza di `stride` pixel, si fa un passo; il ciclo di frame ne fa due.
+	_steps += global_position.distance_to(before) / stride
+	_sprite.frame = int(fposmod(_steps, 2.0) * WALK_FRAMES / 2.0) % WALK_FRAMES
 
 # --- Attraversare ----------------------------------------------------------
 
@@ -241,9 +240,9 @@ func _far_kerb(from: Vector2, direction: Vector2) -> Vector2:
 func _look_both_ways() -> void:
 	_sprite.flip_h = fmod(_waiting, LOOK_INTERVAL * 2.0) > LOOK_INTERVAL
 
-func _settle_sprite(delta: float) -> void:
-	_bob_time = 0.0
-	_sprite.offset.y = move_toward(_sprite.offset.y, _sprite_rest_y, 12.0 * delta)
+func _settle_sprite(_delta: float) -> void:
+	_steps = 0.0
+	_sprite.frame = IDLE_FRAME
 
 ## Sparisce dentro a un edificio: rimpicciolisce e svanisce. Lo sprite ha
 ## l'origine ai piedi, quindi sembra che venga risucchiato verso la porta.

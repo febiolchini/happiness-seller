@@ -159,6 +159,9 @@ func _build_tab_bar() -> void:
 		button.text = _tabs[i]
 		button.focus_mode = Control.FOCUS_NONE
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		# Stretta sulla parola: il cerchio d'oro deve girarle intorno, non
+		# allungarsi su tutta la colonna.
+		button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		button.set_script(BUTTON_SCRIPT)
 		button.use_press_offset = false
 		button.pressed.connect(_select_tab.bind(i))
@@ -192,9 +195,9 @@ func close() -> void:
 
 # --- Schede ----------------------------------------------------------------
 
-## La scheda aperta si distingue per il RIQUADRO, non solo per il colore del
-## testo: in una colonna di cinque voci un colore diverso si nota poco, una
-## voce con lo sfondo di carta si legge come "sono qui" a colpo d'occhio.
+## La scheda aperta si distingue per il cerchio d'oro intorno alla parola, non
+## per il colore del testo: in una colonna di cinque voci un colore diverso si
+## nota poco.
 func _select_tab(index: int) -> void:
 	_tab = index
 	var boxes := UiTheme.rail_boxes()
@@ -206,7 +209,7 @@ func _select_tab(index: int) -> void:
 			"hover": boxes["active"] if attiva else boxes["hover"],
 			"pressed": boxes["active"],
 			"disabled": boxes["normal"],
-		}, UiTheme.BUTTON_DARK if attiva else UiTheme.INK_SOFT, UiTheme.SIZE_TAB,
+		}, UiTheme.INK, UiTheme.SIZE_TAB,
 			UiTheme.W_BOLD if attiva else UiTheme.W_MEDIUM)
 		UiTheme.dress_window_text(button, button.text, UiTheme.WIN_TAB, UiTheme.SIZE_TAB,
 			UiTheme.W_BOLD if attiva else UiTheme.W_MEDIUM)
@@ -468,7 +471,7 @@ func _build_seeds() -> void:
 		var driver_enabled := func(d: SaveData) -> bool:
 			return (
 				not SeedRun.is_running(d) and not Delivery.is_running(d)
-				and not BusImport.is_running(d))
+				and not BusImport.holds_van(d))
 		_add_action(driver_text, driver_enabled, _send_driver)
 		_add_note(tr("PC_DRIVER_NOTE"))
 

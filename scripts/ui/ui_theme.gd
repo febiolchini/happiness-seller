@@ -316,60 +316,51 @@ static func card_box() -> StyleBoxFlat:
 	return box
 
 # --- Bottoni ----------------------------------------------------------------
+# Federico, 2026-09-26: nelle finestre niente bottoni, niente contorni, niente
+# scritte colorate per la selezione. Restano le parole, nere; quella su cui si
+# e' (passandoci sopra, premendola, la scheda aperta) la cerchia il suo cerchio
+# d'oro disegnato a mano.
 
-## L'azione principale: rossa piena, testo di carta.
+const RING := preload("res://assets/sprites/ui/cerchio_oro.png")
+
+static func _margins(box: StyleBox, left: int, right: int, top: int, bottom: int) -> StyleBox:
+	box.content_margin_left = left
+	box.content_margin_right = right
+	box.content_margin_top = top
+	box.content_margin_bottom = bottom
+	return box
+
+## Il cerchio d'oro, stirato sulla parola. Esce dal bottone di qualche pixel
+## (`expand_margin`): stretto sul riquadro, taglierebbe le lettere in punta.
+static func _ring() -> StyleBoxTexture:
+	var box := StyleBoxTexture.new()
+	box.texture = RING
+	box.expand_margin_left = 8
+	box.expand_margin_right = 8
+	box.expand_margin_top = 5
+	box.expand_margin_bottom = 5
+	return box
+
+static func _word_boxes(left: int, right: int, top: int, bottom: int) -> Dictionary:
+	var boxes := {}
+	for state in ["normal", "disabled"]:
+		boxes[state] = _margins(StyleBoxEmpty.new(), left, right, top, bottom)
+	for state in ["hover", "pressed", "active"]:
+		boxes[state] = _margins(_ring(), left, right, top, bottom)
+	return boxes
+
+## L'azione principale ("compra", "ok"). Uguale alla secondaria: la differenza
+## adesso la fa la parola, non il riquadro.
 static func primary_boxes() -> Dictionary:
-	var normal := _box(BUTTON, 4)
-	var hover := _box(BUTTON.lightened(0.10), 4)
-	var pressed := _box(BUTTON_DARK, 4)
-	var disabled := _box(Color(0.886, 0.898, 0.914), 4)
-	for box: StyleBoxFlat in [normal, hover, pressed, disabled]:
-		box.content_margin_left = 10
-		box.content_margin_right = 10
-		box.content_margin_top = 4
-		box.content_margin_bottom = 5
-	pressed.content_margin_top = 5
-	pressed.content_margin_bottom = 4
-	return {"normal": normal, "hover": hover, "pressed": pressed,
-		"disabled": disabled}
+	return _word_boxes(10, 10, 4, 5)
 
-## L'azione secondaria: solo contorno, si accende passandoci sopra.
+## L'azione secondaria ("chiudi").
 static func ghost_boxes() -> Dictionary:
-	var normal := _box(Color(1, 1, 1, 0), 4, 1, LINE)
-	var hover := _box(BUTTON_SOFT, 4, 1, BUTTON)
-	var pressed := _box(BUTTON_SOFT.darkened(0.06), 4, 1, BUTTON_DARK)
-	var disabled := _box(Color(1, 1, 1, 0), 4, 1, Color(0.918, 0.925, 0.937))
-	for box: StyleBoxFlat in [normal, hover, pressed, disabled]:
-		box.content_margin_left = 10
-		box.content_margin_right = 10
-		box.content_margin_top = 4
-		box.content_margin_bottom = 5
-	return {"normal": normal, "hover": hover, "pressed": pressed,
-		"disabled": disabled}
+	return _word_boxes(10, 10, 4, 5)
 
-## La voce del menu laterale. Da spenta non ha sfondo: una colonna di riquadri
-## tutti uguali non direbbe quale è quello aperto.
+## La voce del menu laterale: la scheda aperta tiene il cerchio (`active`).
 static func rail_boxes() -> Dictionary:
-	var normal := _box(Color(1, 1, 1, 0), 4)
-	var hover := _box(Color(1.0, 1.0, 1.0, 0.80), 4)
-	var active := _box(CARD, 4, 1, LINE)
-	# Contorno rosso attorno alla voce aperta, piu' spesso sul fianco.
-	# Il riquadro di carta da solo dice "sono qui", ma resta dello stesso colore
-	# di tutto il resto: e' il colore a far trovare il punto in cui si e' senza
-	# doverlo cercare. Di lato e' piu' spesso perche' la colonna si legge da
-	# sinistra. (`StyleBoxFlat` ha un colore di bordo solo, quindi il contorno
-	# si accende tutto insieme: non si puo' colorare il solo fianco.)
-	active.border_width_left = 3
-	for box: StyleBoxFlat in [normal, hover, active]:
-		box.content_margin_left = 9
-		box.content_margin_right = 6
-		box.content_margin_top = 4
-		box.content_margin_bottom = 5
-	active.border_color = BUTTON
-	# Il bordo mangia spazio al testo: senza questo, la voce aperta si sposta di
-	# tre pixel rispetto alle altre e la colonna balla a ogni click.
-	active.content_margin_left = 6
-	return {"normal": normal, "hover": hover, "active": active}
+	return _word_boxes(9, 6, 4, 5)
 
 # --- Aiuti ------------------------------------------------------------------
 
@@ -407,16 +398,16 @@ static func dress_scrollbar(bar: ScrollBar) -> void:
 	bar.add_theme_stylebox_override("grabber_pressed", acceso)
 
 ## Veste un bottone già esistente con uno dei set qui sopra. Il testo col
-## pennello delle finestre: i bottoni vestiti così stanno tutti sulla carta.
-static func dress_button(button: Button, boxes: Dictionary, color: Color,
+## pennello delle finestre, sempre nero: `_color` non serve più da quando la
+## selezione la dice il cerchio e non il colore della scritta.
+static func dress_button(button: Button, boxes: Dictionary, _color: Color,
 		size := SIZE_VALUE, _weight := W_MEDIUM) -> void:
 	for state in ["normal", "hover", "pressed", "disabled"]:
 		if boxes.has(state):
 			button.add_theme_stylebox_override(state, boxes[state])
-	button.add_theme_stylebox_override("focus", _box(Color(1, 1, 1, 0), 4))
+	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	dress_window_text(button, button.text, brush_size(size))
-	button.add_theme_color_override("font_color", color)
-	button.add_theme_color_override("font_hover_color", color)
-	button.add_theme_color_override("font_pressed_color", color)
-	button.add_theme_color_override("font_focus_color", color)
+	for state in ["font_color", "font_hover_color", "font_pressed_color",
+			"font_focus_color", "font_hover_pressed_color"]:
+		button.add_theme_color_override(state, INK)
 	button.add_theme_color_override("font_disabled_color", INK_DISABLED)

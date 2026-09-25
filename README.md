@@ -2619,6 +2619,14 @@ che mostravano "il furgone è fuori" per gli altri due — lo sportello di
 Kevin, la scheda PERSONALE del PC, la chat dell'autista sul telefono — lo
 dicono anche per questo.
 
+**Col secondo autista la stazione va per conto suo.** Aperta la stazione,
+`Staff.max_drivers()` passa da uno a due. Il secondo ha un lavoro solo, il
+ritiro alla stazione: con lui in organico `BusImport.holds_van()` è falso, e
+il furgone di casa resta libero per l'ingrosso e per il grossista in centro
+mentre lui è via. Con un autista solo è tutto come sopra, un viaggio alla
+volta. Tutti i posti che chiedono "il furgone è fuori?" passano da
+`holds_van()` e non da `is_running()`.
+
 ### La bolletta della luce
 
 Il seminterrato consuma. Ogni **30 giorni di gioco** (`Economy.BILL_DAYS`)

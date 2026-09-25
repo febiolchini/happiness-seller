@@ -1838,12 +1838,20 @@ func _test_airport() -> void:
 	var after := AirportPlan.hour_at(AirportPlan.duration() + 1.0)
 	_check(not bool(AirportPlan.pose("jet", before)["visible"]), "la mattina l'aereo di linea non c'e' ancora")
 	_check(bool(AirportPlan.pose("twin", before)["visible"]), "la mattina il bimotore e' al suo posto")
-	var jet := AirportPlan.pose("jet", after)
-	_check(bool(jet["visible"]) and (jet["pos"] as Vector2).distance_to(AirportPlan.JET_STAND) < 1.0,
-		"la sera l'aereo di linea e' fermo davanti all'hangar")
+	_check(not bool(AirportPlan.pose("jet", after)["visible"]), "finito il giro l'aereo di linea e' ripartito")
 	_check(not bool(AirportPlan.pose("twin", after)["visible"]), "la sera il bimotore e' partito")
 	var stairs := AirportPlan.pose("stairs", after)
-	_check_eq(int(stairs["frame"]), AirportPlan.STAIRS_FRAMES - 1, "la sera la scala e' alzata")
+	_check(int(stairs["frame"]) == 0
+		and (stairs["pos"] as Vector2).distance_to(AirportPlan.STAIRS_DEPOT) < 1.0,
+		"e la scala e' tornata al deposito, abbassata")
+	var parked := AirportPlan.pose("jet", AirportPlan.hour_at(AirportPlan.jet_duration() * 0.6))
+	_check(bool(parked["visible"]) and (parked["pos"] as Vector2).distance_to(AirportPlan.JET_STAND) < 1.0,
+		"a meta' giro l'aereo di linea e' fermo davanti al terminal")
+	var gone := AirportPlan.pose("jet", AirportPlan.hour_at(AirportPlan.jet_duration() - 0.05))
+	_check(not CityMap.view_bounds().has_point(gone["pos"]), "l'aereo di linea ridecolla fuori dalla vista")
+	_check(AirportPlan.cycles() >= 2, "in una giornata atterra piu' di un aereo di linea")
+	_check(bool(AirportPlan.pose("jet", AirportPlan.hour_at(AirportPlan.cycle_seconds() + 5.0))["visible"]),
+		"dopo la pausa ne arriva un altro")
 	# Il bimotore esce davvero dalla mappa, e non svanisce in vista.
 	var last := AirportPlan.pose("twin", AirportPlan.hour_at(AirportPlan.duration() - 0.05))
 	_check(not CityMap.view_bounds().has_point(last["pos"]), "il bimotore finisce fuori dalla vista")
@@ -3012,6 +3020,45 @@ func _test_bus_import() -> void:
 	_check(
 		not SeedRun.can_order(busy, SeedRun.PACKS[0]),
 		"e col furgone in giro dal contatto fuori stato non si ordina dal grossista in centro")
+
+	# --- Col secondo autista la stazione va per conto suo -------------------
+	var due := _fresh()
+	due.set_flag(BusImport.UNLOCK_FLAG, true)
+	due.set_flag(SeedRun.UNLOCK_FLAG, true)
+	due.cash = Shop.price("van")
+	Shop.buy(due, "van")
+	_check_eq(Staff.max_for(due, "driver"), 2, "con la stazione aperta gli autisti sono due")
+	for i in 2:
+		due.cash = Staff.hire_cost("driver")
+		_check(Staff.hire(due, "driver", now), "autista %d assunto" % (i + 1))
+	due.cash = SeedRun.pack_price(SeedRun.PACKS[0])
+	SeedRun.order(due, SeedRun.PACKS[0], now)
+	due.cash = BusImport.pack_price(BusImport.PACKS[0])
+	_check(
+		BusImport.can_order(due, BusImport.PACKS[0]),
+		"col furgone dal grossista il secondo autista va alla stazione")
+	var solo := _fresh()
+	solo.set_flag(BusImport.UNLOCK_FLAG, true)
+	solo.set_flag(SeedRun.UNLOCK_FLAG, true)
+	solo.cash = Shop.price("van")
+	Shop.buy(solo, "van")
+	solo.cash = Staff.hire_cost("driver") * 2
+	Staff.hire(solo, "driver", now)
+	solo.cash = BusImport.pack_price(BusImport.PACKS[0])
+	BusImport.order(solo, BusImport.PACKS[0], now)
+	solo.cash = SeedRun.pack_price(SeedRun.PACKS[0])
+	_check(
+		not SeedRun.can_order(solo, SeedRun.PACKS[0]),
+		"con un autista solo la stazione tiene fermo il furgone come prima")
+	due.cash = 0
+	due.bus_run = {}
+	due.cash = BusImport.pack_price(BusImport.PACKS[0])
+	BusImport.order(due, BusImport.PACKS[0], now)
+	due.seed_run = {}
+	due.cash = SeedRun.pack_price(SeedRun.PACKS[0])
+	_check(
+		SeedRun.can_order(due, SeedRun.PACKS[0]),
+		"e con due il grossista si ordina anche mentre il secondo e' alla stazione")
 
 	# --- Il viaggio sopravvive al salvataggio -------------------------------
 	var fresh := _fresh()

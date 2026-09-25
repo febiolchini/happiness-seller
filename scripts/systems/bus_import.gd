@@ -64,6 +64,18 @@ static func check_unlock(data: SaveData) -> bool:
 static func is_running(data: SaveData) -> bool:
 	return data != null and not data.bus_run.is_empty()
 
+## Col secondo autista (`Staff.max_drivers()`, che si apre con la stazione) il
+## ritiro alla stazione lo fa lui, e il furgone di casa resta libero per
+## l'ingrosso e per il grossista in centro. Con uno solo e' tutto come prima:
+## un furgone, un viaggio alla volta.
+static func has_own_driver(data: SaveData) -> bool:
+	return Staff.count(data, "driver") >= 2
+
+## Il viaggio alla stazione sta tenendo fermo il furgone di casa? E' la domanda
+## che si fanno gli altri viaggi prima di partire.
+static func holds_van(data: SaveData) -> bool:
+	return is_running(data) and not has_own_driver(data)
+
 ## Quanti semi sta andando a prendere, 0 se è fermo.
 static func load_seeds(data: SaveData) -> int:
 	return int(data.bus_run.get("seeds", 0)) if is_running(data) else 0
@@ -80,14 +92,15 @@ static func pack_price(pack: Dictionary, strain_id := Economy.DEFAULT_STRAIN) ->
 	var unit := float(Economy.seed_price(strain_id)) * (1.0 - float(pack["discount"]))
 	return maxi(1, int(roundf(unit * float(seeds))))
 
-## Si può ordinare? No se il contatto non si è ancora sbloccato, se il furgone
-## è già in giro (per la merce, per il grossista di Kevin, o per questo stesso
-## viaggio: è sempre lo stesso mezzo), o se i soldi non bastano.
+## Si può ordinare? No se il contatto non si è ancora sbloccato, se questo
+## viaggio è già in corso, se il furgone è in giro per la merce o per il
+## grossista di Kevin e non c'è un secondo autista a cui darlo, o se i soldi non
+## bastano.
 static func can_order(data: SaveData, pack: Dictionary,
 		strain_id := Economy.DEFAULT_STRAIN) -> bool:
 	if data == null or not is_unlocked(data) or is_running(data):
 		return false
-	if Delivery.is_running(data) or SeedRun.is_running(data):
+	if not has_own_driver(data) and (Delivery.is_running(data) or SeedRun.is_running(data)):
 		return false
 	return data.cash >= pack_price(pack, strain_id)
 

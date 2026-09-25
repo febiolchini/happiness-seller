@@ -121,7 +121,7 @@ static func can_order(data: SaveData, pack: Dictionary,
 		strain_id := Economy.DEFAULT_STRAIN) -> bool:
 	if data == null or not is_unlocked(data) or is_running(data):
 		return false
-	if Delivery.is_running(data) or BusImport.is_running(data):
+	if Delivery.is_running(data) or BusImport.holds_van(data):
 		return false
 	return data.cash >= pack_price(pack, strain_id)
 

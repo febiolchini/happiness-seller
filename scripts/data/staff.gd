@@ -88,14 +88,18 @@ static func max_dealers(data: SaveData) -> int:
 		return MAX_DEALERS
 	return MAX_DEALERS + DEALERS_PER_PROPERTY * data.property_count()
 
-## Quanti autisti: uno, e solo col furgone in casa.
+## Quanti autisti: uno col furgone in casa, due quando si apre la stazione
+## degli autobus.
 ##
-## Uno perche' i furgoni sono uno: un secondo autista non avrebbe niente da
-## guidare. Zero senza furgone, e non e' un caso limite — e' il modo in cui il
-## ruolo resta nascosto finche' non ha senso, visto che `roles_for()` salta i
-## ruoli che non si possono assumere.
+## Il secondo ha un lavoro suo: il ritiro alla stazione (`BusImport`), che
+## con lui in organico non tiene piu' fermo il furgone di casa. Prima della
+## stazione non avrebbe niente da guidare. Zero senza furgone, e non e' un caso
+## limite — e' il modo in cui il ruolo resta nascosto finche' non ha senso,
+## visto che `roles_for()` salta i ruoli che non si possono assumere.
 static func max_drivers(data: SaveData) -> int:
-	return 1 if data != null and Delivery.has_van(data) else 0
+	if data == null or not Delivery.has_van(data):
+		return 0
+	return 2 if BusImport.is_unlocked(data) else 1
 
 ## Vasi che un coltivatore riesce a seguire.
 ##
