@@ -34,7 +34,7 @@ const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
 
 func _ready() -> void:
 	# L'HUD si nasconde finché c'è qualcuno in questo gruppo.
-	add_to_group("modal")
+	add_to_group(UiTheme.MODAL_GROUP)
 	_dress()
 	_close.pressed.connect(queue_free)
 	_rebuild()

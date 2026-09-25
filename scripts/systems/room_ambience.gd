@@ -98,6 +98,10 @@ var _next_bolt := -1.0
 ## La luce dentro adesso. Tenuta qui perché serve sia al `CanvasModulate` sia a
 ## `emissive()` quando si disegna il taglio di sole.
 var _ambient := Color.WHITE
+## Piove adesso? Calcolato una volta in `_process()` e riletto sia da
+## `_move_particles()` sia da `_draw()`, invece che da `Weather.of()` in tutti
+## e due.
+var _wet := false
 
 ## La chiama `room.gd` appena costruita la stanza.
 ##
@@ -133,6 +137,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	_ambient = _indoor_light()
+	_wet = Weather.is_wet(Weather.of(GameState.current))
 	_flash = maxf(0.0, _flash - delta * FLASH_FADE)
 	_tick_storm(delta)
 	if _tint != null:
@@ -216,7 +221,7 @@ func _move_particles(delta: float) -> void:
 			mote = Vector3(randf() * view.x, view.y + 4.0, randf())
 		_motes[i] = mote
 
-	if not Weather.is_wet(Weather.of(GameState.current)) or _window.size.y <= 0.0:
+	if not _wet or _window.size.y <= 0.0:
 		return
 	for i in _drops.size():
 		var drop := _drops[i]
@@ -236,7 +241,7 @@ func _draw() -> void:
 		_draw_outside()
 		if _daylight:
 			_draw_shaft()
-		if Weather.is_wet(Weather.of(GameState.current)):
+		if _wet:
 			_draw_glass()
 	_draw_motes()
 	if _flash > 0.01:

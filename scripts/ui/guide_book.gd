@@ -48,11 +48,6 @@ const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
 ## non sotto.
 const LAYER := 48
 
-## Il gruppo che dice all'HUD e al telefono di togliersi di mezzo. La guida
-## copre lo schermo, e un telefono che ci galleggia sopra si legge come un pezzo
-## di questa finestra.
-const MODAL_GROUP := "modal"
-
 ## Quanto stanno larghe le righe di testo.
 ##
 ## Non è la larghezza della finestra: una riga lunga quattrocentocinquanta pixel
@@ -87,7 +82,7 @@ var _open := 0
 
 func _ready() -> void:
 	layer = LAYER
-	add_to_group(MODAL_GROUP)
+	add_to_group(UiTheme.MODAL_GROUP)
 	_sections = Guide.SECTIONS
 	_dress()
 	_close.pressed.connect(close)

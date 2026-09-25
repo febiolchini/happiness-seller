@@ -36,7 +36,7 @@ func setup(speaker: String, body: String) -> void:
 func _ready() -> void:
 	layer = LAYER
 	# Copre tutto lo schermo con la tendina scura: l'HUD dietro non serve.
-	add_to_group("modal")
+	add_to_group(UiTheme.MODAL_GROUP)
 	# Il tempo di gioco continua a scorrere: un messaggio non è una pausa, e
 	# fermare l'orologio qui vorrebbe dire fermarlo anche a chi lo lascia aperto.
 	var shade := ColorRect.new()

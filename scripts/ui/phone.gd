@@ -125,11 +125,6 @@ const LIST_BOTTOM_FULL := 242.0
 const MESSAGE_SECONDS := 5.5
 const SLIDE_SECONDS := 0.38
 
-## Nascosto mentre una finestra modale è aperta, come l'HUD: il gestionale del
-## PC e i riquadri del telefono coprono lo schermo, e un telefono che ci
-## galleggia sopra si legge come un pezzo di quella finestra.
-const MODAL_GROUP := "modal"
-
 const GAME_FONT := preload("res://assets/sprites/ui/alphabet.fnt")
 const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
 
@@ -234,7 +229,7 @@ func _process(delta: float) -> void:
 			_set_state(State.CLOSED)
 	# Il modale copre lo schermo: il telefono si toglie di mezzo e torna quando
 	# la finestra si chiude, senza perdere quello che aveva dentro.
-	var hidden := _modal_open()
+	var hidden := UiTheme.modal_open()
 	if hidden == visible and enabled:
 		visible = not hidden
 	if _state == State.OPEN:
@@ -243,7 +238,7 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not enabled or _modal_open():
+	if not enabled or UiTheme.modal_open():
 		return
 	if event.is_action_pressed("ui_up"):
 		get_viewport().set_input_as_handled()
@@ -784,9 +779,6 @@ func _refresh() -> void:
 	else:
 		_call.text = tr("PHONE_CALL_BRIAN")
 	_call.disabled = not SeedDeal.can_ask(data)
-
-func _modal_open() -> bool:
-	return not get_tree().get_nodes_in_group(MODAL_GROUP).is_empty()
 
 # --- Quello che si disegna sopra al vetro -----------------------------------
 

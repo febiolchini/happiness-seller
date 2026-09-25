@@ -76,6 +76,9 @@ var _time := 0.0
 ## interruttore. Vedi `_ease()`.
 var _wetness := 0.0
 var _dark := 0.0
+## Il vento di adesso, calcolato in `_process()` e riletto da `_draw_rain()`:
+## stesso `Weather.entry()`, una lettura sola invece di due per fotogramma.
+var _wind := 0.0
 
 ## In quanti secondi il meteo a schermo raggiunge quello della partita.
 const EASE_SPEED := 0.35
@@ -89,7 +92,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	var entry := Weather.entry(Weather.of(GameState.current))
-	var wind := float(entry["wind"])
+	_wind = float(entry["wind"])
 
 	_wetness = _ease(_wetness, float(entry["rain"]), delta)
 	# Il buio agli angoli è la somma di due cose che lo vogliono: l'ora e il
@@ -98,7 +101,7 @@ func _process(delta: float) -> void:
 	_dark = _ease(_dark, clampf(night * 0.75 + float(entry["fog"]) * 0.3 + float(entry["rain"]) * 0.35, 0.0, 1.0), delta)
 
 	_flash = maxf(0.0, _flash - delta * FLASH_FADE)
-	_move_drops(delta, wind)
+	_move_drops(delta, _wind)
 	_tick_splashes(delta)
 	queue_redraw()
 
@@ -176,8 +179,6 @@ func _draw() -> void:
 			FLASH_COLOR.r, FLASH_COLOR.g, FLASH_COLOR.b, _flash * FLASH_PEAK), true)
 
 func _draw_rain() -> void:
-	var entry := Weather.entry(Weather.of(GameState.current))
-	var wind := float(entry["wind"])
 	var count := int(MAX_DROPS * _wetness)
 	for i in count:
 		var drop := _drops[i]
@@ -185,7 +186,7 @@ func _draw_rain() -> void:
 		# La scia segue la traiettoria vera della goccia, vento compreso:
 		# gocce verticali sotto un vento che spinge di lato si leggono subito
 		# come sbagliate anche senza sapere perché.
-		var fall := Vector2(wind * WIND_PUSH * (0.4 + drop.z * 0.6), lerpf(DROP_SPEED.x, DROP_SPEED.y, drop.z))
+		var fall := Vector2(_wind * WIND_PUSH * (0.4 + drop.z * 0.6), lerpf(DROP_SPEED.x, DROP_SPEED.y, drop.z))
 		var tail := fall.normalized() * length
 		var color := DROP_COLOR
 		color.a *= 0.45 + drop.z * 0.55
@@ -220,10 +221,3 @@ func _draw_vignette() -> void:
 ## stessa grana a 720p e a schermo intero.
 func _view() -> Vector2:
 	return get_viewport_rect().size
-
-func _ellipse(center: Vector2, radius: Vector2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in range(17):
-		var a := TAU * float(i) / 16.0
-		points.append(center + Vector2(cos(a) * radius.x, sin(a) * radius.y))
-	return points

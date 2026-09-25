@@ -141,6 +141,19 @@ const INFO := Color(0.239, 0.510, 0.780)
 ## Il velo che scurisce il gioco dietro a una finestra modale.
 const DIMMER := Color(0.0, 0.0, 0.0, 0.5)
 
+## Il gruppo a cui si iscrive ogni finestra modale (il gestionale, l'agenzia,
+## il grossista, la guida, i messaggi a tutto schermo, il filmato del
+## furgone...). Chi deve togliersi di mezzo mentre una di queste è aperta —
+## l'HUD, il telefono, la freccia di `SpotPointer`, il click sulla mappa — lo
+## controlla con `modal_open()`, invece di ognuno con la sua copia dello stesso
+## giro sul gruppo.
+const MODAL_GROUP := "modal"
+
+## C'è una finestra modale aperta adesso?
+static func modal_open() -> bool:
+	var tree := Engine.get_main_loop() as SceneTree
+	return tree != null and not tree.get_nodes_in_group(MODAL_GROUP).is_empty()
+
 # --- Scala tipografica ------------------------------------------------------
 # Sei misure e non una per occasione: con una scala aperta ogni schermata
 # inventa il suo corpo e due etichette uguali finiscono scritte diverse.
@@ -318,21 +331,6 @@ static func card_box() -> StyleBoxFlat:
 	box.content_margin_bottom = 5
 	return box
 
-## Il pannellino chiaro dell'HUD, che sta sopra al gioco e non dentro a una
-## finestra: più trasparente, e con l'ombra, perché sotto ci può passare di
-## tutto.
-static func hud_box() -> StyleBoxFlat:
-	var box := _box(Color(1.0, 1.0, 1.0, 0.92), 5, 1,
-		Color(0.604, 0.631, 0.675, 0.80))
-	box.shadow_color = Color(0, 0, 0, 0.28)
-	box.shadow_size = 3
-	box.shadow_offset = Vector2(0, 1)
-	box.content_margin_left = 8
-	box.content_margin_right = 8
-	box.content_margin_top = 3
-	box.content_margin_bottom = 3
-	return box
-
 # --- Bottoni ----------------------------------------------------------------
 
 ## L'azione principale: terracotta piena, testo di carta.
@@ -403,6 +401,14 @@ static func label(text: String, size: int, color: Color,
 	node.add_theme_color_override("font_color", color)
 	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return node
+
+## L'ombra dura che sostituisce un pannello: un testo appoggiato sopra alla
+## città o all'HUD, senza un fondo dietro, ha bisogno di uno stacco netto da
+## qualunque cosa gli passi sotto — un muro chiaro, l'asfalto, il cielo.
+static func add_hard_shadow(node: Control, color := Color(0, 0, 0, 0.85)) -> void:
+	node.add_theme_color_override("font_shadow_color", color)
+	node.add_theme_constant_override("shadow_offset_x", 1)
+	node.add_theme_constant_override("shadow_offset_y", 1)
 
 ## Veste la barra di scorrimento di un contenitore, che altrimenti resta quella
 ## grigio-scura di serie: su una finestra di carta e' l'unico pezzo che tradisce

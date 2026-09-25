@@ -38,6 +38,13 @@ var npc_id := ""
 var npc_name := ""
 var role := NpcRoster.ROLE_WANDER
 
+## Font e larghezza del nome sopra alla testa, calcolati una volta in
+## `setup()`: il nome non cambia più dopo, e `_draw_name()` gira a ogni
+## fotogramma finché il personaggio cammina.
+var _name_font: Font
+var _name_font_size := 8
+var _name_width := 0.0
+
 var _route: Array = []
 var _index := 0
 var _speed := 30.0
@@ -68,6 +75,15 @@ func setup(data: Dictionary) -> void:
 	entry = data
 	npc_id = str(data["id"])
 	npc_name = str(data["name"])
+	# Pennello se il nome è di sole lettere (lo è sempre, ma si controlla come
+	# ovunque), Nunito se no: stessa scelta di `city.gd::_hover_label`, per lo
+	# stesso motivo — un nome è un'insegna, non una cosa della città. Calcolati
+	# una volta sola qui: vedi `_name_font`.
+	var brush := UiTheme.can_brush(npc_name)
+	_name_font = UiTheme.menu() if brush else UiTheme.body()
+	_name_font_size = 11 if brush else 8
+	_name_width = _name_font.get_string_size(
+		npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, _name_font_size).x
 	role = str(data["role"])
 	_route = data["route"]
 	_speed = float(data.get("speed", 30.0))
@@ -362,7 +378,7 @@ func _draw_shadow() -> void:
 	var info := Daylight.shadow(GameState.current)
 	var slide: Vector2 = (info["direction"] as Vector2) * minf(float(info["length"]) * 9.0, 20.0)
 	draw_colored_polygon(
-		_ellipse(Vector2(1, -1) + slide, Vector2(10, 4)),
+		Shapes.ellipse(Vector2(1, -1) + slide, Vector2(10, 4)),
 		Color(0, 0, 0, 0.14 + float(info["alpha"]) * 0.45))
 
 func _draw_marker(hop: float) -> void:
@@ -382,20 +398,7 @@ func _draw_marker(hop: float) -> void:
 	]), Daylight.emissive(color, Daylight.light(GameState.current)))
 
 func _draw_name() -> void:
-	# Pennello se il nome è di sole lettere (lo è sempre, ma si controlla come
-	# ovunque), Nunito se no: stessa scelta di `city.gd::_hover_label`, per lo
-	# stesso motivo — un nome è un'insegna, non una cosa della città.
-	var brush := UiTheme.can_brush(npc_name)
-	var font: Font = UiTheme.menu() if brush else UiTheme.body()
-	var size := 11 if brush else 8
-	var width := font.get_string_size(npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	draw_string(
-		font, Vector2(-width * 0.5, -66), npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1, size,
+		_name_font, Vector2(-_name_width * 0.5, -66), npc_name, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		_name_font_size,
 		Daylight.emissive(Color(0.94, 0.95, 0.92, 0.75), Daylight.light(GameState.current)))
-
-func _ellipse(center: Vector2, radius: Vector2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in range(17):
-		var a := TAU * float(i) / 16.0
-		points.append(center + Vector2(cos(a) * radius.x, sin(a) * radius.y))
-	return points

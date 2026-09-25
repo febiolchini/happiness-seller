@@ -182,9 +182,5 @@ func _touches(point: Vector2, margin: float) -> bool:
 	return false
 
 ## Il rettangolo di mondo inquadrato adesso, un po' più largo dello schermo.
-## Stesso conto di `ground_weather.gd`.
 func _camera_rect() -> Rect2:
-	var to_world := get_viewport().get_canvas_transform().affine_inverse()
-	var top_left := to_world * Vector2.ZERO
-	var bottom_right := to_world * get_viewport_rect().size
-	return Rect2(top_left, bottom_right - top_left).grow(64.0)
+	return Shapes.camera_world_rect(self, 64.0)

@@ -70,9 +70,6 @@ const HOVER_NUDGE := Vector2(12, -15)
 ## Quanto resta lontana dal bordo dello schermo prima di ribaltarsi dall'altra
 ## parte del puntatore.
 const HOVER_MARGIN := 6.0
-## Nascosta mentre c'è una finestra aperta, come l'HUD e per la stessa ragione.
-const MODAL_GROUP := "modal"
-
 ## Disattivata quando la mappa è usata solo come sfondo decorativo (menu).
 @export var interactive := true
 
@@ -100,6 +97,13 @@ var _talking_to: Npc = null
 ## scritto adesso: senza il secondo la Label si riscriverebbe ogni fotogramma.
 var _hover_label: Label = null
 var _hover_shown := ""
+
+## Tutti gli edifici cliccabili, nello stesso ordine in cui `_build_city()` li
+## pianta nell'albero. Riempita una volta sola: la pianta della città non
+## cambia mentre si gioca, quindi `_building_at()` — chiamata a ogni
+## fotogramma per l'etichetta sotto al puntatore — scorre questa invece di
+## chiedere il gruppo alla `SceneTree` ogni volta.
+var _enterable_buildings: Array[EnterableBuilding] = []
 
 func _ready() -> void:
 	# La città si costruisce sempre, anche da sfondo del menu: dietro ai
@@ -181,10 +185,10 @@ func _build_city() -> void:
 	# la veranda e la staccionata.
 	for entry in buildings:
 		if not bool(entry.get("in_front", false)):
-			_buildings.add_child(_make_building(entry))
+			_add_building(_make_building(entry))
 	for entry in buildings:
 		if bool(entry.get("in_front", false)):
-			_buildings.add_child(_make_building(entry))
+			_add_building(_make_building(entry))
 	# Da sfondo di un menu non si cammina, e costruire la griglia costerebbe
 	# un caricamento in più per niente.
 	if interactive:
@@ -274,6 +278,13 @@ func _build_city() -> void:
 	parking.name = "SteakhouseParking"
 	add_child(parking)
 	parking.setup(CityMap.steakhouse_parking(), _traffic, _player)
+
+## Pianta un edificio nell'albero e, se è cliccabile, lo tiene anche in
+## `_enterable_buildings`: vedi il commento lì.
+func _add_building(node: Node2D) -> void:
+	_buildings.add_child(node)
+	if node is EnterableBuilding:
+		_enterable_buildings.append(node)
 
 ## Un edificio: il suo PNG, con lo script che lo rende cliccabile.
 ##
@@ -573,7 +584,7 @@ func _process(_delta: float) -> void:
 	if _hover_label == null:
 		return
 	_hover_label.visible = false
-	if _modal_open():
+	if UiTheme.modal_open():
 		return
 	var building := _building_at(get_global_mouse_position())
 	if building == null or building.display_name.is_empty():
@@ -601,9 +612,6 @@ func _place_hover() -> void:
 	if at.y < HOVER_MARGIN:
 		at.y = mouse.y - HOVER_NUDGE.y
 	_hover_label.position = at.round()
-
-func _modal_open() -> bool:
-	return not get_tree().get_nodes_in_group(MODAL_GROUP).is_empty()
 
 # --- Comandi ---------------------------------------------------------------
 
@@ -667,7 +675,7 @@ func _walk_to(target: Vector2) -> void:
 ## terra il nome che compariva era quello dell'edificio nascosto.
 func _building_at(point: Vector2) -> EnterableBuilding:
 	var found: EnterableBuilding = null
-	for building in get_tree().get_nodes_in_group(EnterableBuilding.GROUP):
+	for building in _enterable_buildings:
 		if not building.contains_point(point):
 			continue
 		if found == null or building.global_position.y >= found.global_position.y:

@@ -410,7 +410,7 @@ func message(speaker: String, body: String) -> Node:
 ## Una sola per volta: il tasto resta premibile sotto alla finestra solo se
 ## qualcosa va storto, e due guide sovrapposte sono due Esc per chiuderle.
 func open_guide() -> Node:
-	for open: Node in get_tree().get_nodes_in_group("modal"):
+	for open: Node in get_tree().get_nodes_in_group(UiTheme.MODAL_GROUP):
 		if open.scene_file_path == GUIDE_SCENE:
 			return open
 	var guide_scene: PackedScene = load(GUIDE_SCENE)
@@ -628,9 +628,6 @@ func delete_slot(slot_id: String) -> bool:
 		current_slot = ""
 	return true
 
-func has_any_save() -> bool:
-	return not list_saves().is_empty()
-
 ## Riepilogo di ogni salvataggio presente, dal più recente al più vecchio.
 ## Serve alla schermata di gestione salvataggi.
 func list_saves() -> Array:
@@ -689,11 +686,6 @@ func scene_for_current_state() -> String:
 	return CITY_SCENE
 
 # --- Economia ---------------------------------------------------------------
-
-func add_cash(amount: int) -> void:
-	if current == null:
-		return
-	current.cash += amount
 
 func can_afford(cost: int) -> bool:
 	return current != null and current.cash >= cost

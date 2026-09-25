@@ -87,7 +87,7 @@ func _draw_pool(ambient: Color, strength: float) -> void:
 		var t := float(i + 1) / float(LAYERS)
 		var color := GLOW
 		color.a = 0.115 * (1.0 - t * 0.55) * strength
-		draw_colored_polygon(_ellipse(center, POOL * t), Daylight.emissive(color, ambient))
+		draw_colored_polygon(Shapes.ellipse(center, POOL * t), Daylight.emissive(color, ambient))
 
 func _draw_pole(strength: float) -> void:
 	# Il palo si schiarisce quando la lampada è accesa: è la luce che gli cade
@@ -108,14 +108,8 @@ func _draw_bulb(ambient: Color, strength: float) -> void:
 		var t := float(i + 1) / 3.0
 		var halo := GLOW
 		halo.a = 0.26 * (1.0 - t * 0.5) * strength
-		draw_colored_polygon(_ellipse(head, Vector2(11.0, 8.0) * t), Daylight.emissive(halo, ambient))
+		draw_colored_polygon(Shapes.ellipse(head, Vector2(11.0, 8.0) * t), Daylight.emissive(halo, ambient))
 	var bulb := BULB
 	bulb.a = 0.4 + 0.6 * strength
 	draw_rect(Rect2(head.x - 4.0, head.y - 1.5, 8.0, 3.0), Daylight.emissive(bulb, ambient), true)
 
-func _ellipse(center: Vector2, radius: Vector2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in range(17):
-		var a := TAU * float(i) / 16.0
-		points.append(center + Vector2(cos(a) * radius.x, sin(a) * radius.y))
-	return points

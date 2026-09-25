@@ -32,11 +32,4 @@ func _draw() -> void:
 		var radius := lerpf(3.0, max_radius, eased)
 		var ring_color := color
 		ring_color.a = (1.0 - progress) * 0.9
-		draw_polyline(_ellipse(radius), ring_color, 1.0)
-
-func _ellipse(radius: float) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in range(25):
-		var a := TAU * float(i) / 24.0
-		points.append(Vector2(cos(a) * radius, sin(a) * radius * flatten))
-	return points
+		draw_polyline(Shapes.ellipse(Vector2.ZERO, Vector2(radius, radius * flatten), 25), ring_color, 1.0)

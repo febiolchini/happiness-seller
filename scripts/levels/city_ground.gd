@@ -603,17 +603,10 @@ func _crosses_road_v(roads: Array, from: float, to: float, x: float) -> bool:
 ## della pixel art.
 func _draw_trees() -> void:
 	for point in CityMap.trees():
-		draw_colored_polygon(_ellipse(point + Vector2(2, 4), Vector2(15, 6)), Color(0, 0, 0, 0.20))
+		draw_colored_polygon(Shapes.ellipse(point + Vector2(2, 4), Vector2(15, 6)), Color(0, 0, 0, 0.20))
 		draw_rect(Rect2(point.x - 2.0, point.y - 14.0, 4.0, 14.0), TREE_TRUNK, true)
-		draw_colored_polygon(_ellipse(point + Vector2(0, -22), Vector2(16, 13)), TREE_LEAVES)
-		draw_colored_polygon(_ellipse(point + Vector2(-4, -27), Vector2(9, 7)), TREE_LEAVES_LIT)
-
-func _ellipse(center: Vector2, radius: Vector2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in range(17):
-		var a := TAU * float(i) / 16.0
-		points.append(center + Vector2(cos(a) * radius.x, sin(a) * radius.y))
-	return points
+		draw_colored_polygon(Shapes.ellipse(point + Vector2(0, -22), Vector2(16, 13)), TREE_LEAVES)
+		draw_colored_polygon(Shapes.ellipse(point + Vector2(-4, -27), Vector2(9, 7)), TREE_LEAVES_LIT)
 
 # --- Etichette -------------------------------------------------------------
 

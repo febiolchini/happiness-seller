@@ -175,6 +175,15 @@ const LEGEND := {
 
 var _time := 0.0
 
+## L'ultimo orario, giorno e stato dei due punti disegnati: come nel resto
+## dell'HUD, si ridisegna solo quando uno dei tre è cambiato davvero, non a
+## ogni fotogramma. I due punti lampeggiano a tempo vero (`BLINK`) e non a
+## tempo di gioco, quindi contano come "cambiati" anche quando l'orario resta
+## lo stesso.
+var _shown_clock := ""
+var _shown_day := -1
+var _shown_blink := true
+
 func _ready() -> void:
 	custom_minimum_size = SIZE
 	size = SIZE
@@ -182,6 +191,16 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	var data := GameState.current
+	if data == null:
+		return
+	var clock := UiFormat.clock(data.time_of_day)
+	var blink := fmod(_time, BLINK * 2.0) < BLINK
+	if clock == _shown_clock and data.day == _shown_day and blink == _shown_blink:
+		return
+	_shown_clock = clock
+	_shown_day = data.day
+	_shown_blink = blink
 	queue_redraw()
 
 func _draw() -> void:

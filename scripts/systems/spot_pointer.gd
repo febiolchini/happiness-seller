@@ -55,11 +55,6 @@ const SIZE := Vector2(7.0, 11.0)
 ## unità di misura.
 const FAR := 2200.0
 
-## Nascosta mentre una finestra modale è aperta, come l'HUD: il gestionale del
-## PC e i messaggi del telefono coprono lo schermo, e una freccia che galleggia
-## sopra a un riquadro si legge come un pezzo del riquadro.
-const MODAL_GROUP := "modal"
-
 var _time := 0.0
 
 func _process(delta: float) -> void:
@@ -68,7 +63,7 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var data := GameState.current
-	if data == null or not SeedDeal.is_ready(data) or _modal_open():
+	if data == null or not SeedDeal.is_ready(data) or UiTheme.modal_open():
 		return
 
 	var spot := SeedDeal.spot(data)
@@ -140,6 +135,3 @@ func _clear_hud(at: Vector2, view: Vector2) -> Vector2:
 	if at.x < view.x - HUD_CORNER.x or at.y > HUD_CORNER.y:
 		return at
 	return Vector2(at.x, HUD_CORNER.y)
-
-func _modal_open() -> bool:
-	return not get_tree().get_nodes_in_group(MODAL_GROUP).is_empty()

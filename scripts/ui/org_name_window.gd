@@ -19,7 +19,7 @@ var _ok: Button
 
 func _ready() -> void:
 	layer = 20
-	add_to_group("modal")
+	add_to_group(UiTheme.MODAL_GROUP)
 	# Anchors E offset: con il solo preset gli offset restano quelli di prima
 	# e il velo e la finestra finivano di traverso in un angolo.
 	var dim := ColorRect.new()

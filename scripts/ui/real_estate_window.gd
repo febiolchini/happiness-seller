@@ -54,7 +54,7 @@ func _ready() -> void:
 	# L'HUD si nasconde finche' c'e' qualcuno in questo gruppo. Senza, la riga
 	# dei soldi resta appesa sopra alla finestra: prima era una scritta e si
 	# notava poco, adesso e' una pastiglia di carta e si vede benissimo.
-	add_to_group("modal")
+	add_to_group(UiTheme.MODAL_GROUP)
 	_dress()
 	if agency == "downtown":
 		_title.text = "RE_TITLE_DOWNTOWN"

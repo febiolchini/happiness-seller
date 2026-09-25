@@ -189,8 +189,8 @@ func _build_panel() -> void:
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		lines.add_child(line)
 
-		# Senza `_add_shadow()`: il pennello l'ombra ce l'ha gia' dentro al
-		# disegno, e una seconda la farebbe sembrare scritta due volte.
+		# Senza `UiTheme.add_hard_shadow()`: il pennello l'ombra ce l'ha gia'
+		# dentro al disegno, e una seconda la farebbe sembrare scritta due volte.
 		var label := Label.new()
 		label.text = tr(str(row["label"]))
 		UiTheme.dress_menu_text(label, LABEL_SIZE)
@@ -210,7 +210,7 @@ func _build_panel() -> void:
 
 		var value := UiTheme.label("", VALUE_SIZE, row["color"], UiTheme.W_BOLD)
 		value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_add_shadow(value)
+		UiTheme.add_hard_shadow(value, SHADOW)
 		line.add_child(value)
 		_values.append(value)
 		_shown.append("")
@@ -233,11 +233,6 @@ func _box() -> StyleBoxFlat:
 	box.shadow_size = 3
 	box.shadow_offset = Vector2(0, 1)
 	return box
-
-static func _add_shadow(label: Label) -> void:
-	label.add_theme_color_override("font_shadow_color", SHADOW)
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
 
 # --- Il tasto ---------------------------------------------------------------
 

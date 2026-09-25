@@ -70,10 +70,9 @@ const DOT := "·"
 ## dentro alla scena, quindi sta su una tela più bassa di questa: senza questo
 ## controllo l'HUD gli comparirebbe sopra, a metà della finestra.
 ##
-## I modali si segnano da soli mettendosi nel gruppo, invece di essere elencati
-## qui: così una finestra nuova non ha bisogno che qualcuno si ricordi di
-## aggiungerla a un elenco in un altro file.
-const MODAL_GROUP := "modal"
+## I modali si segnano da soli mettendosi nel gruppo (`UiTheme.MODAL_GROUP`),
+## invece di essere elencati qui: così una finestra nuova non ha bisogno che
+## qualcuno si ricordi di aggiungerla a un elenco in un altro file.
 
 const PRESTIGE_BADGE := preload("res://scripts/ui/prestige_badge.gd")
 const SUSPICION_BAR := preload("res://scripts/ui/suspicion_bar.gd")
@@ -144,7 +143,7 @@ func _refresh() -> void:
 		return
 	var data := GameState.current
 	# Aprendo la mappa dall'editor l'HUD esiste prima che ci sia una partita.
-	if data == null or _modal_open():
+	if data == null or UiTheme.modal_open():
 		visible = false
 		return
 	visible = true
@@ -173,7 +172,6 @@ func _refresh() -> void:
 			UiTheme.dress_world_text(_labels[i], text, UiTheme.brush_size(INFO_SIZE),
 				INFO_SIZE, UiTheme.W_MEDIUM, Color(0, 0, 0, 0.85))
 
-## C'è una finestra aperta che si prende lo schermo?
 ## Il prestigio a sinistra della sveglia e il sospetto della polizia sul lato
 ## sinistro dello schermo. Costruiti da codice e non nella scena, cosi' le
 ## scene che istanziano l'HUD non si ritrovano nodi nuovi da sistemare. Sono
@@ -208,9 +206,6 @@ func _check_org_name(data: SaveData) -> void:
 	var window: CanvasLayer = ORG_NAME_WINDOW.new()
 	get_tree().current_scene.add_child(window)
 
-func _modal_open() -> bool:
-	return not get_tree().get_nodes_in_group(MODAL_GROUP).is_empty()
-
 ## La lingua è cambiata: i testi si ricalcolano al prossimo giro, ma `_shown` li
 ## crede ancora buoni e li salterebbe. Azzerandolo si forza la riscrittura.
 func _on_locale_changed(_locale: String) -> void:
@@ -222,7 +217,7 @@ func _on_locale_changed(_locale: String) -> void:
 func _make_label(size: int, color: Color) -> Label:
 	var label := UiTheme.label("", size, color, UiTheme.W_MEDIUM)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_add_shadow(label)
+	UiTheme.add_hard_shadow(label)
 	_bar.add_child(label)
 	return label
 
@@ -232,17 +227,9 @@ func _make_dot() -> Label:
 	# Il punto non è testo di gioco: se un giorno finisse in traduzione
 	# diventerebbe una parola.
 	dot.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_add_shadow(dot)
+	UiTheme.add_hard_shadow(dot)
 	_bar.add_child(dot)
 	return dot
-
-## L'ombra dura è quello che sostituisce il pannello: sotto la riga può
-## passarci un muro chiaro, l'asfalto o il cielo, e senza uno stacco netto la
-## scritta ci si perde dentro.
-static func _add_shadow(label: Label) -> void:
-	label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
-	label.add_theme_constant_override("shadow_offset_x", 1)
-	label.add_theme_constant_override("shadow_offset_y", 1)
 
 # --- Messaggini ------------------------------------------------------------
 

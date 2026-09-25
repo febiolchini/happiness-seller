@@ -101,7 +101,7 @@ func _ready() -> void:
 	# L'HUD si nasconde finche' c'e' qualcuno in questo gruppo: questa finestra
 	# e' un `Control` dentro alla scena, quindi su una tela piu' bassa di quella
 	# dell'HUD, che senza il gruppo le comparirebbe sopra a meta' schermata.
-	add_to_group("modal")
+	add_to_group(UiTheme.MODAL_GROUP)
 	_dress()
 	_close_button.pressed.connect(close)
 	_build_tab_bar()
