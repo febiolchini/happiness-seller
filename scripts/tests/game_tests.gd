@@ -1614,11 +1614,14 @@ func _test_org_prestige() -> void:
 	_check(bool(data.get_flag(GameState.ORG_NAME_FLAG, false)), "al primo assunto brian chiede il nome")
 	data.org_name = "Los Cugini"
 	_check(Prestige.active(data), "col nome c'e' il prestigio")
-	_check_eq(Prestige.level_name(data), "PRESTIGE_ROOKIES", "si parte pivelli")
+	_check_eq(Prestige.level_name(data), "PRESTIGE_ROOKIE_1", "si parte da rookie uno")
 	Prestige.add(data, 25)
 	_check(is_equal_approx(Prestige.progress(data), 0.25), "la barra si riempie coi punti")
-	Prestige.add(data, -100)
+	Prestige.add(data, 75)
+	_check_eq(Prestige.level_name(data), "PRESTIGE_ROOKIE_2", "cento punti e si passa a rookie due")
+	Prestige.add(data, -1000)
 	_check_eq(data.prestige, 0, "il prestigio non va sotto zero")
+	_check_eq(Prestige.level_name(data), "PRESTIGE_ROOKIE_1", "e si torna a rookie uno")
 	var back := SaveData.from_dict(data.to_dict())
 	_check_eq(back.org_name, "Los Cugini", "il nome si salva")
 

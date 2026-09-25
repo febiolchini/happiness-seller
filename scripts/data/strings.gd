@@ -732,8 +732,12 @@ Preguntale en la estacion de autobuses",
 	],
 	"ORG_NAME_PLACEHOLDER": ["Crew name", "Nome della banda", "Nombre de la banda"],
 	"ORG_NAME_OK": ["That's the name", "Questo e' il nome", "Ese es el nombre"],
-	# Il primo livello di prestigio. PIXEL.
-	"PRESTIGE_ROOKIES": ["ROOKIES", "PIVELLI", "NOVATOS"],
+	# I tre gradini dei pivelli. PIXEL, e apposta identici nelle tre lingue:
+	# sono un grado dentro al giro, non una frase del gioco — vedi la nota in
+	# cima a `Prestige.LEVELS`.
+	"PRESTIGE_ROOKIE_1": ["ROOKIE I", "ROOKIE I", "ROOKIE I"],
+	"PRESTIGE_ROOKIE_2": ["ROOKIE II", "ROOKIE II", "ROOKIE II"],
+	"PRESTIGE_ROOKIE_3": ["ROOKIE III", "ROOKIE III", "ROOKIE III"],
 	"MSG_EXPAND_BODY": [
 		"Look at the numbers cousin\nWalk the streets and look at the old\nplaces for sale or rent",
 		"Guarda i numeri cugino\nGira il quartiere e guarda i posti\nvecchi in vendita o in affitto",
@@ -1247,7 +1251,8 @@ const PIXEL_KEYS := [
 	# I corpi delle vignette: si leggono col font del gioco, non con quello di
 	# sistema come gli avvisi. Vedi `phone.gd`.
 	"MSG_INTRO_BODY", "MSG_KILO_BODY", "MSG_EXPAND_BODY", "MSG_COUSIN_BODY",
-	"MSG_ORG_NAME_BODY", "ORG_NAME_TITLE", "PRESTIGE_ROOKIES",
+	"MSG_ORG_NAME_BODY", "ORG_NAME_TITLE",
+	"PRESTIGE_ROOKIE_1", "PRESTIGE_ROOKIE_2", "PRESTIGE_ROOKIE_3",
 	"MSG_SEED_WHOLESALE_BODY", "MSG_DRIVER_BODY", "MSG_DRIVER_HELLO", "SW_TITLE",
 	"MSG_DRIVER_SPEAKER",
 	"MSG_KEVIN_SPEAKER", "MSG_KEVIN_BUS_STATION_BODY", "BS_TITLE",
