@@ -19,7 +19,7 @@ var _ok: Button
 
 func _ready() -> void:
 	layer = 20
-	add_to_group("modal")
+	add_to_group(UiTheme.MODAL_GROUP)
 	# Anchors E offset: con il solo preset gli offset restano quelli di prima
 	# e il velo e la finestra finivano di traverso in un angolo.
 	var dim := ColorRect.new()
@@ -46,7 +46,8 @@ func _ready() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 
-	var hint := UiTheme.label(tr("ORG_NAME_HINT"), UiTheme.SIZE_NOTE, UiTheme.INK_SOFT)
+	var hint := UiTheme.window_label(tr("ORG_NAME_HINT"), UiTheme.brush_size(UiTheme.SIZE_NOTE),
+		UiTheme.SIZE_NOTE, UiTheme.INK_SOFT)
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(hint)

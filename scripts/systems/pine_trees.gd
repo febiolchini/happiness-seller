@@ -86,11 +86,8 @@ func _draw() -> void:
 		var foot: Vector2 = tree["foot"]
 		var width: float = tree["height"] * 0.62
 		# L'ombra per terra, verso sud-est: la luce viene da nord-ovest.
-		var shadow := PackedVector2Array()
-		for i in range(17):
-			var a := TAU * float(i) / 16.0
-			shadow.append(foot + Vector2(width * 0.16, 3.0)
-				+ Vector2(cos(a) * width * 0.42, sin(a) * width * 0.13))
+		var shadow := Shapes.ellipse(
+			foot + Vector2(width * 0.16, 3.0), Vector2(width * 0.42, width * 0.13))
 		# Blu a 1: per lo shader vuol dire "sei un'ombra", vedi `pine_tree.gdshader`.
 		draw_polygon(shadow, PackedColorArray([Color(0, 0, 1, 1)]))
 	for tree in _trees:

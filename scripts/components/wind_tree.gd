@@ -141,8 +141,5 @@ func _draw() -> void:
 	var info := Daylight.shadow(GameState.current)
 	var reach := 34.0 if kind == "tree" else 8.0
 	var slide: Vector2 = (info["direction"] as Vector2) * minf(float(info["length"]) * 14.0, reach)
-	var points := PackedVector2Array()
-	for i in range(21):
-		var a := TAU * float(i) / 20.0
-		points.append(Vector2(0, -3) + slide + Vector2(cos(a) * _shadow.x, sin(a) * _shadow.y))
+	var points := Shapes.ellipse(Vector2(0, -3) + slide, _shadow, 21)
 	draw_colored_polygon(points, Color(0, 0, 0, 0.12 + float(info["alpha"]) * 0.3))

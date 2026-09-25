@@ -53,11 +53,15 @@ const YOU := "you"
 const BRIAN := "brian"
 ## L'autista, da quando lo si assume. Vedi `contacts()`.
 const DRIVER := "driver"
+## Il grossista di Kevin, da quando manda il messaggio del contatto fuori
+## stato. Vedi `contacts()` e `BusImport`.
+const KEVIN := "kevin"
 
 ## Come si chiama ognuno in rubrica: la CHIAVE del nome, non il nome.
 const CONTACT_NAMES := {
 	BRIAN: "MSG_COUSIN_SPEAKER",
 	DRIVER: "MSG_DRIVER_SPEAKER",
+	KEVIN: "MSG_KEVIN_SPEAKER",
 }
 
 ## Quanto ci mette Brian a rispondere alla richiesta di semi, in ore di gioco.
@@ -93,6 +97,8 @@ static func contacts(data: SaveData = null) -> Array:
 	var list: Array = [{"id": BRIAN, "name_key": str(CONTACT_NAMES[BRIAN])}]
 	if Staff.has_driver(data):
 		list.append({"id": DRIVER, "name_key": str(CONTACT_NAMES[DRIVER])})
+	if BusImport.is_unlocked(data):
+		list.append({"id": KEVIN, "name_key": str(CONTACT_NAMES[KEVIN])})
 	return list
 
 ## Il nome di un contatto qualunque, anche di uno che adesso non è in rubrica:

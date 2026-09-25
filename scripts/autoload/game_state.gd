@@ -75,6 +75,11 @@ signal van_back(revenue: int)
 ## ascolta li usa per dire cosa è successo.
 signal seed_run_left(seeds: int)
 signal seed_run_back(seeds: int)
+## Il furgone è partito per il contatto fuori stato di Kevin, e ne è rientrato
+## coi semi. Stessa ragione di `seed_run_left`/`seed_run_back`: è lo stesso
+## mezzo, un altro fornitore. Vedi `BusImport`.
+signal bus_order_left(seeds: int)
+signal bus_order_back(seeds: int)
 ## Brian ha mandato la posizione: da qui in poi c'è un appuntamento sulla mappa.
 ## Ci si aggancia `city.gd` per tirarlo su dove aspetta.
 signal seed_spot_ready(spot: Vector2, place: String)
@@ -135,6 +140,7 @@ func _process(delta: float) -> void:
 	_tick_staff()
 	_tick_van()
 	_tick_seed_run()
+	_tick_bus_order()
 	_check_intro()
 	_check_prologue()
 	_check_milestones()
@@ -323,6 +329,12 @@ func _check_milestones() -> void:
 	if Staff.check_driver_hello(current):
 		contact_message(Chat.DRIVER, "MSG_DRIVER_HELLO")
 		save_game()
+	# Ai centomila dollari Kevin gira il contatto fuori stato: da qui in poi la
+	# stazione degli autobus compare in COMMERCIAL DISTRICT (vedi `unlock_flag`
+	# in `CityMap.BUILDINGS`) e il messaggio mette Kevin in rubrica.
+	if BusImport.check_unlock(current):
+		contact_message(Chat.KEVIN, "MSG_KEVIN_BUS_STATION_BODY")
+		save_game()
 
 ## Il messaggio d'apertura: da dove viene la casa, e cosa ci si fa.
 ##
@@ -345,6 +357,16 @@ func _tick_seed_run() -> void:
 	seed_run_back.emit(seeds)
 	# Semi arrivati è roba che il giocatore ricorda: non deve dipendere dal
 	# prossimo salvataggio automatico.
+	save_game()
+
+## Fa rientrare il furgone dal contatto fuori stato di Kevin quando è ora, e
+## scarica i semi. Stessa forma di `_tick_seed_run()`, altro fornitore.
+func _tick_bus_order() -> void:
+	var seeds := BusImport.tick(current, total_hours())
+	if seeds <= 0:
+		return
+	notify(tr("NOTE_SEEDS_IN") % seeds)
+	bus_order_back.emit(seeds)
 	save_game()
 
 ## Fa rientrare il furgone quando è ora, e paga.
@@ -388,7 +410,7 @@ func message(speaker: String, body: String) -> Node:
 ## Una sola per volta: il tasto resta premibile sotto alla finestra solo se
 ## qualcosa va storto, e due guide sovrapposte sono due Esc per chiuderle.
 func open_guide() -> Node:
-	for open: Node in get_tree().get_nodes_in_group("modal"):
+	for open: Node in get_tree().get_nodes_in_group(UiTheme.MODAL_GROUP):
 		if open.scene_file_path == GUIDE_SCENE:
 			return open
 	var guide_scene: PackedScene = load(GUIDE_SCENE)
@@ -606,9 +628,6 @@ func delete_slot(slot_id: String) -> bool:
 		current_slot = ""
 	return true
 
-func has_any_save() -> bool:
-	return not list_saves().is_empty()
-
 ## Riepilogo di ogni salvataggio presente, dal più recente al più vecchio.
 ## Serve alla schermata di gestione salvataggi.
 func list_saves() -> Array:
@@ -667,11 +686,6 @@ func scene_for_current_state() -> String:
 	return CITY_SCENE
 
 # --- Economia ---------------------------------------------------------------
-
-func add_cash(amount: int) -> void:
-	if current == null:
-		return
-	current.cash += amount
 
 func can_afford(cost: int) -> bool:
 	return current != null and current.cash >= cost

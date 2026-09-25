@@ -70,9 +70,6 @@ const HOVER_NUDGE := Vector2(12, -15)
 ## Quanto resta lontana dal bordo dello schermo prima di ribaltarsi dall'altra
 ## parte del puntatore.
 const HOVER_MARGIN := 6.0
-## Nascosta mentre c'è una finestra aperta, come l'HUD e per la stessa ragione.
-const MODAL_GROUP := "modal"
-
 ## Disattivata quando la mappa è usata solo come sfondo decorativo (menu).
 @export var interactive := true
 
@@ -100,6 +97,13 @@ var _talking_to: Npc = null
 ## scritto adesso: senza il secondo la Label si riscriverebbe ogni fotogramma.
 var _hover_label: Label = null
 var _hover_shown := ""
+
+## Tutti gli edifici cliccabili, nello stesso ordine in cui `_build_city()` li
+## pianta nell'albero. Riempita una volta sola: la pianta della città non
+## cambia mentre si gioca, quindi `_building_at()` — chiamata a ogni
+## fotogramma per l'etichetta sotto al puntatore — scorre questa invece di
+## chiedere il gruppo alla `SceneTree` ogni volta.
+var _enterable_buildings: Array[EnterableBuilding] = []
 
 func _ready() -> void:
 	# La città si costruisce sempre, anche da sfondo del menu: dietro ai
@@ -150,6 +154,10 @@ func _ready() -> void:
 	# stesse due animazioni: esce da casa e rientra. Vedi `SeedRun`.
 	GameState.seed_run_left.connect(_on_van_left)
 	GameState.seed_run_back.connect(_on_van_back)
+	# Il contatto fuori stato di Kevin muove lo stesso furgone: stessa ragione
+	# del grossista in centro. Vedi `BusImport`.
+	GameState.bus_order_left.connect(_on_van_left)
+	GameState.bus_order_back.connect(_on_van_back)
 	_build_hover_label()
 	# Arrivare in strada è un punto di controllo: da qui in poi la partita
 	# ricomincerebbe fuori, non nella stanza da cui si è appena usciti.
@@ -177,10 +185,10 @@ func _build_city() -> void:
 	# la veranda e la staccionata.
 	for entry in buildings:
 		if not bool(entry.get("in_front", false)):
-			_buildings.add_child(_make_building(entry))
+			_add_building(_make_building(entry))
 	for entry in buildings:
 		if bool(entry.get("in_front", false)):
-			_buildings.add_child(_make_building(entry))
+			_add_building(_make_building(entry))
 	# Da sfondo di un menu non si cammina, e costruire la griglia costerebbe
 	# un caricamento in più per niente.
 	if interactive:
@@ -270,6 +278,13 @@ func _build_city() -> void:
 	parking.name = "SteakhouseParking"
 	add_child(parking)
 	parking.setup(CityMap.steakhouse_parking(), _traffic, _player)
+
+## Pianta un edificio nell'albero e, se è cliccabile, lo tiene anche in
+## `_enterable_buildings`: vedi il commento lì.
+func _add_building(node: Node2D) -> void:
+	_buildings.add_child(node)
+	if node is EnterableBuilding:
+		_enterable_buildings.append(node)
 
 ## Un edificio: il suo PNG, con lo script che lo rende cliccabile.
 ##
@@ -451,18 +466,19 @@ var _parked_van: Node2D = null
 ## serve, non si tiene in vita un contatore.
 func _refresh_parked_van() -> void:
 	var data := GameState.current
-	# **Tutti e due i viaggi, non solo la consegna.** Il furgone è uno: quello
+	# **Tutti e tre i viaggi, non solo la consegna.** Il furgone è uno: quello
 	# che porta la merce all'ingrosso è lo stesso che va a ritirare i semi dal
-	# grossista (`SeedRun`), e `can_order` lo sa già — non si può ordinare
-	# mentre è fuori. Qui invece si guardava solo `Delivery`, e il risultato era
-	# che ordinati i semi il furgone restava parcheggiato nel vialetto per tutte
-	# e due le ore del viaggio. Peggio: al rientro `_on_van_back` trova un
-	# furgone già in sosta e non fa niente, quindi non si vedeva nemmeno
-	# arrivare. Il giro dei semi è proprio quello in cui si torna a casa a
-	# piedi, cioè quello in cui lo si guarda.
+	# grossista (`SeedRun`) o dal contatto fuori stato di Kevin (`BusImport`),
+	# e `can_order` lo sa già — non si può ordinare mentre è fuori. Qui invece
+	# si guardava solo `Delivery`, e il risultato era che ordinati i semi il
+	# furgone restava parcheggiato nel vialetto per tutte le ore del viaggio.
+	# Peggio: al rientro `_on_van_back` trova un furgone già in sosta e non fa
+	# niente, quindi non si vedeva nemmeno arrivare. Il giro dei semi è proprio
+	# quello in cui si torna a casa a piedi, cioè quello in cui lo si guarda.
 	var should_park := (
 		data != null and Delivery.has_van(data)
-		and not Delivery.is_running(data) and not SeedRun.is_running(data))
+		and not Delivery.is_running(data) and not SeedRun.is_running(data)
+		and not BusImport.is_running(data))
 	if not should_park:
 		if _parked_van != null and is_instance_valid(_parked_van):
 			_parked_van.queue_free()
@@ -556,20 +572,19 @@ func _build_hover_label() -> void:
 	# È un'insegna, cioè un nome proprio: tradurla la sposterebbe in un'altra
 	# città. Vedi la nota in cima a `strings.gd`.
 	_hover_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-	_hover_label.add_theme_font_size_override("font_size", HOVER_SIZE)
 	_hover_label.add_theme_color_override("font_color", HOVER_COLOR)
-	# L'ombra dura al posto del riquadro, come nell'HUD: sotto la scritta può
-	# passarci un muro chiaro, l'asfalto o il cielo.
-	_hover_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
-	_hover_label.add_theme_constant_override("shadow_offset_x", 1)
-	_hover_label.add_theme_constant_override("shadow_offset_y", 1)
+	# Pennello (un'insegna è sempre di sole lettere) con l'ombra dura al posto
+	# del riquadro, come nell'HUD: sotto la scritta può passarci un muro
+	# chiaro, l'asfalto o il cielo.
+	UiTheme.dress_world_text(_hover_label, "", UiTheme.brush_size(HOVER_SIZE), HOVER_SIZE,
+		UiTheme.W_REGULAR, Color(0, 0, 0, 0.85))
 	layer.add_child(_hover_label)
 
 func _process(_delta: float) -> void:
 	if _hover_label == null:
 		return
 	_hover_label.visible = false
-	if _modal_open():
+	if UiTheme.modal_open():
 		return
 	var building := _building_at(get_global_mouse_position())
 	if building == null or building.display_name.is_empty():
@@ -577,6 +592,9 @@ func _process(_delta: float) -> void:
 	if _hover_shown != building.display_name:
 		_hover_shown = building.display_name
 		_hover_label.text = building.display_name
+		UiTheme.dress_world_text(_hover_label, building.display_name,
+			UiTheme.brush_size(HOVER_SIZE), HOVER_SIZE, UiTheme.W_REGULAR,
+			Color(0, 0, 0, 0.85))
 	_hover_label.visible = true
 	_place_hover()
 
@@ -594,9 +612,6 @@ func _place_hover() -> void:
 	if at.y < HOVER_MARGIN:
 		at.y = mouse.y - HOVER_NUDGE.y
 	_hover_label.position = at.round()
-
-func _modal_open() -> bool:
-	return not get_tree().get_nodes_in_group(MODAL_GROUP).is_empty()
 
 # --- Comandi ---------------------------------------------------------------
 
@@ -660,7 +675,7 @@ func _walk_to(target: Vector2) -> void:
 ## terra il nome che compariva era quello dell'edificio nascosto.
 func _building_at(point: Vector2) -> EnterableBuilding:
 	var found: EnterableBuilding = null
-	for building in get_tree().get_nodes_in_group(EnterableBuilding.GROUP):
+	for building in _enterable_buildings:
 		if not building.contains_point(point):
 			continue
 		if found == null or building.global_position.y >= found.global_position.y:

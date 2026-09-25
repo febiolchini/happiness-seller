@@ -126,6 +126,16 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 ## gioco (`SeedRun.can_order()`), non un vincolo della struttura dati.
 @export var seed_run: Dictionary = {}
 
+## Il viaggio dal contatto fuori stato di Kevin, vuoto quando il furgone è
+## fermo. Stesso mezzo e stessa forma di `seed_run`, altro fornitore: i campi
+## li documenta `BusImport`, che è l'unico posto da cui va toccato.
+##
+## Campo a parte e non lo stesso `seed_run` per lo stesso motivo per cui
+## `seed_run` è a parte da `van_run`: sono tre viaggi diversi, e che non
+## possano essere in corso insieme è una regola del gioco (`BusImport.can_order()`),
+## non un vincolo della struttura dati.
+@export var bus_run: Dictionary = {}
+
 # --- Messaggi --------------------------------------------------------------
 ## La cronologia della chat del telefono: i messaggi dei traguardi, quelli che
 ## il giocatore deve poter rileggere a distanza di giorni.
@@ -293,6 +303,7 @@ func to_dict() -> Dictionary:
 		"van_run": van_run,
 		"van_fuel": van_fuel,
 		"seed_run": seed_run,
+		"bus_run": bus_run,
 		"chat_log": chat_log,
 		"power_billed_day": power_billed_day,
 		"heat": heat,
@@ -348,6 +359,7 @@ static func from_dict(raw: Dictionary) -> SaveData:
 	data.van_run = _run_from_dict(source.get("van_run", {}))
 	data.van_fuel = int(source.get("van_fuel", 0))
 	data.seed_run = _seed_run_from_dict(source.get("seed_run", {}))
+	data.bus_run = _bus_run_from_dict(source.get("bus_run", {}))
 	data.chat_log = _chat_from_array(source.get("chat_log", []))
 	data.power_billed_day = int(source.get("power_billed_day", source.get("day", 1)))
 	data.heat = float(source.get("heat", 0.0))
@@ -450,6 +462,21 @@ static func _chat_from_array(raw: Variant) -> Array:
 ## semi interi. Un salvataggio di prima che il grossista esistesse non ha il
 ## campo, e torna vuoto — cioè furgone fermo, che è la cosa giusta.
 static func _seed_run_from_dict(raw: Variant) -> Dictionary:
+	if typeof(raw) != TYPE_DICTIONARY or (raw as Dictionary).is_empty():
+		return {}
+	var run: Dictionary = raw
+	return {
+		"seeds": int(run.get("seeds", 0)),
+		"strain": str(run.get("strain", Economy.DEFAULT_STRAIN)),
+		"left_at": float(run.get("left_at", 0.0)),
+		"back_at": float(run.get("back_at", 0.0)),
+	}
+
+## Come `_seed_run_from_dict()`, per il viaggio dal contatto fuori stato di
+## Kevin: le ore restano float e i semi interi. Un salvataggio di prima che il
+## contatto esistesse non ha il campo, e torna vuoto — furgone fermo, la cosa
+## giusta.
+static func _bus_run_from_dict(raw: Variant) -> Dictionary:
 	if typeof(raw) != TYPE_DICTIONARY or (raw as Dictionary).is_empty():
 		return {}
 	var run: Dictionary = raw

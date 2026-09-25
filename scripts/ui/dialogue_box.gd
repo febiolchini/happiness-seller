@@ -43,12 +43,15 @@ func is_open() -> bool:
 func open(speaker: String, body: String, choices: Array = []) -> void:
 	_reopened = true
 	_speaker.text = speaker
-	# Il nome di chi parla col pennello dei menu (quello con l'ombra: il
-	# riquadro del dialogo e' scuro). Se il nome ha qualcosa che il pennello non
-	# disegna resta il font della scena.
-	if UiTheme.can_brush(speaker):
-		UiTheme.dress_menu_text(_speaker, 20)
+	# Pennello se il testo e' di sole parole, Nunito se no: il riquadro e'
+	# scuro, quindi l'ombra e' quella cotta dentro al pennello (nessuna aggiunta
+	# a mano). Il nome di chi parla e' quasi sempre di sole parole, il corpo
+	# quasi mai — grammi e prezzi ci finiscono dentro spesso — ma decide il
+	# testo, non chi chiama.
+	UiTheme.dress_world_text(_speaker, speaker, 20, 16, UiTheme.W_REGULAR)
 	_body.text = body
+	UiTheme.dress_world_text(_body, body, UiTheme.brush_size(BODY_FONT_SIZE),
+		BODY_FONT_SIZE, UiTheme.W_REGULAR)
 	for child in _choices.get_children():
 		child.queue_free()
 	for choice in choices:
@@ -64,12 +67,15 @@ func close() -> void:
 
 func _build_choice(choice: Dictionary) -> Button:
 	var button := Button.new()
-	button.text = str(choice["label"])
+	var label := str(choice["label"])
+	button.text = label
 	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	button.flat = true
-	# Font di sistema e non quello del gioco: le scelte contengono cifre e
-	# `alphabet.fnt` ha solo lettere, quindi i prezzi sparirebbero.
-	button.add_theme_font_size_override("font_size", CHOICE_FONT_SIZE)
+	# Pennello se la scelta e' di sole parole ("CHIUDI"), Nunito se ha cifre
+	# dentro ("COMPRA 10G - $50"): decide `UiTheme` sul testo vero, non su una
+	# regola scritta qui.
+	UiTheme.dress_world_text(button, label, UiTheme.brush_size(CHOICE_FONT_SIZE),
+		CHOICE_FONT_SIZE, UiTheme.W_REGULAR)
 	button.add_theme_color_override("font_color", Color(0.95, 0.93, 0.82))
 	button.add_theme_color_override("font_disabled_color", Color(0.55, 0.53, 0.50))
 	button.disabled = not bool(choice.get("enabled", true))

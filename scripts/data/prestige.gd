@@ -16,10 +16,20 @@ extends RefCounted
 ## livello non ne ha bisogno, ma ne tiene uno lo stesso perché la barra ha
 ## bisogno di una scala anche lì.
 ##
-## Per ora c'è solo il primo. Gli altri si aggiungono qui sotto, in ordine, e
-## HUD e conti li seguono da soli.
+## Per ora sono solo i tre gradini dei pivelli — non c'è ancora modo di
+## guadagnare punti, vedi sopra — ma la scala regge già un domani con più
+## ranghi: basta aggiungerli qui sotto, in ordine, e HUD e conti li seguono
+## da soli.
+##
+## I nomi restano in **inglese in tutte le lingue**, apposta: sono gradi
+## dentro a un giro, come i galloni di una gerarchia, non una frase del
+## gioco — tradurli suonerebbe finto, come tradurre un grado militare. Le tre
+## righe di `Strings` per ognuno dicono comunque lo stesso testo: se un domani
+## si cambia idea, cambia lì e non qui.
 const LEVELS := [
-	{"name": "PRESTIGE_ROOKIES", "need": 100},
+	{"name": "PRESTIGE_ROOKIE_1", "need": 100},
+	{"name": "PRESTIGE_ROOKIE_2", "need": 200},
+	{"name": "PRESTIGE_ROOKIE_3", "need": 300},
 ]
 
 ## Vero se il prestigio va mostrato: cioè se l'organizzazione ha un nome.

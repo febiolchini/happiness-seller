@@ -95,10 +95,7 @@ func on_light_changed() -> void:
 func _draw() -> void:
 	var info := Daylight.shadow(GameState.current)
 	var slide: Vector2 = (info["direction"] as Vector2) * minf(float(info["length"]) * 9.0, 20.0)
-	var points := PackedVector2Array()
-	for i in range(17):
-		var a := TAU * float(i) / 16.0
-		points.append(slide + Vector2(cos(a) * 9.0, sin(a) * 3.6))
+	var points := Shapes.ellipse(slide, Vector2(9.0, 3.6))
 	draw_colored_polygon(points, Color(0, 0, 0, 0.14 + float(info["alpha"]) * 0.45))
 
 ## Ordina di raggiungere un punto della mappa in linea retta (coordinate

@@ -31,14 +31,29 @@ extends RefCounted
 ## Nunito è **variabile**: un file solo, e il peso si chiede a `body(600)`.
 ## Volendone un altro basta metterlo in `assets/fonts/` e cambiare `BODY_FILE`.
 ##
-## ## Il terzo: il pennello dei menu
+## ## Il terzo: il pennello
 ##
 ## `menu()` è `brush.fnt`, l'alfabeto scritto a pennello ricavato da una foto
-## da `scripts_tools/import_brush_font.py`. Vale **solo per i menu** — quello
-## principale, impostazioni, salvataggi e il menu a tre righe in partita — non
-## per il telefono né per le finestre. Come `alphabet.fnt` ha solo lettere (le
-## minuscole sono le stesse maiuscole) e l'ombra cotta dentro, quindi le voci
-## che ci finiscono sopra sono PIXEL in `strings.gd`.
+## da `scripts_tools/import_brush_font.py`. Nato per i menu — quello
+## principale, impostazioni, salvataggi — copre ormai **tutto il gioco tranne
+## il telefono**: HUD, finestre, i nomi sotto al puntatore, i fumetti di
+## dialogo. Come `alphabet.fnt` ha solo lettere (le minuscole sono le stesse
+## maiuscole) e l'ombra cotta dentro, quindi le voci che ci finiscono sopra
+## sono PIXEL in `strings.gd`. Il telefono resta con Nunito: è l'unica
+## schermata che tiene il suo font, apposta.
+##
+## Due modi di vestirlo, a seconda di cosa c'è sotto:
+## - `dress_menu_text()`/`dress_world_text()` — pennello **con** l'ombra
+##   (quella cotta dentro al disegno), per lo sfondo scuro dei menu e per il
+##   testo appoggiato sopra alla città, dove sotto può passarci di tutto.
+## - `dress_window_text()` — la stessa lettera ma **senza** ombra
+##   (`WINDOW_FILE`, `brush_ink.fnt`), per la carta chiara delle finestre: lì
+##   la scrittura è scura su chiaro, e l'ombra scura la farebbe sembrare
+##   sbavata.
+##
+## Tutti e tre scelgono da soli, testo per testo: pennello se è di sole
+## parole, Nunito se ha cifre o punteggiatura che il pennello non sa
+## disegnare (`can_brush()`).
 ##
 ## Va messo con `dress_menu_text()` e non a mano: il glifo è disegnato a 56 px
 ## e a schermo ne esce un terzo, e rimpicciolito col filtro "nearest" del
@@ -58,6 +73,15 @@ const WIN_TITLE := 24    ## il titolo della finestra
 const WIN_TAB := 17      ## le voci della colonna (schede del PC, sezioni della guida)
 const WIN_LABEL := 15    ## le etichette fisse delle righe
 const WIN_BUTTON := 16   ## bottoni di sole parole, "chiudi"
+
+## Il pennello esce piu' grande di Nunito alla stessa misura dichiarata ma
+## piu' sottile (vedi `dress_window_text()`): le coppie scritte a mano qui
+## sopra vanno da 1.3 a 1.5 volte il corpo Nunito che affiancano. Per una riga
+## generica di cui non si conosce il corpo in anticipo — una `_label()` che
+## serve titoli, valori e didascalie tutti diversi — la proporzione si calcola
+## invece di sceglierne una a caso.
+static func brush_size(body_size: int) -> int:
+	return int(roundf(float(body_size) * 1.4))
 
 ## Quello che il pennello sa scrivere: lettere e spazio. Stessa regola PIXEL di
 ## `strings.gd`, ma controllata sul testo vero, a schermo.
@@ -116,6 +140,19 @@ const INFO := Color(0.239, 0.510, 0.780)
 
 ## Il velo che scurisce il gioco dietro a una finestra modale.
 const DIMMER := Color(0.0, 0.0, 0.0, 0.5)
+
+## Il gruppo a cui si iscrive ogni finestra modale (il gestionale, l'agenzia,
+## il grossista, la guida, i messaggi a tutto schermo, il filmato del
+## furgone...). Chi deve togliersi di mezzo mentre una di queste è aperta —
+## l'HUD, il telefono, la freccia di `SpotPointer`, il click sulla mappa — lo
+## controlla con `modal_open()`, invece di ognuno con la sua copia dello stesso
+## giro sul gruppo.
+const MODAL_GROUP := "modal"
+
+## C'è una finestra modale aperta adesso?
+static func modal_open() -> bool:
+	var tree := Engine.get_main_loop() as SceneTree
+	return tree != null and not tree.get_nodes_in_group(MODAL_GROUP).is_empty()
 
 # --- Scala tipografica ------------------------------------------------------
 # Sei misure e non una per occasione: con una scala aperta ogni schermata
@@ -207,6 +244,47 @@ static func window_label(text: String, brush_size: int, body_size: int,
 	dress_window_text(node, text, brush_size, body_size, weight)
 	return node
 
+## Come `dress_window_text()`, ma per un testo che non sta su un foglio di
+## carta: il tasto a tre righe dell'HUD, il nome sotto al puntatore su un
+## edificio, i fumetti di dialogo, l'elenco dei salvataggi — schermate scure o
+## appoggiate sopra alla città, non le finestre chiare del gestionale.
+##
+## Pennello **con** l'ombra già dentro al disegno (`MENU_FILE`, lo stesso di
+## `dress_menu_text()`) se il testo è di sole parole; altrimenti Nunito, con
+## un'ombra dura aggiunta a mano se `shadow_color` ha alpha — serve sopra alla
+## città, dove sotto la scritta può passarci di tutto, mentre su un pannello
+## pieno (i salvataggi, le righe della guida) il default trasparente non
+## aggiunge niente che prima non ci fosse. Decide sul testo **che c'è adesso**,
+## come `dress_window_text()`.
+static func dress_world_text(node: Control, text: String, brush_size: int,
+		body_size: int, weight := W_MEDIUM,
+		shadow_color := Color(0, 0, 0, 0)) -> void:
+	if can_brush(text):
+		node.add_theme_font_override("font", MENU_FILE)
+		node.add_theme_font_size_override("font_size", brush_size)
+		node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		# Ombra gia' cotta nel disegno: una seconda la farebbe sembrare scritta
+		# due volte.
+		node.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+	else:
+		node.add_theme_font_override("font", body(weight))
+		node.add_theme_font_size_override("font_size", body_size)
+		node.texture_filter = CanvasItem.TEXTURE_FILTER_PARENT_NODE
+		node.add_theme_color_override("font_shadow_color", shadow_color)
+	if shadow_color.a > 0.0:
+		node.add_theme_constant_override("shadow_offset_x", 1)
+		node.add_theme_constant_override("shadow_offset_y", 1)
+
+## Una Label "sul mondo": pennello se il testo è di sole parole, Nunito se no.
+## È `label()` con in più la scelta del font, come `window_label()` ma per
+## `dress_world_text()`.
+static func world_label(text: String, brush_size: int, body_size: int,
+		color: Color, weight := W_MEDIUM,
+		shadow_color := Color(0, 0, 0, 0)) -> Label:
+	var node := label(text, body_size, color, weight)
+	dress_world_text(node, text, brush_size, body_size, weight, shadow_color)
+	return node
+
 # --- Riquadri ---------------------------------------------------------------
 
 static func _box(bg: Color, radius: int, border := 0, border_color := LINE) -> StyleBoxFlat:
@@ -251,21 +329,6 @@ static func card_box() -> StyleBoxFlat:
 	box.content_margin_right = 8
 	box.content_margin_top = 4
 	box.content_margin_bottom = 5
-	return box
-
-## Il pannellino chiaro dell'HUD, che sta sopra al gioco e non dentro a una
-## finestra: più trasparente, e con l'ombra, perché sotto ci può passare di
-## tutto.
-static func hud_box() -> StyleBoxFlat:
-	var box := _box(Color(1.0, 1.0, 1.0, 0.92), 5, 1,
-		Color(0.604, 0.631, 0.675, 0.80))
-	box.shadow_color = Color(0, 0, 0, 0.28)
-	box.shadow_size = 3
-	box.shadow_offset = Vector2(0, 1)
-	box.content_margin_left = 8
-	box.content_margin_right = 8
-	box.content_margin_top = 3
-	box.content_margin_bottom = 3
 	return box
 
 # --- Bottoni ----------------------------------------------------------------
@@ -338,6 +401,14 @@ static func label(text: String, size: int, color: Color,
 	node.add_theme_color_override("font_color", color)
 	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return node
+
+## L'ombra dura che sostituisce un pannello: un testo appoggiato sopra alla
+## città o all'HUD, senza un fondo dietro, ha bisogno di uno stacco netto da
+## qualunque cosa gli passi sotto — un muro chiaro, l'asfalto, il cielo.
+static func add_hard_shadow(node: Control, color := Color(0, 0, 0, 0.85)) -> void:
+	node.add_theme_color_override("font_shadow_color", color)
+	node.add_theme_constant_override("shadow_offset_x", 1)
+	node.add_theme_constant_override("shadow_offset_y", 1)
 
 ## Veste la barra di scorrimento di un contenitore, che altrimenti resta quella
 ## grigio-scura di serie: su una finestra di carta e' l'unico pezzo che tradisce

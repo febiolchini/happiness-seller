@@ -73,6 +73,11 @@ var _fade_to := false
 const FADE_LENGTH := 70.0
 var _fixed := 0.0
 var _dir := 1
+## `_forward()` messo in cache: dipende solo da `_horizontal` e `_dir`, fissati
+## in `setup()` e mai più toccati, quindi calcolarlo a ogni chiamata — una per
+## fotogramma per ognuna delle auto in strada, da `_player_ahead()` — rifà
+## sempre lo stesso conto.
+var _forward_vec := Vector2.RIGHT
 var _speed := 60.0
 var _current_speed := 0.0
 var _along := 0.0
@@ -98,6 +103,7 @@ func setup(lane: Dictionary, offset: float, vehicle: String) -> void:
 	_fade_to = bool(lane.get("fade_to", false))
 	_fixed = float(lane["pos"])
 	_dir = int(lane["dir"])
+	_forward_vec = Vector2(float(_dir), 0.0) if _horizontal else Vector2(0.0, float(_dir))
 	_speed = float(lane["speed"])
 	_current_speed = _speed
 	_along = lerpf(_from, _to, offset)
@@ -156,9 +162,7 @@ func _player_ahead() -> bool:
 	return ahead > 0.0 and ahead < BRAKE_DISTANCE and lateral < BRAKE_WIDTH
 
 func _forward() -> Vector2:
-	if _horizontal:
-		return Vector2(float(_dir), 0.0)
-	return Vector2(0.0, float(_dir))
+	return _forward_vec
 
 # --- La corsia, per chi deve attraversare ----------------------------------
 #
@@ -218,7 +222,7 @@ func _draw_shadow(footprint: Vector2) -> void:
 	# del file sbuca ai lati e sembrano due macchie scure attaccate alle
 	# fiancate, non un'ombra.
 	draw_colored_polygon(
-		_ellipse(Vector2(0, 3) + slide, footprint * Vector2(0.34, 0.20)),
+		Shapes.ellipse(Vector2(0, 3) + slide, footprint * Vector2(0.34, 0.20)),
 		Color(0, 0, 0, 0.16 + float(info["alpha"]) * 0.35))
 
 ## Fari e stop accesi di notte. È un dettaglio, ma di notte è il traffico a
@@ -258,18 +262,11 @@ func _draw_lights(footprint: Vector2) -> void:
 	bulb.a = 0.9 * strength
 	for lamp in [nose + across * half_width, nose - across * half_width]:
 		draw_colored_polygon(
-			_ellipse(lamp + forward * 3.0, Vector2(4, 3)), Daylight.emissive(bulb, ambient))
+			Shapes.ellipse(lamp + forward * 3.0, Vector2(4, 3)), Daylight.emissive(bulb, ambient))
 
 	# Gli stop dietro, rossi e più piccoli.
 	var tail := TAILLIGHT
 	tail.a = 0.75 * strength
 	var back := -forward * (footprint.length() * 0.5 * 0.58)
 	for lamp in [back + across * half_width, back - across * half_width]:
-		draw_colored_polygon(_ellipse(lamp, Vector2(3, 2)), Daylight.emissive(tail, ambient))
-
-func _ellipse(center: Vector2, radius: Vector2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in range(17):
-		var a := TAU * float(i) / 16.0
-		points.append(center + Vector2(cos(a) * radius.x, sin(a) * radius.y))
-	return points
+		draw_colored_polygon(Shapes.ellipse(lamp, Vector2(3, 2)), Daylight.emissive(tail, ambient))

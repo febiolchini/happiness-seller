@@ -48,11 +48,6 @@ const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
 ## non sotto.
 const LAYER := 48
 
-## Il gruppo che dice all'HUD e al telefono di togliersi di mezzo. La guida
-## copre lo schermo, e un telefono che ci galleggia sopra si legge come un pezzo
-## di questa finestra.
-const MODAL_GROUP := "modal"
-
 ## Quanto stanno larghe le righe di testo.
 ##
 ## Non è la larghezza della finestra: una riga lunga quattrocentocinquanta pixel
@@ -87,7 +82,7 @@ var _open := 0
 
 func _ready() -> void:
 	layer = LAYER
-	add_to_group(MODAL_GROUP)
+	add_to_group(UiTheme.MODAL_GROUP)
 	_sections = Guide.SECTIONS
 	_dress()
 	_close.pressed.connect(close)
@@ -109,8 +104,8 @@ func _dress() -> void:
 	UiTheme.dress_window_text(_title, _title.text, UiTheme.WIN_TITLE, UiTheme.SIZE_TITLE)
 	_title.add_theme_color_override("font_color", UiTheme.INK)
 
-	_lead.add_theme_font_override("font", UiTheme.body(UiTheme.W_MEDIUM))
-	_lead.add_theme_font_size_override("font_size", UiTheme.SIZE_LABEL)
+	UiTheme.dress_window_text(_lead, _lead.text, UiTheme.brush_size(UiTheme.SIZE_LABEL),
+		UiTheme.SIZE_LABEL, UiTheme.W_MEDIUM)
 	_lead.add_theme_color_override("font_color", UiTheme.INK_FAINT)
 
 	UiTheme.dress_button(_close, UiTheme.ghost_boxes(), UiTheme.INK_SOFT,
@@ -193,7 +188,8 @@ func _caption_of(text: String) -> String:
 	return head if head == head.to_upper() else ""
 
 func _paragraph(text: String) -> Label:
-	var label := UiTheme.label(text, UiTheme.SIZE_VALUE, UiTheme.INK)
+	var label := UiTheme.window_label(text, UiTheme.brush_size(UiTheme.SIZE_VALUE),
+		UiTheme.SIZE_VALUE, UiTheme.INK)
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	# Un filo d'aria fra le righe. Su un paragrafo di sei righe è la differenza
 	# fra un blocco di testo e qualcosa che si legge volentieri.

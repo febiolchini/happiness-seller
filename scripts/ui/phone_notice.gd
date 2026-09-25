@@ -36,7 +36,7 @@ func setup(speaker: String, body: String) -> void:
 func _ready() -> void:
 	layer = LAYER
 	# Copre tutto lo schermo con la tendina scura: l'HUD dietro non serve.
-	add_to_group("modal")
+	add_to_group(UiTheme.MODAL_GROUP)
 	# Il tempo di gioco continua a scorrere: un messaggio non è una pausa, e
 	# fermare l'orologio qui vorrebbe dire fermarlo anche a chi lo lascia aperto.
 	var shade := ColorRect.new()
@@ -61,11 +61,12 @@ func _ready() -> void:
 	rows.add_theme_constant_override("separation", 10)
 	panel.add_child(rows)
 
-	var speaker_label := UiTheme.label(_speaker, UiTheme.SIZE_BIG, UiTheme.INK,
-		UiTheme.W_BOLD)
+	var speaker_label := UiTheme.window_label(_speaker, UiTheme.brush_size(UiTheme.SIZE_BIG),
+		UiTheme.SIZE_BIG, UiTheme.INK, UiTheme.W_BOLD)
 	rows.add_child(speaker_label)
 
-	var body_label := UiTheme.label(_body, UiTheme.SIZE_VALUE, UiTheme.INK_SOFT)
+	var body_label := UiTheme.window_label(_body, UiTheme.brush_size(UiTheme.SIZE_VALUE),
+		UiTheme.SIZE_VALUE, UiTheme.INK_SOFT)
 	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rows.add_child(body_label)
 

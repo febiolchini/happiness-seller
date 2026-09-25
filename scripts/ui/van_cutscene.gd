@@ -85,7 +85,7 @@ func _ready() -> void:
 	layer = LAYER
 	# Un filmato è l'unica cosa che davvero copre il gioco: HUD e telefono si
 	# tolgono di mezzo come per gli avvisi. Vedi `hud.gd`.
-	add_to_group("modal")
+	add_to_group(UiTheme.MODAL_GROUP)
 
 	_frame = Control.new()
 	_frame.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -244,10 +244,6 @@ func _draw_van(lane: float) -> void:
 	var info := Daylight.shadow(GameState.current)
 	var slide: Vector2 = (info["direction"] as Vector2) * minf(float(info["length"]) * 4.0, 9.0)
 	var centre := Vector2(x + texture_size.x * 0.5, y + texture_size.y * 0.5) + slide
-	var points := PackedVector2Array()
-	for i in range(17):
-		var a := TAU * float(i) / 16.0
-		points.append(centre + Vector2(
-			cos(a) * texture_size.x * 0.44, sin(a) * texture_size.y * 0.30))
+	var points := Shapes.ellipse(centre, texture_size * Vector2(0.44, 0.30))
 	_stage.draw_colored_polygon(points, Color(0, 0, 0, 0.16 + float(info["alpha"]) * 0.35))
 	_stage.draw_texture_rect(VAN, Rect2(Vector2(x, y), texture_size), false, _air())

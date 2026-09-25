@@ -55,6 +55,9 @@ const EASE_SPEED := 0.6
 var _time := 0.0
 var _wet := 0.0
 var _clouds := 0.0
+## Il vento di adesso, calcolato in `_process()` e riletto da `_draw_clouds()`:
+## stesso `Weather.entry()`, una lettura sola invece di due per fotogramma.
+var _wind := 0.0
 ## Ogni cartaccia: posizione, angolo, velocità propria.
 var _litter: Array[Dictionary] = []
 
@@ -71,7 +74,8 @@ func _process(delta: float) -> void:
 	# disegnarle lo stesso vorrebbe dire macchie scure su una strada già scura.
 	var sun := Daylight.sun_height(Daylight.hour_of(GameState.current))
 	_clouds = lerpf(_clouds, float(entry["clouds"]) * sun, 1.0 - exp(-delta / EASE_SPEED))
-	_move_litter(delta, float(entry["wind"]))
+	_wind = float(entry["wind"])
+	_move_litter(delta, _wind)
 	queue_redraw()
 
 func _draw() -> void:
@@ -88,8 +92,7 @@ func _draw() -> void:
 ## dalla cella stessa dove sta la nuvola e quanto è grande, sempre con gli
 ## stessi numeri. Vedi il commento in cima al file.
 func _draw_clouds(view: Rect2) -> void:
-	var entry := Weather.entry(Weather.of(GameState.current))
-	var drift := Vector2(float(entry["wind"]), 0.28) * CLOUD_DRIFT * _time
+	var drift := Vector2(_wind, 0.28) * CLOUD_DRIFT * _time
 	var field := Rect2(view.position - drift, view.size)
 	var from := Vector2i(floori(field.position.x / CLOUD_CELL), floori(field.position.y / CLOUD_CELL))
 	var to := Vector2i(ceili(field.end.x / CLOUD_CELL), ceili(field.end.y / CLOUD_CELL))
@@ -106,7 +109,7 @@ func _draw_clouds(view: Rect2) -> void:
 			var center := Vector2(cx, cy) * CLOUD_CELL + jitter * CLOUD_CELL + drift
 			var color := CLOUD_COLOR
 			color.a = 0.13 * _clouds
-			draw_colored_polygon(_ellipse(center, Vector2(size, size * 0.52)), color)
+			draw_colored_polygon(Shapes.ellipse(center, Vector2(size, size * 0.52)), color)
 
 # --- Asfalto bagnato --------------------------------------------------------
 
@@ -144,7 +147,7 @@ func _draw_puddles(part: Rect2) -> void:
 			# Il tremolio è lentissimo e minimo: una pozza che pulsa si nota,
 			# una pozza ferma in un temporale sembra vernice.
 			var wobble := 1.0 + 0.05 * sin(_time * 1.3 + float(cx + cy))
-			draw_colored_polygon(_ellipse(center, Vector2(width, width * 0.34) * wobble), color)
+			draw_colored_polygon(Shapes.ellipse(center, Vector2(width, width * 0.34) * wobble), color)
 
 # --- Cartacce ---------------------------------------------------------------
 
@@ -194,15 +197,4 @@ func _draw_litter() -> void:
 ## mappa: nuvole e pozze si disegnano solo dove si guarda, e la città può
 ## crescere quanto vuole senza che questo disegno rallenti.
 func _camera_rect() -> Rect2:
-	var to_world := get_viewport().get_canvas_transform().affine_inverse()
-	var view := get_viewport_rect().size
-	var top_left := to_world * Vector2.ZERO
-	var bottom_right := to_world * view
-	return Rect2(top_left, bottom_right - top_left).grow(96.0)
-
-func _ellipse(center: Vector2, radius: Vector2) -> PackedVector2Array:
-	var points := PackedVector2Array()
-	for i in range(17):
-		var a := TAU * float(i) / 16.0
-		points.append(center + Vector2(cos(a) * radius.x, sin(a) * radius.y))
-	return points
+	return Shapes.camera_world_rect(self, 96.0)
