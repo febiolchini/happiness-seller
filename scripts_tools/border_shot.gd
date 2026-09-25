@@ -3,7 +3,7 @@ extends Node
 ## Strumento: fotografa il paesaggio intorno alla città.
 ##
 ## Il bordo della mappa si guarda in due modi molto diversi, e vanno giudicati
-## tutti e due: dalla vista d'insieme (scala netta 0,15), dove è l'orizzonte
+## tutti e due: dalla vista d'insieme (scala netta 0,25), dove è l'orizzonte
 ## che chiude la città, e da vicino, camminando fino all'ultimo isolato, dove un
 ## pixel di mondo è due pixel di schermo e il paesaggio deve reggere il
 ## dettaglio. Più la notte, perché la tinta della sera passa anche di lì.
@@ -24,13 +24,13 @@ const SHOTS := [
 	["angolo_no", 13.0, "bordo_insieme", 0],
 	["angolo_se", 13.0, "bordo_insieme_se", 0],
 	["angolo_se", 21.5, "bordo_insieme_notte", 0],
-	["angolo_no", 13.0, "bordo_angolo", 2],
-	["ovest", 13.0, "bordo_ovest_largo", 3],
-	["ovest", 13.0, "bordo_ovest_vicino", 5],
-	["nord", 13.0, "bordo_nord_vicino", 5],
-	["sud", 13.0, "bordo_sud_vicino", 5],
-	["uscita_est", 13.0, "bordo_uscita_est", 4],
-	["uscita_est", 21.5, "bordo_uscita_est_notte", 4],
+	["angolo_no", 13.0, "bordo_angolo", 1],
+	["ovest", 13.0, "bordo_ovest_largo", 2],
+	["ovest", 13.0, "bordo_ovest_vicino", 4],
+	["nord", 13.0, "bordo_nord_vicino", 4],
+	["sud", 13.0, "bordo_sud_vicino", 4],
+	["uscita_est", 13.0, "bordo_uscita_est", 3],
+	["uscita_est", 21.5, "bordo_uscita_est_notte", 3],
 ]
 
 const SETTLE := 1.5

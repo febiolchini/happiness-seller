@@ -30,9 +30,45 @@ extends RefCounted
 ##
 ## Nunito è **variabile**: un file solo, e il peso si chiede a `body(600)`.
 ## Volendone un altro basta metterlo in `assets/fonts/` e cambiare `BODY_FILE`.
+##
+## ## Il terzo: il pennello dei menu
+##
+## `menu()` è `brush.fnt`, l'alfabeto scritto a pennello ricavato da una foto
+## da `scripts_tools/import_brush_font.py`. Vale **solo per i menu** — quello
+## principale, impostazioni, salvataggi e il menu a tre righe in partita — non
+## per il telefono né per le finestre. Come `alphabet.fnt` ha solo lettere (le
+## minuscole sono le stesse maiuscole) e l'ombra cotta dentro, quindi le voci
+## che ci finiscono sopra sono PIXEL in `strings.gd`.
+##
+## Va messo con `dress_menu_text()` e non a mano: il glifo è disegnato a 56 px
+## e a schermo ne esce un terzo, e rimpicciolito col filtro "nearest" del
+## progetto — giusto per il pixel art — il pennello diventa una sgranatura. Il
+## filtro lineare lo tiene pulito.
 
 const BODY_FILE := preload("res://assets/fonts/Nunito-Variable.ttf")
 const DISPLAY_FILE := preload("res://assets/sprites/ui/alphabet.fnt")
+const MENU_FILE := preload("res://assets/sprites/ui/brush.fnt")
+## Lo stesso pennello **senza ombra**, per le finestre di carta (PC, agenzia,
+## grossista, guida...): lì la lettera si scrive scura sul chiaro, e l'ombra
+## scura cotta dentro a `brush.fnt` la farebbe sembrare sbavata.
+const WINDOW_FILE := preload("res://assets/sprites/ui/brush_ink.fnt")
+
+## Le misure del pennello nelle finestre.
+const WIN_TITLE := 24    ## il titolo della finestra
+const WIN_TAB := 17      ## le voci della colonna (schede del PC, sezioni della guida)
+const WIN_LABEL := 15    ## le etichette fisse delle righe
+const WIN_BUTTON := 16   ## bottoni di sole parole, "chiudi"
+
+## Quello che il pennello sa scrivere: lettere e spazio. Stessa regola PIXEL di
+## `strings.gd`, ma controllata sul testo vero, a schermo.
+const BRUSH_CHARS := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz "
+
+## Le misure del pennello. Più grandi di quelle dell'alfabeto di prima: il
+## pennello è più sottile e più mosso, e a sedici pixel le setole si impastano.
+const MENU_BIG := 22     ## le voci del menu principale
+const MENU_ITEM := 18    ## le voci delle impostazioni
+const MENU_SMALL := 15   ## "indietro", carica/cancella, le righe del menu in partita
+const MENU_TITLE := 26   ## il titolo di una schermata
 
 # --- Tavolozza --------------------------------------------------------------
 # Bianco e nero come base, il colore solo dove serve dire qualcosa: un bottone
@@ -114,6 +150,62 @@ static func body(weight: int = W_REGULAR) -> FontVariation:
 
 static func display() -> Font:
 	return DISPLAY_FILE
+
+static func menu() -> Font:
+	return MENU_FILE
+
+## Veste un testo dei menu col pennello: font, misura e il filtro lineare (vedi
+## sopra). Vale per Label e Button, e per qualunque altro Control con un font.
+static func dress_menu_text(node: Control, size := MENU_ITEM) -> void:
+	node.add_theme_font_override("font", MENU_FILE)
+	node.add_theme_font_size_override("font_size", size)
+	node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+
+## Si può scrivere col pennello? Solo se ogni carattere è una lettera o uno
+## spazio. Un "VASO 3" o un "$120" no: col pennello la cifra non si disegna e
+## resterebbe un buco nella parola.
+##
+## Si guarda il testo **tradotto**: molti nodi hanno per testo la chiave
+## ("PC_CLOSE") e la traduzione la fa Godot a schermo, e la chiave col suo
+## trattino basso non passerebbe mai.
+static func can_brush(text: String) -> bool:
+	var shown := String(TranslationServer.translate(text))
+	if shown.strip_edges().is_empty():
+		return false
+	for letter in shown:
+		if not BRUSH_CHARS.contains(letter):
+			return false
+	return true
+
+## Veste un testo di una finestra: col pennello senza ombra se il testo lo
+## permette, altrimenti con Nunito al peso dato — **e lo decide sul testo che
+## c'è adesso**. Le righe del PC cambiano scritta mentre si gioca, quindi chi
+## riscrive il testo di un bottone o di un'etichetta la richiama.
+##
+## Il pennello esce un filo più grande di Nunito alla stessa misura dichiarata
+## ma più sottile, quindi le due misure si passano separate.
+static func dress_window_text(node: Control, text: String, brush_size: int,
+		body_size: int, weight := W_MEDIUM) -> void:
+	if can_brush(text):
+		node.add_theme_font_override("font", WINDOW_FILE)
+		node.add_theme_font_size_override("font_size", brush_size)
+		node.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		# Niente ombra: i titoli dell'agenzia e del grossista ne hanno una nel
+		# `.tscn` (serviva al vecchio font), e sotto al pennello sulla carta
+		# faceva sembrare la scritta sbavata.
+		node.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0))
+	else:
+		node.add_theme_font_override("font", body(weight))
+		node.add_theme_font_size_override("font_size", body_size)
+		node.texture_filter = CanvasItem.TEXTURE_FILTER_PARENT_NODE
+
+## Una Label di finestra: pennello se il testo è di sole parole, Nunito se no.
+## È `label()` con in più la scelta del font.
+static func window_label(text: String, brush_size: int, body_size: int,
+		color: Color, weight := W_MEDIUM) -> Label:
+	var node := label(text, body_size, color, weight)
+	dress_window_text(node, text, brush_size, body_size, weight)
+	return node
 
 # --- Riquadri ---------------------------------------------------------------
 

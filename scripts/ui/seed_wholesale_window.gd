@@ -42,8 +42,7 @@ func _ready() -> void:
 func _dress() -> void:
 	_dimmer.color = UiTheme.DIMMER
 	_window.add_theme_stylebox_override("panel", UiTheme.window_box())
-	_title.add_theme_font_override("font", UiTheme.display())
-	_title.add_theme_font_size_override("font_size", UiTheme.SIZE_TITLE)
+	UiTheme.dress_window_text(_title, _title.text, UiTheme.WIN_TITLE, UiTheme.SIZE_TITLE)
 	_title.add_theme_color_override("font_color", UiTheme.INK)
 	_rule.color = UiTheme.LINE
 	_cash.add_theme_font_override("font", UiTheme.body(UiTheme.W_BOLD))
@@ -52,6 +51,7 @@ func _dress() -> void:
 	_close.flat = false
 	UiTheme.dress_button(_close, UiTheme.ghost_boxes(), UiTheme.INK_SOFT,
 		UiTheme.SIZE_TAB)
+	UiTheme.dress_window_text(_close, _close.text, UiTheme.WIN_BUTTON, UiTheme.SIZE_TAB)
 	_close.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UiTheme.dress_scrollbar(($Root/Window/Scroll as ScrollContainer).get_v_scroll_bar())
 
@@ -113,13 +113,15 @@ func _pack_card(pack: Dictionary, data: SaveData, cash: int) -> Control:
 	if cash < price:
 		# Niente bottone spento: un tasto che non si può premere invita a
 		# provarci. Si dice perché non si può, e basta. Come all'agenzia.
-		action.add_child(_label(tr("SW_NO_CASH"), UiTheme.BAD,
-			UiTheme.SIZE_LABEL, UiTheme.W_MEDIUM))
+		action.add_child(UiTheme.window_label(tr("SW_NO_CASH"), UiTheme.WIN_LABEL,
+			UiTheme.SIZE_LABEL, UiTheme.BAD, UiTheme.W_MEDIUM))
 	else:
 		var button := Button.new()
 		button.text = tr("SW_ORDER")
 		button.focus_mode = Control.FOCUS_NONE
 		UiTheme.dress_button(button, UiTheme.primary_boxes(), UiTheme.CARD,
+			UiTheme.SIZE_LABEL, UiTheme.W_BOLD)
+		UiTheme.dress_window_text(button, button.text, UiTheme.WIN_BUTTON,
 			UiTheme.SIZE_LABEL, UiTheme.W_BOLD)
 		button.custom_minimum_size = Vector2(76, 0)
 		button.set_script(BUTTON_SCRIPT)

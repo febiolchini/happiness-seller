@@ -15,15 +15,15 @@ const OUT_DIR := "user://shots"
 
 ## posizione del protagonista, ora, tempo, nome del file, livello di zoom
 const SHOTS := [
-	[Vector2(320, 264), 13.0, "clear", "erba_casa_largo", 3],
+	[Vector2(320, 264), 13.0, "clear", "erba_casa_largo", 2],
 	[Vector2(300, -330), 13.0, "clear", "erba_dietro_giorno", -1],
 	[Vector2(300, -330), 18.9, "clear", "erba_dietro_tramonto", -1],
 	[Vector2(660, -330), 22.5, "clear", "erba_lampioni_notte", -1],
-	[Vector2(300, -330), 13.0, "clear", "erba_vicino", 7],
-	[Vector2(4712, 3600), 13.0, "clear", "erba_hillside_clinica", 3],
+	[Vector2(300, -330), 13.0, "clear", "erba_vicino", 5],
+	[Vector2(4712, 3600), 13.0, "clear", "erba_hillside_clinica", 2],
 	[Vector2(5500, 2600), 13.0, "clear", "erba_hillside_giorno", -1],
-	[Vector2(5500, 2600), 13.0, "clear", "erba_hillside_largo", 2],
-	[Vector2(5500, 2600), 22.5, "clear", "erba_hillside_notte", 3],
+	[Vector2(5500, 2600), 13.0, "clear", "erba_hillside_largo", 1],
+	[Vector2(5500, 2600), 22.5, "clear", "erba_hillside_notte", 2],
 ]
 
 const SETTLE := 1.5
@@ -54,7 +54,7 @@ func _ready() -> void:
 	# La scia: da sinistra a destra, a passo d'uomo, scatto a metà.
 	GameState.current.weather = "clear"
 	GameState.current.time_of_day = 13.0
-	camera.set_level(6)
+	camera.set_level(5)
 	player.global_position = Vector2(180, -300)
 	await get_tree().create_timer(SETTLE).timeout
 	var t := 0.0

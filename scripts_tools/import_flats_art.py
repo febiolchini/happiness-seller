@@ -173,6 +173,27 @@ ASSETS = [
     # marciapiede di MILL ROAD, 322 px. Ha tre strisce animate: la ruota sul
     # cavalletto, l'insegna appesa, il neon OPEN.
     ("render_bici.png", "bikeShop", 322, None),
+    # La steak house sopra al parcheggio del grossista (`blender_steakhouse.py`).
+    # La LARGHEZZA e' l'isolato intero, dal marciapiede di HILL DRIVE a quello
+    # di PORT STREET: 656 px. Tre strisce animate: la porta che si apre, il
+    # fumo della griglia, il neon OPEN.
+    ("render_steakhouse.png", "steakhouse", 656, None),
+    # L'albero: un disegno e non un render, quindi la taglia si decide. 128 px
+    # d'altezza sono 5,7 m a 22,3 px/m: un albero di viale, che sta fra due
+    # lampioni del parcheggio senza coprirli. Si muove col vento in gioco, con
+    # uno shader (`tree_sway.gdshader`), non con una striscia di fotogrammi.
+    ("disegno_albero.png", "tree", None, 128),
+    # Il cespuglio: anche lui un disegno, largo 60 px (2,7 m), quanto l'aiuola
+    # del parcheggio meno un palmo per parte. Si muove come l'albero.
+    ("disegno_cespuglio.png", "bush", 60, None),
+    # La casa con la staccionata, a sinistra della casa gialla
+    # (`blender_casa_staccionata.py`). La LARGHEZZA e' il lotto, dal
+    # marciapiede di WESTGATE AVENUE al muro della casa gialla: 276 px.
+    ("render_casa_staccionata.png", "picketHouse", 276, None),
+    # La casetta azzurra su WESTGATE AVENUE, dietro alla casa con la
+    # staccionata (`blender_casa_blu.py`): la prima con l'ingresso a ovest. La
+    # LARGHEZZA e' il lotto, 16 m a 22,3 px/m.
+    ("render_casa_blu.png", "blueCottage", 357, None),
     # L'aeroporto di CIVIC CENTER (`blender_aeroporto.py`): due hangar e la
     # torre di controllo, larghi quanto i loro lotti a 22,3 px/m. La torre ha
     # anche la striscia del radar che gira.
@@ -405,15 +426,21 @@ def main():
                      -fw // 2, -fh, fw, fh, len(sorgenti)))
             continue
         path = os.path.join(SOURCE, source)
+        if not os.path.isfile(path):
+            print("%-16s manca %s: saltato" % (name, source))
+            continue
         intero = Image.open(path).convert("RGBA")
         box = riquadro(intero)
         art = scale(intero.crop(box), width, height)
         out = os.path.join(BUILDINGS, name + ".png")
         art.save(out)
         # Lo scatto delle luci, se c'e': stesso ritaglio e stessa taglia del
-        # disegno, o in gioco si appoggia storto.
+        # disegno, o in gioco si appoggia storto. Solo per i render: per un
+        # disegno il nome non cambia, e il disegno stesso passerebbe per il suo
+        # scatto delle luci (e cosi' anche per la maschera del vetro, sotto).
+        render = source.startswith("render_")
         acceso = os.path.join(SOURCE, source.replace("render_", "luci_"))
-        if os.path.isfile(acceso):
+        if render and os.path.isfile(acceso):
             lit = luci(Image.open(acceso).convert("RGB").crop(box))
             lit = alone(scale(lit, art.width, art.height))
             if np.asarray(lit.getchannel("A")).max() >= TRIM_ALPHA:
@@ -425,7 +452,7 @@ def main():
         # e' un dato che lo shader legge canale per canale. Sfumarlo vorrebbe
         # dire dire allo shader che il vetro guarda un po' dappertutto.
         vetro = os.path.join(SOURCE, source.replace("render_", "vetro_"))
-        if os.path.isfile(vetro):
+        if render and os.path.isfile(vetro):
             maschera = scale(Image.open(vetro).convert("RGBA").crop(box),
                              art.width, art.height)
             maschera.save(os.path.join(BUILDINGS, name + "Glass.png"))

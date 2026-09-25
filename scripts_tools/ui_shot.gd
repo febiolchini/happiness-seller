@@ -16,6 +16,8 @@ const CITY := preload("res://scenes/levels/City.tscn")
 const MANAGEMENT := preload("res://scenes/ui/ManagementWindow.tscn")
 const REAL_ESTATE := preload("res://scenes/ui/RealEstateWindow.tscn")
 const SEED_WHOLESALE := preload("res://scenes/ui/SeedWholesaleWindow.tscn")
+const GUIDE := preload("res://scenes/ui/GuideBook.tscn")
+const ORG_NAME := preload("res://scripts/ui/org_name_window.gd")
 const OUT_DIR := "user://shots"
 
 ## Una partita a metà strada: con la cassa a zero e nessun vaso, metà schermate
@@ -82,6 +84,29 @@ func _ready() -> void:
 	tela.add_child(grossista)
 	await get_tree().create_timer(0.4).timeout
 	await _scatta("ui_grossista")
+
+	grossista.queue_free()
+	await get_tree().process_frame
+	var guida := GUIDE.instantiate()
+	tela.add_child(guida)
+	await get_tree().create_timer(0.4).timeout
+	await _scatta("ui_guida")
+
+	guida.queue_free()
+	await get_tree().process_frame
+	var nome := CanvasLayer.new()
+	nome.set_script(ORG_NAME)
+	add_child(nome)
+	await get_tree().create_timer(0.4).timeout
+	await _scatta("ui_nome_banda")
+
+	nome.queue_free()
+	await get_tree().process_frame
+	var dialogo = city.get_node("DialogueBox")
+	dialogo.open("OFFICER BEATTY", "Keep your nose clean around here.", [
+		{"label": "Sell 5 g for 40 $"}, {"label": "Goodbye"}])
+	await get_tree().create_timer(0.4).timeout
+	await _scatta("ui_dialogo")
 
 	print("fatto: %s" % ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()

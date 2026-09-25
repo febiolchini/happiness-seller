@@ -84,6 +84,9 @@ const LOT_STYLES := {
 	"asphalt": {"fill": Color(0.205, 0.205, 0.215), "line": Color(0.86, 0.86, 0.72, 0.50)},
 	"court": {"fill": Color(0.42, 0.30, 0.24), "line": Color(0.90, 0.92, 0.88, 0.45)},
 	"pool": {"fill": Color(0.24, 0.48, 0.58), "line": Color(0.85, 0.92, 0.95, 0.45)},
+	# Un'aiuola in un parcheggio: il cordolo di cemento chiaro e dentro la
+	# terra, che l'erba di `LAYERED_GRASS` copre quasi tutta.
+	"aiuola": {"fill": Color(0.68, 0.67, 0.64), "line": Color(0.30, 0.25, 0.18)},
 }
 
 # --- Le piastrelle stradali -------------------------------------------------
@@ -212,6 +215,12 @@ func _draw_lots() -> void:
 				draw_rect(rect.grow(-4.0), line, false, 2.0)
 			"asphalt":
 				_draw_parking_bays(rect, line)
+			"aiuola":
+				draw_rect(rect.grow(-3.0), line, true)
+				# L'ombra del cordolo sul lato basso, verso la camera: senza,
+				# l'aiuola e' un rettangolo dipinto e non un gradino.
+				draw_rect(Rect2(rect.position.x, rect.end.y - 2.0, rect.size.x, 2.0),
+					fill.darkened(0.35), true)
 			"gravel", "concrete", "dirt":
 				draw_rect(rect, line, false, 1.0)
 				_draw_scatter(rect, line)

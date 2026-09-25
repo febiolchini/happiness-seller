@@ -118,8 +118,9 @@ func _dress() -> void:
 	_panel.add_theme_stylebox_override("panel", UiTheme.window_box())
 	_header.add_theme_stylebox_override("panel", UiTheme.header_box())
 
-	_title.add_theme_font_override("font", UiTheme.display())
-	_title.add_theme_font_size_override("font_size", UiTheme.SIZE_TITLE)
+	# Titolo, "chiudi", schede ed etichette fisse col pennello delle finestre
+	# (`UiTheme.WINDOW_FILE`); cifre, prezzi e spiegazioni con Nunito.
+	UiTheme.dress_window_text(_title, _title.text, UiTheme.WIN_TITLE, UiTheme.SIZE_TITLE)
 	_title.add_theme_color_override("font_color", UiTheme.INK)
 
 	_cash.add_theme_font_override("font", UiTheme.body(UiTheme.W_BOLD))
@@ -131,6 +132,8 @@ func _dress() -> void:
 	_clock.add_theme_color_override("font_color", UiTheme.INK_SOFT)
 
 	UiTheme.dress_button(_close_button, UiTheme.ghost_boxes(), UiTheme.INK_SOFT,
+		UiTheme.SIZE_TAB)
+	UiTheme.dress_window_text(_close_button, _close_button.text, UiTheme.WIN_BUTTON,
 		UiTheme.SIZE_TAB)
 	_close_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 
@@ -206,6 +209,8 @@ func _select_tab(index: int) -> void:
 			"pressed": boxes["active"],
 			"disabled": boxes["normal"],
 		}, UiTheme.ACCENT_DARK if attiva else UiTheme.INK_SOFT, UiTheme.SIZE_TAB,
+			UiTheme.W_BOLD if attiva else UiTheme.W_MEDIUM)
+		UiTheme.dress_window_text(button, button.text, UiTheme.WIN_TAB, UiTheme.SIZE_TAB,
 			UiTheme.W_BOLD if attiva else UiTheme.W_MEDIUM)
 		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_build_tab()
@@ -286,6 +291,10 @@ func _refresh() -> void:
 			var text: String = text_source.call(data)
 			if button.text != text:
 				button.text = text
+				# Il pennello solo se la nuova scritta e' di sole parole:
+				# "ANNAFFIA TUTTO (3)" torna a Nunito, "LICENZIA" resta a pennello.
+				UiTheme.dress_window_text(button, text, UiTheme.WIN_BUTTON,
+					UiTheme.SIZE_VALUE, UiTheme.W_BOLD)
 		var enabled: Callable = action.get("enabled", Callable())
 		if enabled.is_valid():
 			button.disabled = not bool(enabled.call(data))
@@ -923,8 +932,10 @@ func _add_field(caption: String, text: Callable, color := Callable(), pixel_capt
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 
-	var name_label := UiTheme.label(caption, UiTheme.SIZE_LABEL, UiTheme.INK_SOFT,
-		UiTheme.W_MEDIUM if pixel_caption else UiTheme.W_REGULAR)
+	# Col pennello se l'etichetta e' di sole parole ("SCORTA"), con Nunito se ha
+	# cifre dentro ("VASO 3"): lo decide `UiTheme` guardando il testo.
+	var name_label := UiTheme.window_label(caption, UiTheme.WIN_LABEL, UiTheme.SIZE_LABEL,
+		UiTheme.INK_SOFT, UiTheme.W_MEDIUM if pixel_caption else UiTheme.W_REGULAR)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_label)
 

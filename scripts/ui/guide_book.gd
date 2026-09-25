@@ -103,11 +103,10 @@ func _dress() -> void:
 	_panel.add_theme_stylebox_override("panel", UiTheme.window_box())
 	_header.add_theme_stylebox_override("panel", UiTheme.header_box())
 
-	# Il titolo col font disegnato a mano del gioco, come il gestionale: è
-	# l'unica riga di questa finestra che deve dire di che gioco è, e le altre
-	# quattrocento parole hanno bisogno di un font che si legga.
-	_title.add_theme_font_override("font", UiTheme.display())
-	_title.add_theme_font_size_override("font_size", UiTheme.SIZE_TITLE)
+	# Titolo, voci della colonna e intestazioni col pennello delle finestre,
+	# come il gestionale; i paragrafi con Nunito: quattrocento parole hanno
+	# bisogno di un font che si legga, e hanno cifre e punteggiatura.
+	UiTheme.dress_window_text(_title, _title.text, UiTheme.WIN_TITLE, UiTheme.SIZE_TITLE)
 	_title.add_theme_color_override("font_color", UiTheme.INK)
 
 	_lead.add_theme_font_override("font", UiTheme.body(UiTheme.W_MEDIUM))
@@ -116,6 +115,8 @@ func _dress() -> void:
 
 	UiTheme.dress_button(_close, UiTheme.ghost_boxes(), UiTheme.INK_SOFT,
 		UiTheme.SIZE_LABEL, UiTheme.W_BOLD)
+	UiTheme.dress_window_text(_close, _close.text, UiTheme.WIN_BUTTON, UiTheme.SIZE_LABEL,
+		UiTheme.W_BOLD)
 	_close.set_script(BUTTON_SCRIPT)
 	_close.use_press_offset = false
 	UiTheme.dress_scrollbar(_scroll.get_v_scroll_bar())
@@ -148,6 +149,8 @@ func _select(index: int) -> void:
 			"disabled": boxes["normal"],
 		}, UiTheme.ACCENT_DARK if active else UiTheme.INK_SOFT, UiTheme.SIZE_LABEL,
 			UiTheme.W_BOLD if active else UiTheme.W_MEDIUM)
+		UiTheme.dress_window_text(_buttons[i], _buttons[i].text, UiTheme.WIN_TAB,
+			UiTheme.SIZE_LABEL, UiTheme.W_BOLD if active else UiTheme.W_MEDIUM)
 		_buttons[i].alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_build_page()
 
@@ -159,8 +162,9 @@ func _build_page() -> void:
 		return
 	var section: Dictionary = _sections[_open]
 
-	var heading := UiTheme.label(
-		tr(str(section["title"])), UiTheme.SIZE_BIG, UiTheme.ACCENT, UiTheme.W_BOLD)
+	var heading := UiTheme.window_label(
+		tr(str(section["title"])), UiTheme.WIN_TITLE, UiTheme.SIZE_BIG, UiTheme.ACCENT,
+		UiTheme.W_BOLD)
 	_content.add_child(heading)
 	_content.add_child(_rule())
 
@@ -173,8 +177,9 @@ func _build_page() -> void:
 			continue
 		var caption := _caption_of(text)
 		if not caption.is_empty():
-			_content.add_child(UiTheme.label(
-				caption, UiTheme.SIZE_LABEL, UiTheme.ACCENT_DARK, UiTheme.W_BOLD))
+			_content.add_child(UiTheme.window_label(
+				caption, UiTheme.WIN_LABEL, UiTheme.SIZE_LABEL, UiTheme.ACCENT_DARK,
+				UiTheme.W_BOLD))
 			text = text.substr(caption.length() + 1).strip_edges()
 		_content.add_child(_paragraph(text))
 	_scroll.scroll_vertical = 0

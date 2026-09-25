@@ -9,7 +9,6 @@ extends Control
 const CITY := "res://scenes/levels/City.tscn"
 const ARROW := preload("res://assets/sprites/ui/cursors/arrow_menu.png")
 const HOTSPOT := Vector2(40, 28)
-const MENU_FONT := preload("res://assets/sprites/ui/alphabet.fnt")
 const HOVER_COLOR := Color(1.0, 0.85, 0.1)
 ## Secondi entro cui va confermata la cancellazione, prima che il tasto torni normale.
 const CONFIRM_TIMEOUT := 3.0
@@ -56,8 +55,9 @@ func _build_row(save: Dictionary) -> Control:
 	row.add_child(delete_button)
 	return row
 
-## I testi con dei numeri usano il font di sistema: `alphabet.fnt` contiene solo
-## lettere e spazio, quindi con lui cifre, "$" e "—" sparirebbero dallo schermo.
+## I testi con dei numeri usano il font di sistema: il pennello dei menu
+## (`brush.fnt`) contiene solo lettere e spazio, quindi con lui cifre, "$" e
+## "—" sparirebbero dallo schermo.
 func _info_label(text: String, color := Color(0.94, 0.95, 0.97)) -> Label:
 	var label := Label.new()
 	label.text = text
@@ -65,13 +65,12 @@ func _info_label(text: String, color := Color(0.94, 0.95, 0.97)) -> Label:
 	label.add_theme_color_override("font_color", color)
 	return label
 
-## I tasti invece hanno solo lettere, quindi possono usare il font del gioco.
+## I tasti invece hanno solo lettere, quindi possono usare il pennello.
 func _action_button(text: String, on_press: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.flat = true
-	button.add_theme_font_override("font", MENU_FONT)
-	button.add_theme_font_size_override("font_size", 12)
+	UiTheme.dress_menu_text(button, UiTheme.MENU_SMALL)
 	button.add_theme_color_override("font_color", Color.WHITE)
 	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	# Hover semplice a colore: qui non si può spostare il tasto come nei menu

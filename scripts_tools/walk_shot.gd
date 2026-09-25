@@ -34,7 +34,7 @@ func _ready() -> void:
 	await get_tree().process_frame
 	var player: CharacterBody2D = city.get_node("Player")
 	var camera: Camera2D = city.get_node("Camera2D")
-	camera.set_level(6)
+	camera.set_level(5)
 
 	# Un attraversamento su MAIN STREET, davanti a casa.
 	var road: Rect2 = CityMap.ROADS_H[0]

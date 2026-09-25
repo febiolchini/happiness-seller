@@ -41,8 +41,7 @@ func _ready() -> void:
 
 	var title := Label.new()
 	title.text = tr("ORG_NAME_TITLE")
-	title.add_theme_font_override("font", UiTheme.display())
-	title.add_theme_font_size_override("font_size", UiTheme.SIZE_TITLE)
+	UiTheme.dress_window_text(title, title.text, UiTheme.WIN_TITLE, UiTheme.SIZE_TITLE)
 	title.add_theme_color_override("font_color", UiTheme.INK)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
@@ -64,6 +63,8 @@ func _ready() -> void:
 	_ok = Button.new()
 	_ok.text = tr("ORG_NAME_OK")
 	UiTheme.dress_button(_ok, UiTheme.primary_boxes(), Color.WHITE)
+	UiTheme.dress_window_text(_ok, _ok.text, UiTheme.WIN_BUTTON, UiTheme.SIZE_VALUE,
+		UiTheme.W_BOLD)
 	_ok.pressed.connect(_confirm)
 	box.add_child(_ok)
 

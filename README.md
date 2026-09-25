@@ -313,6 +313,14 @@ sta l'edificio, quindi da che parte è il marciapiede:
 Da lì `city.gd::_entry_offset()` ricava dove si ferma il protagonista.
 Sbagliarlo si vede subito: il personaggio va a fermarsi dietro al muro.
 
+La prima casa su una strada verticale è la **casetta azzurra** su WESTGATE
+AVENUE (`blender_casa_blu.py`, `"front": "east"`): ingresso a ovest. La camera
+però guarda sempre a nord, quindi di una casa girata si vede il **fianco**, non
+la facciata. Per questo va modellata su tutti e quattro i lati, curando di più
+quello a sud, che è quello che si vede, e il suo `entry` va scritto a mano: il
+conto automatico metterebbe il protagonista davanti al fianco invece che al
+cancello.
+
 ### Due strati di edifici
 
 `CityMap.BUILDINGS` contiene i **punti di riferimento**: i quaranta edifici che
@@ -708,6 +716,37 @@ muovono come un trenino. Sono salite quando il protagonista è tornato a
 camminare a passo d'uomo: a 52-72 un'auto impiegava mezzo isolato a superare un
 pedone, e una città in cui si cammina alla velocità del traffico non ha
 nessun motivo di farsi attraversare con prudenza.
+
+### Il parcheggio della steak house
+
+Fra COPPER STEER (la steak house, `scripts_tools/blender_steakhouse.py`) e il
+grossista c'è il parcheggio, e lì le auto non girano in tondo come in strada:
+stanno ferme negli stalli, e ogni tanto una arriva da MAIN STREET risalendo
+HILL DRIVE o PORT STREET e si infila in un posto, oppure una esce in
+retromarcia e se ne va. Lo fanno `ParkingLot` (chi e quando) e `ParkingCar`
+(come ci si muove: curve `Curve2D` con gli angoli arrotondati, invece delle
+rette delle corsie).
+
+- Gli stalli si ricavano dal lotto con le stesse misure con cui `city_ground.gd`
+  disegna le righe (`BAY`, `BAY_AISLE`), così le auto stanno dentro alle righe.
+- La prima fila, contro la facciata, ha solo auto ferme; si entra e si esce
+  dalle due file ai lati della corsia. Davanti alla porta del ristorante e
+  sotto ai lampioni i posti restano liberi.
+- Una manovra alla volta: la corsia è una sola e le auto non si vedono fra
+  loro.
+- Quante ce ne sono dipende dall'ora: quasi vuoto di notte, pieno a cena.
+- È solo scena: non si salva niente, a ogni ingresso in strada si ripopola.
+
+Il ristorante ha tre animazioni sporadiche (`anims` nella sua voce): la porta a
+vetri che si apre e si richiude, gli sbuffi di fumo dal camino della griglia,
+il neon OPEN che sfarfalla.
+
+In mezzo al parcheggio ci sono due aiuole (lotti `aiuola` in `LOTS`, tutte
+coperte d'erba curata), ciascuna fra due lampioni e con un albero. Gli alberi
+veri sono `CityMap.WIND_TREES`: il disegno di `tree.png` messo fra i nodi
+Y-sortati (`WindTree`), che ogni tanto una raffica piega di qualche pixel.
+La piega la fa lo shader `tree_sway.gdshader` a pixel interi, così la chioma
+resta netta; forza e frequenza delle raffiche vengono dal vento del meteo.
 
 ### Gli edifici disegnati si portano alla scala del gioco con uno script
 

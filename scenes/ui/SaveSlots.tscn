@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/ui/save_slots.gd" id="1_slots"]
 [ext_resource type="Script" path="res://scripts/ui/interactive_button.gd" id="2_button"]
-[ext_resource type="FontFile" path="res://assets/sprites/ui/alphabet.fnt" id="3_font"]
+[ext_resource type="FontFile" uid="uid://bf5t1r0rqfpwe" path="res://assets/sprites/ui/brush.fnt" id="3_font"]
 [ext_resource type="PackedScene" path="res://scenes/levels/City.tscn" id="4_city"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
@@ -32,12 +32,13 @@ interactive = false
 layer = 10
 
 [node name="Title" type="Label" parent="UI"]
+texture_filter = 2
 offset_left = 32.0
 offset_top = 20.0
 offset_right = 300.0
-offset_bottom = 44.0
+offset_bottom = 50.0
 theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 26
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 text = "MENU_SAVES"
 
@@ -46,7 +47,7 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 32.0
-offset_top = 52.0
+offset_top = 56.0
 offset_right = -32.0
 offset_bottom = -48.0
 grow_horizontal = 2
@@ -62,16 +63,17 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 10
 
 [node name="BackButton" type="Button" parent="UI"]
+texture_filter = 2
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 32.0
-offset_top = -40.0
-offset_right = 106.0
+offset_top = -42.0
+offset_right = 140.0
 offset_bottom = -18.0
 grow_vertical = 0
 theme_override_fonts/font = ExtResource("3_font")
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 16
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 flat = true
 text = "MENU_BACK"

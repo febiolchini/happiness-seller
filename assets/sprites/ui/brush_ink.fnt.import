@@ -1,0 +1,17 @@
+[remap]
+
+importer="font_data_bmfont"
+type="FontFile"
+uid="uid://cqbeqssnocjwt"
+path="res://.godot/imported/brush_ink.fnt-2183cd79164ca10793b6f3adee1e3b22.fontdata"
+
+[deps]
+
+source_file="res://assets/sprites/ui/brush_ink.fnt"
+dest_files=["res://.godot/imported/brush_ink.fnt-2183cd79164ca10793b6f3adee1e3b22.fontdata"]
+
+[params]
+
+fallbacks=[]
+compress=true
+scaling_mode=2

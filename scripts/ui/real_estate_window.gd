@@ -66,8 +66,7 @@ func _ready() -> void:
 func _dress() -> void:
 	_dimmer.color = UiTheme.DIMMER
 	_window.add_theme_stylebox_override("panel", UiTheme.window_box())
-	_title.add_theme_font_override("font", UiTheme.display())
-	_title.add_theme_font_size_override("font_size", UiTheme.SIZE_TITLE)
+	UiTheme.dress_window_text(_title, _title.text, UiTheme.WIN_TITLE, UiTheme.SIZE_TITLE)
 	_title.add_theme_color_override("font_color", UiTheme.INK)
 	_rule.color = UiTheme.LINE
 	_cash.add_theme_font_override("font", UiTheme.body(UiTheme.W_BOLD))
@@ -78,6 +77,7 @@ func _dress() -> void:
 	_close.flat = false
 	UiTheme.dress_button(_close, UiTheme.ghost_boxes(), UiTheme.INK_SOFT,
 		UiTheme.SIZE_TAB)
+	UiTheme.dress_window_text(_close, _close.text, UiTheme.WIN_BUTTON, UiTheme.SIZE_TAB)
 	_close.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UiTheme.dress_scrollbar(($Root/Window/Scroll as ScrollContainer).get_v_scroll_bar())
 
@@ -117,8 +117,8 @@ func _listing_row(listing: Dictionary, data: SaveData, cash: int) -> Control:
 
 	var head := HBoxContainer.new()
 	head.add_theme_constant_override("separation", 8)
-	var name_label := _label(tr(str(listing["titolo"])), VALUE_COLOR,
-		UiTheme.SIZE_VALUE, UiTheme.W_BOLD)
+	var name_label := UiTheme.window_label(tr(str(listing["titolo"])), UiTheme.WIN_BUTTON,
+		UiTheme.SIZE_VALUE, VALUE_COLOR, UiTheme.W_BOLD)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(name_label)
 	var prezzo := _label(UiFormat.money(price), UiTheme.ACCENT_DARK,
@@ -133,13 +133,13 @@ func _listing_row(listing: Dictionary, data: SaveData, cash: int) -> Control:
 	var action := HBoxContainer.new()
 	action.alignment = BoxContainer.ALIGNMENT_END
 	if owned:
-		action.add_child(_label(tr("RE_OWNED"), OWNED_COLOR, UiTheme.SIZE_LABEL,
-			UiTheme.W_BOLD))
+		action.add_child(UiTheme.window_label(tr("RE_OWNED"), UiTheme.WIN_LABEL,
+			UiTheme.SIZE_LABEL, OWNED_COLOR, UiTheme.W_BOLD))
 	elif cash < price:
 		# Niente bottone spento: un tasto che non si puo' premere invita a
 		# provarci. Si dice perche' non si puo', e basta.
-		action.add_child(_label(tr("RE_NO_CASH"), POOR_COLOR, UiTheme.SIZE_LABEL,
-			UiTheme.W_MEDIUM))
+		action.add_child(UiTheme.window_label(tr("RE_NO_CASH"), UiTheme.WIN_LABEL,
+			UiTheme.SIZE_LABEL, POOR_COLOR, UiTheme.W_MEDIUM))
 	else:
 		var button := _button(tr("RE_BUY"), UiTheme.SIZE_LABEL)
 		button.pressed.connect(_on_buy.bind(id))
@@ -171,6 +171,7 @@ func _button(text: String, size: int) -> Button:
 	button.focus_mode = Control.FOCUS_NONE
 	UiTheme.dress_button(button, UiTheme.primary_boxes(), UiTheme.CARD, size,
 		UiTheme.W_BOLD)
+	UiTheme.dress_window_text(button, text, UiTheme.WIN_BUTTON, size, UiTheme.W_BOLD)
 	button.custom_minimum_size = Vector2(76, 0)
 	button.set_script(BUTTON_SCRIPT)
 	return button

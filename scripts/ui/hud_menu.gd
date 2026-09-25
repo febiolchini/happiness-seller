@@ -49,7 +49,9 @@ const BAR_GAP := 5.0
 const PANEL_TOP := 22.0
 const PANEL_WIDTH := 104.0
 
-const LABEL_SIZE := 9
+## Le etichette col pennello dei menu (`UiTheme.menu()`), i valori col font di
+## sistema: il pennello le cifre non ce le ha.
+const LABEL_SIZE := UiTheme.MENU_SMALL
 const VALUE_SIZE := 14
 
 ## Le righe del pannello, dall'alto in basso. Per aggiungerne una (i semi, i
@@ -138,6 +140,11 @@ func _apply_open() -> void:
 	if not _open:
 		size = BUTTON
 	else:
+		# Davanti a tutto il resto dell'HUD. La barra dell'attenzione viene
+		# aggiunta dopo di lui (`hud.gd`) e sta proprio sotto al tasto: senza,
+		# il pannello aperto le finiva sotto e le etichette restavano tagliate
+		# a sinistra ("TOCK", "EEDS").
+		get_parent().move_child(self, -1)
 		# **La misura si chiede al pannello, non si scrive.** Il pannello si
 		# allarga col numero che ha dentro — "1.250.000 $" è metà più largo di
 		# "4.820 $" — e il rettangolo di questo nodo è quello che si mangia i
@@ -182,9 +189,14 @@ func _build_panel() -> void:
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		lines.add_child(line)
 
-		var label := UiTheme.label(tr(str(row["label"])), LABEL_SIZE, LABEL_COLOR)
+		# Senza `_add_shadow()`: il pennello l'ombra ce l'ha gia' dentro al
+		# disegno, e una seconda la farebbe sembrare scritta due volte.
+		var label := Label.new()
+		label.text = tr(str(row["label"]))
+		UiTheme.dress_menu_text(label, LABEL_SIZE)
+		label.add_theme_color_override("font_color", LABEL_COLOR)
+		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		_add_shadow(label)
 		line.add_child(label)
 		_labels.append(label)
 

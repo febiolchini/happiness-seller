@@ -396,6 +396,18 @@ const LOTS := [
 	# saprebbe mai che c'è. Così invece i primi 171 px spuntano sopra alla
 	# sagoma dell'edificio, ed è lì che stanno i lampioni.
 	{"rect": Rect2(4400, -230, 624, 330), "kind": "asphalt"},
+	# Le due aiuole in mezzo al parcheggio, ciascuna col suo albero
+	# (`WIND_TREES`). Stanno nella fila sotto alla corsia, al posto di tre
+	# stalli ciascuna (sono larghe tre posti e profonde uno, sulle righe), e
+	# simmetriche rispetto alla porta della steak house. La x non e' a caso: la
+	# chioma e' larga 120 px, e cosi' ciascuna sta fra due dei tre lampioni del
+	# parcheggio (4556, 4712, 4868) senza coprirne nessuno. Di sera l'albero ha
+	# un lampione per parte.
+	#
+	# Dopo il parcheggio in questa lista, perche' il terreno le disegna nell'
+	# ordine: sopra all'asfalto e alle sue righe.
+	{"rect": Rect2(4592, -98, 72, 40), "kind": "aiuola"},
+	{"rect": Rect2(4760, -98, 72, 40), "kind": "aiuola"},
 	# Il parcheggio del cinema, ACCANTO e non dietro: sul fronte di CROSS
 	# STREET, fra il muro destro del cinema (5646) e il marciapiede di LOCK
 	# STREET (5856), dieci pixel di respiro dal muro. Accanto si vede tutto, a
@@ -429,6 +441,47 @@ const LAYERED_GRASS := [
 	{"style": "brullo", "district": "industrial"},
 	# Il prato fra le piste dell'aeroporto: tagliato corto, come quello curato.
 	{"style": "curato", "rects": [AIRPORT]},
+	# L'erba delle aiuole del parcheggio: tutto il riquadro, cordolo compreso.
+	{"style": "curato", "lot_kind": "aiuola"},
+]
+
+## --- Alberi e cespugli ------------------------------------------------------
+##
+## Gli alberi e i cespugli veri, quelli col disegno e il vento (`WindTree`).
+## Ogni riga e' una pianta: `"at"` e' il suo PIEDE, dove tocca terra a meta'
+## larghezza, `"scale"` quanto e' grande rispetto al disegno originale (1.0 =
+## taglia piena, si omette quando non serve scalare). Da li' il disegno sale
+## verso l'alto (l'albero per 128 px, il cespuglio per 27, PRIMA di applicare
+## `scale`) e si allarga mezzo per parte.
+##
+## **Per spostarne uno** si cambiano i due numeri di `"at"`: il primo va a
+## destra crescendo, il secondo va in BASSO crescendo (e' la y di Godot). **Per
+## ingrandirlo o rimpicciolirlo** si cambia `"scale"` (es. 1.4 = 40% piu'
+## grande, 0.7 = 30% piu' piccolo): cresce dal piede, quindi il punto d'appoggio
+## non si sposta, e tutto il resto — l'oscillazione col vento, l'ombra — si
+## scala insieme al disegno, perche' e' `WindTree` stesso (il nodo, non solo lo
+## sprite) a essere ridimensionato in `city.gd`. Per aggiungerne una si copia
+## una riga, per toglierla la si cancella.
+##
+## Il piede decide anche chi sta davanti: fra due cose che si sovrappongono
+## e' davanti quella col piede piu' in basso. E' per questo che i cespugli
+## stanno nove pixel sotto al piede del loro albero: coprono la base del
+## tronco, invece di finirci dietro.
+const WIND_TREES := [
+	# I due del parcheggio della steak house, al centro delle loro aiuole (vedi
+	# `LOTS`), col piede un po' sotto alla meta' dell'aiuola: la chioma sale
+	# sopra alla corsia e alla fila di stalli dall'altra parte, e le auto che ci
+	# passano sotto spariscono dietro alle foglie.
+	
+]
+
+## I cespugli: stesse regole degli alberi qui sopra.
+const BUSHES := [
+	# Uno ai piedi di ciascun albero del parcheggio, nella sua aiuola: largo
+	# quasi quanto l'aiuola (72 px) e col piede tre pixel sopra al suo bordo
+	# basso (-58), cosi' non sborda sull'asfalto.
+	{"at": Vector2(4628, -70), "scale":1.35},
+	{"at": Vector2(4796, -70), "scale":1.35}
 ]
 
 ## I prati di una voce di `LAYERED_GRASS`, in coordinate mondo.
@@ -436,6 +489,11 @@ static func grass_rects(entry: Dictionary) -> Array[Rect2]:
 	var list: Array[Rect2] = []
 	for rect in entry.get("rects", []):
 		list.append(rect)
+	# I prati di un tipo di lotto, rientrati del cordolo: le aiuole.
+	if entry.has("lot_kind"):
+		for lot in LOTS:
+			if str(lot["kind"]) == str(entry["lot_kind"]):
+				list.append((lot["rect"] as Rect2).grow(-float(entry.get("inset", 0.0))))
 	if entry.has("district"):
 		list.append_array(district_blocks(str(entry["district"])))
 	return list
@@ -641,6 +699,61 @@ const BUILDINGS := [
 		"offset": Vector2(-98, -163), "click": Rect2(-98, -163, 196, 163),
 		"entry": Vector2(0, 30),
 		"interior": "res://scenes/rooms/Garage.tscn", "owned": true,
+	},
+	{
+		# La casa con la staccionata, a sinistra della casa gialla su CROSS
+		# STREET: ala del garage a due piani col timpano a squame, corpo basso
+		# con la porta verde, portico con la ringhiera, tetto di scandole di
+		# cedro e staccionata bianca a punta. La costruisce
+		# `scripts_tools/blender_casa_staccionata.py`, da una foto.
+		#
+		# Riempie il lotto dal marciapiede di WESTGATE AVENUE (-352) a due
+		# pixel dalla casa gialla (-76): 276 px. Gli ultimi 49 a destra sono il
+		# giardinetto recintato dalla staccionata; per questo `click` e' solo la
+		# casa, e il giardinetto no.
+		"id": "PicketHouse", "base": Vector2(-214, 944),
+		"label": "PICKET HOUSE",
+		"texture": "res://assets/sprites/buildings/picketHouse.png",
+		"lit": "res://assets/sprites/buildings/picketHouseLit.png",
+		"offset": Vector2(-138, -226), "click": Rect2(-138, -226, 228, 226),
+		# La porta verde fra la finestra col timpanetto e il portico.
+		"entry": Vector2(6, 24),
+	},
+	{
+		# La casetta azzurra, dietro alla casa con la staccionata: la prima
+		# casa della citta' con l'ingresso a OVEST, su WESTGATE AVENUE, la strada
+		# verticale che chiude la citta' da quel lato. La costruisce
+		# `scripts_tools/blender_casa_blu.py`, da una foto, modellata su tutti e
+		# quattro i lati.
+		#
+		# **Di lei si vede il fianco sud, non la facciata.** La camera guarda
+		# sempre a nord, e una casa che guarda a ovest le mostra il fianco: la
+		# facciata col vestibolo e il cancelletto sta di taglio, a sinistra
+		# nello sprite. Per questo `front` e' "east" — sta sul lato est della
+		# strada — ed `entry` e' scritto a mano: il conto automatico metterebbe
+		# il protagonista davanti al fianco, non al cancelletto.
+		#
+		# Il lotto va dal marciapiede di WESTGATE AVENUE (-352, due pixel di
+		# respiro) a x 7, e da sud a nord dalla riga di terra (716, due pixel
+		# sopra al tetto della casa con la staccionata) a 479, ben sotto alla
+		# fascia di MAIN STREET (400). La staccionata a tavole lo chiude tutto:
+		# e' il lotto della casa, come la rete della casa gialla.
+		"id": "BlueCottage", "base": Vector2(-171, 800),
+		"front": "east",
+		"label": "BLUE COTTAGE",
+		"texture": "res://assets/sprites/buildings/blueCottage.png",
+		"lit": "res://assets/sprites/buildings/blueCottageLit.png",
+		# `click` e' piu' stretto del disegno: si ferma a x -57, dove comincia
+		# quello della casa gialla. L'angolo di dietro del lotto (staccionata
+		# est e terrazzino) finisce SOTTO al tetto alto della casa gialla, che
+		# l'Y-sort mette davanti perche' ha la riga di terra piu' in basso: e'
+		# gia' occupato da lei, e contato due volte i due edifici
+		# risulterebbero sovrapposti.
+		"offset": Vector2(-179, -237), "click": Rect2(-179, -237, 293, 237),
+		# Sul marciapiede di WESTGATE AVENUE, davanti al cancelletto: il
+		# cancelletto sta cinque metri dentro al lotto da sud, cioe' 52 px
+		# sopra alla riga di terra.
+		"entry": Vector2(-203, -52),
 	},
 	{
 		# La casa gialla, a sinistra del garage in vendita su CROSS STREET: una
@@ -992,6 +1105,48 @@ const BUILDINGS := [
 		"sign": "res://assets/sprites/buildings/signs/wholesaleSign.png",
 		"sign_at": Vector2(31, -192),
 		"window": "res://scenes/ui/SeedWholesaleWindow.tscn",
+	},
+	{
+		# COPPER STEER, la steak house sopra al parcheggio del grossista: in
+		# ordine dall'alto ristorante, parcheggio, grossista, con la facciata
+		# rivolta verso il parcheggio. La costruisce
+		# `scripts_tools/blender_steakhouse.py`, presa da una foto di una steak
+		# house americana di catena.
+		#
+		# Occupa tutto quello che resta dell'isolato. In larghezza va dal
+		# marciapiede di HILL DRIVE (4384) a quello di PORT STREET (5040), come lo
+		# STAR CASINO nel suo. In altezza la base sta sei pixel sopra al bordo
+		# alto del parcheggio (-230) — il piede della torre, che sporge, e' il
+		# punto piu' basso del disegno, e cosi' non si appoggia sulla prima riga
+		# degli stalli — e la cima arriva a -476, quattro pixel sotto al
+		# marciapiede di HILLTOP ROAD.
+		#
+		# Non ci si entra — e' un ristorante, non un posto di lavoro — ma ha la
+		# porta: ci si arriva a piedi attraverso il parcheggio, e le auto che
+		# vanno e vengono (`ParkingLot`) lasciano libero il passaggio davanti.
+		#
+		# Tre cose si muovono, tutte ogni tanto: la porta a vetri che si apre
+		# quando entra qualcuno e si richiude piano, gli sbuffi di fumo dal
+		# camino della griglia, il neon OPEN che sfarfalla (e' luce: `emissive`).
+		"id": "Steakhouse", "base": Vector2(4712, -236),
+		"district": "COMMERCIAL DISTRICT",
+		"label": "COPPER STEER",
+		"texture": "res://assets/sprites/buildings/steakhouse.png",
+		"lit": "res://assets/sprites/buildings/steakhouseLit.png",
+		"offset": Vector2(-328, -240), "click": Rect2(-328, -240, 656, 240),
+		# Le ante a vetri sotto la pensilina, nella torre in mezzo alla facciata.
+		"entry": Vector2(0, 24),
+		"anims": [
+			{"texture": "res://assets/sprites/buildings/steakhousePorta.png",
+				"at": Vector2(-21, -49), "frames": 18, "mode": "event", "fps": [9.0],
+				"pause": [5.0, 14.0]},
+			{"texture": "res://assets/sprites/buildings/steakhouseFumo.png",
+				"at": Vector2(253, -219), "frames": 18, "mode": "event", "fps": [7.0],
+				"pause": [1.5, 5.0]},
+			{"texture": "res://assets/sprites/buildings/steakhouseNeon.png",
+				"at": Vector2(73, -58), "frames": 10, "mode": "event", "fps": [9.0],
+				"pause": [6.0, 16.0], "emissive": true},
+		],
 	},
 	{
 		# --- I due grattacieli di DOWNTOWN ---------------------------------
@@ -1788,6 +1943,41 @@ static func lot_lamps() -> Array:
 				"reach": Vector2(0, 1),
 			})
 	return list
+
+## Le aiuole in cui seminare qualche fiore (`FlowerBed`): tutti i lotti
+## `LOTS` di tipo "aiuola". Ricavato e non scritto a mano, come i lampioni dei
+## piazzali: se un'aiuola si sposta o se ne aggiunge un'altra, i fiori la
+## seguono da soli.
+static func flower_beds() -> Array[Rect2]:
+	var list: Array[Rect2] = []
+	for lot in LOTS:
+		if str(lot["kind"]) == "aiuola":
+			list.append(lot["rect"])
+	return list
+
+## Il parcheggio fra la steak house e il grossista, per `ParkingLot`: il lotto,
+## le due strade da cui le auto arrivano e su cui escono (HILL DRIVE a ovest,
+## PORT STREET a est), e la x della porta del ristorante, davanti alla quale
+## gli stalli restano liberi.
+##
+## Ricavato e non scritto a mano, come i lampioni: se il parcheggio o il
+## ristorante si spostano, il via vai li segue.
+static func steakhouse_parking() -> Dictionary:
+	var door_x := 0.0
+	for entry: Dictionary in BUILDINGS:
+		if str(entry["id"]) == "Steakhouse":
+			door_x = (entry["base"] as Vector2).x + (entry["entry"] as Vector2).x
+	var islands: Array[Rect2] = []
+	for lot in LOTS:
+		if str(lot["kind"]) == "aiuola" and (lot["rect"] as Rect2).intersects(LOTS[0]["rect"]):
+			islands.append(lot["rect"])
+	return {
+		"lot": LOTS[0]["rect"],
+		"west": ROADS_V[4],
+		"east": ROADS_V[5],
+		"door_x": door_x,
+		"islands": islands,
+	}
 
 # --- Le strutture del campo da football ------------------------------------
 

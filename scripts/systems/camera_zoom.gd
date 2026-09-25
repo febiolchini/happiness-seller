@@ -11,20 +11,26 @@ extends Camera2D
 ##
 ## Per questo lo zoom non è continuo ma scatta tra scale nette intere.
 
-## Scale nette selezionabili: 1 = un pixel sprite per pixel schermo, 5 =
-## massimo avvicinamento. Arrivava a 8: Federico (2026-09-24) ha tolto gli
-## ultimi tre livelli, perche' cosi' da vicino molte cose perdono qualita' —
-## un pixel dello sprite diventava un quadrato grosso come un dito. Sotto l'1 si allarga oltre il pixel-perfect, fino a
-## inquadrare praticamente tutta la città.
+## Scale nette selezionabili: 1 = un pixel sprite per pixel schermo, 3 =
+## massimo avvicinamento. Arrivava a 8: Federico (2026-09-24) ha tolto via via
+## sia gli ultimi livelli — cosi' da vicino molte cose perdono qualita', un
+## pixel dello sprite diventava un quadrato grosso come un dito — sia il primo
+## (0.15, troppo lontano, mostrava oltre il bordo della cornice di montagne).
+## Sotto l'1 si allarga oltre il pixel-perfect, fino a inquadrare praticamente
+## tutta la città.
 ##
 ## Da 1 in su devono restare INTERI: a 1.5 un pixel dello sprite ne coprirebbe
 ## a volte 1 e a volte 2, e l'immagine "balla". Sotto l'1 quella garanzia si
 ## perde comunque (lo sprite viene rimpicciolito), quindi lì è solo una
 ## questione di leggibilità: bastano pochi scalini per non rendere la mappa
 ## illeggibile prima di arrivare alla vista d'insieme.
-@export var net_scales: Array[float] = [0.15, 0.25, 0.4, 0.6, 1, 2, 3, 4, 5]
+##
+## Il valore più basso resta comunque solo un punto di partenza: `_apply()`
+## non lo usa mai se è troppo basso per la finestra corrente, vedi
+## `_min_scale_to_fit_frame()`.
+@export var net_scales: Array[float] = [0.25, 0.4, 0.6, 1, 2, 3]
 ## Livello iniziale (indice in net_scales): 2x è la vista di default.
-@export var default_level := 5
+@export var default_level := 4
 ## Disattiva zoom, pan e cursore custom: usata quando la mappa è solo sfondo
 ## decorativo (es. dietro al menu principale) e non deve reagire al mouse.
 @export var interactive := true
@@ -165,9 +171,26 @@ func _step(direction: int) -> void:
 ## Traduce la scala netta desiderata nello zoom della camera, tenendo conto
 ## di quanto la finestra corrente sta già ingrandendo il canvas.
 func _apply() -> void:
-	var level: float = net_scales[_level] / _stretch()
+	var level: float = max(net_scales[_level], _min_scale_to_fit_frame()) / _stretch()
 	zoom = Vector2(level, level)
 	_snap()
+
+## La scala netta più bassa che non mostra oltre il bordo esterno delle
+## montagne (`CityMap.view_bounds()`).
+##
+## Sotto questa soglia l'inquadratura, allargandosi, diventa più larga o più
+## alta della cornice di montagne: siccome `Camera2D` limita solo dove può
+## stare il centro e non cosa disegna oltre il bordo, il resto dello schermo
+## restava il colore di sfondo del viewport — l'azzurro visto fuori dalle
+## montagne negli angoli alla vista più lontana. Qui si calcola, dalla
+## finestra corrente, la scala minima che tiene l'inquadratura dentro alla
+## cornice su entrambi gli assi, e `_apply()` non scende mai sotto.
+func _min_scale_to_fit_frame() -> float:
+	var frame: Rect2 = CityMap.view_bounds()
+	var viewport_size: Vector2 = get_viewport_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0 or frame.size.x <= 0.0 or frame.size.y <= 0.0:
+		return 0.0
+	return max(viewport_size.x / frame.size.x, viewport_size.y / frame.size.y)
 
 ## Di quanto la finestra corrente sta gia' ingrandendo il canvas: 2 a 720p.
 ##

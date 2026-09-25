@@ -23,8 +23,9 @@ extends RefCounted
 ##    automatico che verifica che ogni lingua abbia ogni riga.
 ##
 ## 2. **Le chiavi marcate PIXEL possono contenere solo lettere e spazio.**
-##    Sono quelle mostrate col font del gioco (`alphabet.fnt`), che ha
-##    cinquantatré caratteri: A-Z, a-z e lo spazio. Niente cifre, niente
+##    Sono quelle mostrate col font del gioco (`alphabet.fnt`) o col pennello
+##    dei menu (`brush.fnt`), che hanno cinquantatré caratteri: A-Z, a-z e lo
+##    spazio. Niente cifre, niente
 ##    accenti, niente apostrofi — una "à" o una "ñ" lì dentro non si disegna e
 ##    lascia un buco nella parola. Anche per questo lo spagnolo qui dice
 ##    "ESPANOL" e non "ESPAÑOL". Il controllo automatico verifica anche questo.
@@ -52,6 +53,11 @@ const LOCALE_NAMES := {
 ## della stessa frase una sotto l'altra.
 const TEXT := {
 	# --- Menu e impostazioni (PIXEL) ---------------------------------------
+	# Le voci del menu principale che prima erano immagini (PLAY, SETTINGS,
+	# EXIT, scritte in inglese e basta): adesso sono testo col pennello, e si
+	# traducono come le altre.
+	"MENU_CONTINUE": ["continue", "continua", "continuar"],
+	"MENU_QUIT": ["quit", "esci", "salir"],
 	"MENU_NEW_GAME": ["new game", "nuova partita", "partida nueva"],
 	"MENU_SAVES": ["saves", "salvataggi", "partidas"],
 	"MENU_SETTINGS": ["settings", "impostazioni", "ajustes"],
@@ -1188,10 +1194,13 @@ const PIXEL_FONT_CHARS := "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 ## L'elenco è scritto a mano perché è una proprietà di **dove** finisce la
 ## stringa, non della stringa: la stessa frase in un'altra Label andrebbe bene.
 const PIXEL_KEYS := [
+	"MENU_CONTINUE", "MENU_QUIT",
 	"MENU_NEW_GAME", "MENU_SAVES", "MENU_SETTINGS", "MENU_BACK", "MENU_VIDEO",
 	"MENU_AUDIO", "MENU_COMMANDS", "MENU_LANGUAGE", "MENU_LOAD", "MENU_DELETE",
 	"MENU_OFFLINE", "MENU_OFFLINE_ON", "MENU_OFFLINE_OFF",
 	"MENU_SURE",
+	# Le righe del menu a tre righe in partita: si leggono col pennello.
+	"STAFF_DEALER", "STAFF_GROWER",
 	"ROOM_ENTRANCE", "ROOM_KITCHEN", "ROOM_BASEMENT", "ROOM_GARAGE", "ROOM_GENERIC",
 	"ROOM_EXIT",
 	"PC_TITLE", "PC_CLOSE",

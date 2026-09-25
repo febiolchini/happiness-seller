@@ -210,6 +210,37 @@ func _build_city() -> void:
 	var airport := Airport.new()
 	add_child(airport)
 	airport.setup(_props)
+	# L'ingombro di ogni pianta, per non seminare fiori sotto alle foglie: lo
+	# si raccoglie mentre si piazzano, prima di disegnare i fiori qui sotto.
+	var plant_footprints: Array[Rect2] = []
+	for entry: Dictionary in CityMap.WIND_TREES:
+		var tree := WindTree.new()
+		tree.position = entry["at"]
+		# La scala si applica al NODO, non solo allo sprite: cosi' cresce dal
+		# piede (il pivot) e si porta dietro anche l'ombra disegnata in
+		# `WindTree._draw()` e l'oscillazione dello shader, senza bisogno di
+		# ricalcolare niente a mano.
+		var plant_scale := float(entry.get("scale", 1.0))
+		tree.scale = Vector2.ONE * plant_scale
+		_props.add_child(tree)
+		plant_footprints.append(WindTree.footprint(entry["at"], "tree", plant_scale))
+	for entry: Dictionary in CityMap.BUSHES:
+		var bush := WindTree.new()
+		bush.kind = "bush"
+		bush.position = entry["at"]
+		var plant_scale := float(entry.get("scale", 1.0))
+		bush.scale = Vector2.ONE * plant_scale
+		_props.add_child(bush)
+		plant_footprints.append(WindTree.footprint(entry["at"], "bush", plant_scale))
+	# I fiori delle aiuole: stesso z_index dell'erba, aggiunti per ultimi fra
+	# i piani di terra così stanno sopra invece che schiacciati sotto, e mai
+	# dove li coprirebbe un cespuglio o un albero (`plant_footprints`).
+	var flowers := FlowerBed.new()
+	flowers.rects = CityMap.flower_beds()
+	flowers.avoid = plant_footprints
+	flowers.z_index = ground.z_index
+	add_child(flowers)
+	move_child(flowers, ground.get_index() + CityMap.LAYERED_GRASS.size() + 2)
 	for point in CityMap.FOUNTAINS:
 		var fountain := FOUNTAIN.instantiate()
 		fountain.position = point
@@ -233,6 +264,12 @@ func _build_city() -> void:
 		# posiziona, e per farlo deve essere già nell'albero.
 		npc.setup(entry)
 	_build_traffic()
+	# Il via vai del parcheggio della steak house: le auto stanno nel traffico,
+	# che e' Y-sortato, e a muoverle e' un nodo a parte (vedi `ParkingLot`).
+	var parking := ParkingLot.new()
+	parking.name = "SteakhouseParking"
+	add_child(parking)
+	parking.setup(CityMap.steakhouse_parking(), _traffic, _player)
 
 ## Un edificio: il suo PNG, con lo script che lo rende cliccabile.
 ##

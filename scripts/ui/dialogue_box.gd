@@ -43,6 +43,11 @@ func is_open() -> bool:
 func open(speaker: String, body: String, choices: Array = []) -> void:
 	_reopened = true
 	_speaker.text = speaker
+	# Il nome di chi parla col pennello dei menu (quello con l'ombra: il
+	# riquadro del dialogo e' scuro). Se il nome ha qualcosa che il pennello non
+	# disegna resta il font della scena.
+	if UiTheme.can_brush(speaker):
+		UiTheme.dress_menu_text(_speaker, 20)
 	_body.text = body
 	for child in _choices.get_children():
 		child.queue_free()
