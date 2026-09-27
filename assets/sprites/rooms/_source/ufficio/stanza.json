@@ -1,0 +1,95 @@
+{
+  "stanza": "ufficio",
+  "animazioni": [
+    {
+      "nome": "palma",
+      "tipo": "dondolo",
+      "periodo": 2.4,
+      "smorza": 3.0,
+      "pausa": [
+        9.0,
+        20.0
+      ],
+      "spinta": [
+        0.5,
+        1.0
+      ],
+      "fotogrammi": 11
+    },
+    {
+      "nome": "poltrona",
+      "tipo": "evento",
+      "fps": 10,
+      "pausa": [
+        25.0,
+        60.0
+      ],
+      "fotogrammi": 16
+    },
+    {
+      "nome": "borsa",
+      "tipo": "ciclo",
+      "fps": 3,
+      "fotogrammi": 8
+    },
+    {
+      "nome": "vapore",
+      "tipo": "ciclo",
+      "fps": 6,
+      "fotogrammi": 12
+    },
+    {
+      "nome": "telefono",
+      "tipo": "evento",
+      "fps": 5,
+      "pausa": [
+        6.0,
+        16.0
+      ],
+      "fotogrammi": 8
+    }
+  ],
+  "punti": {
+    "finestra": [
+      111,
+      22,
+      418,
+      103
+    ],
+    "finestra_angoli": [
+      [
+        110.8,
+        22.0
+      ],
+      [
+        529.2,
+        22.0
+      ],
+      [
+        502.9,
+        125.3
+      ],
+      [
+        137.1,
+        125.3
+      ]
+    ],
+    "personaggio": {
+      "piedi": [
+        314.7,
+        269.3
+      ],
+      "scala": 1.74,
+      "posizione": [
+        315,
+        235
+      ]
+    },
+    "pc": [
+      395,
+      144,
+      42,
+      23
+    ]
+  }
+}

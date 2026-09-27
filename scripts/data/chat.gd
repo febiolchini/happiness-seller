@@ -1,13 +1,15 @@
 class_name Chat
 extends RefCounted
 
-## La rubrica del telefono e i fili di messaggi che ci stanno dentro.
+## I contatti e i fili di messaggi che si leggono nella scheda MESSAGGI del PC.
+##
+## Nasceva come la rubrica del telefono; il telefono è stato tolto insieme al
+## protagonista, e i messaggi si leggono adesso dal PC. La logica è la stessa.
 ##
 ## ## Due tipi di riga, ed è tutto il punto di questo file
 ##
-## - **Quelle che restano** (`kept()`). I messaggi dei traguardi: l'apertura, la
-##   fine del prologo ai mille, il consiglio di allargarsi, il chilo, il
-##   grossista della clinica. Sono pezzi di storia, si rileggono a distanza di
+## - **Quelle che restano** (`kept()`). I messaggi dei traguardi: l'apertura, il
+##   consiglio di allargarsi, il chilo, l'autista, il contatto di Kevin. Sono pezzi di storia, si rileggono a distanza di
 ##   giorni, e stanno nel salvataggio (`SaveData.chat_log`).
 ## - **Quelle che non restano** (`live()`). Il giro della richiesta di semi:
 ##   "servono semi" — "ci penso io" — "ti aspetto in MAIN STREET" — "me ne
@@ -43,13 +45,7 @@ extends RefCounted
 const THEM := "them"
 const YOU := "you"
 
-## I contatti in rubrica.
-##
-## **La rubrica c'era già quando il contatto era uno solo**, ed è esattamente
-## per questo giorno: aprire il telefono dritto sulla chat di Brian avrebbe
-## voluto dire che il telefono *è* quella chat, e il secondo contatto avrebbe
-## costretto a rifare la schermata e a insegnare al giocatore un posto nuovo.
-## Il secondo contatto è arrivato, ed è stata una riga in `contacts()`.
+## I contatti.
 const BRIAN := "brian"
 ## L'autista, da quando lo si assume. Vedi `contacts()`.
 const DRIVER := "driver"
@@ -86,13 +82,11 @@ const MAX_KEPT := 60
 
 ## La rubrica di **questa** partita. `name_key` e non il nome già scritto perché
 ## il mittente è una voce di `Strings` come tutto il resto (vedi
-## `MSG_COUSIN_SPEAKER`), e il telefono deve poterlo rileggere quando cambia
-## lingua.
+## `MSG_COUSIN_SPEAKER`), e il PC deve poterlo rileggere quando cambia lingua.
 ##
-## Dipende dal salvataggio perché l'autista in rubrica **non c'è finché non lo
-## si assume**: uno che non lavora per te non ha motivo di stare nel tuo
-## telefono, e una chat che non risponde mai è peggio di un contatto che non
-## c'è. Senza salvataggio — il menu principale — resta il solo Brian.
+## Dipende dal salvataggio perché l'autista **non c'è finché non lo si
+## assume**, e Kevin finché non manda il messaggio del contatto fuori stato.
+## Senza salvataggio — il menu principale — resta il solo Brian.
 static func contacts(data: SaveData = null) -> Array:
 	var list: Array = [{"id": BRIAN, "name_key": str(CONTACT_NAMES[BRIAN])}]
 	if Staff.has_driver(data):
@@ -127,9 +121,9 @@ static func is_mine(row: Dictionary) -> bool:
 ## Aggiunge un messaggio alla cronologia.
 ##
 ## Non si chiama da fuori: ci si passa da `GameState.contact_message()`, che è
-## anche il punto in cui il messaggio diventa un avviso sul telefono. Un
-## messaggio che finisce in cronologia senza far suonare il telefono è un
-## messaggio che il giocatore non legge mai.
+## anche il punto in cui il messaggio compare a schermo. Un messaggio che
+## finisce in cronologia senza farsi vedere è un messaggio che il giocatore non
+## legge mai.
 static func keep(data: SaveData, contact: String, key: String, arg: String,
 		at: float) -> void:
 	if data == null or key.is_empty():
@@ -177,24 +171,6 @@ static func live(data: SaveData, now: float) -> Array:
 			float(deal.get("expires_at", asked)) - SeedDeal.LEAVING_HOURS))
 	return rows
 
-## Il giro dell'autista, riscritto dal viaggio in corso.
-##
-## Stessa forma di `live()` e per lo stesso motivo: le due righe — "vai a
-## prendere i semi" e "vado" — non vogliono più dire niente quando il furgone è
-## tornato, e spariscono da sole quando `seed_run` si svuota. Nessuna lista da
-## ripulire, e nessun modo di ritrovarsi in chat l'ordine di ieri.
-static func driver_live(data: SaveData, now: float) -> Array:
-	if data == null or not SeedRun.is_running(data):
-		return []
-	var run: Dictionary = data.seed_run
-	var left := float(run.get("left_at", 0.0))
-	var rows: Array = [
-		_row_for(DRIVER, YOU, "CHAT_SEND_DRIVER", str(int(run.get("seeds", 0))), left),
-	]
-	if now >= left + REPLY_GAP:
-		rows.append(_row_for(DRIVER, THEM, "CHAT_DRIVER_ON_IT", "", left + REPLY_GAP))
-	return rows
-
 static func _row(from: String, key: String, arg: String, at: float) -> Dictionary:
 	return _row_for(BRIAN, from, key, arg, at)
 
@@ -214,8 +190,6 @@ static func thread(data: SaveData, contact: String, now: float) -> Array:
 	var rows := kept(data, contact)
 	if contact == BRIAN:
 		rows.append_array(live(data, now))
-	elif contact == DRIVER:
-		rows.append_array(driver_live(data, now))
 	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return float(a.get("at", 0.0)) < float(b.get("at", 0.0)))
 	return rows

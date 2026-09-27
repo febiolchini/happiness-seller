@@ -107,10 +107,9 @@ const TEXT := {
 	"WEATHER_FOG": ["FOG", "NEBBIA", "NIEBLA"],
 
 	# --- Stanze (PIXEL) ----------------------------------------------------
-	"ROOM_ENTRANCE": ["ENTRANCE", "INGRESSO", "ENTRADA"],
-	"ROOM_KITCHEN": ["KITCHEN", "CUCINA", "COCINA"],
 	"ROOM_BASEMENT": ["BASEMENT", "CANTINA", "SOTANO"],
 	"ROOM_GARAGE": ["GARAGE", "GARAGE", "GARAJE"],
+	"ROOM_OFFICE": ["OFFICE", "UFFICIO", "OFICINA"],
 	"ROOM_GENERIC": ["ROOM", "STANZA", "CUARTO"],
 	"ROOM_EXIT": ["EXIT", "ESCI", "SALIR"],
 
@@ -135,9 +134,9 @@ const TEXT := {
 		"Meridian Tower, 21st floor", "Meridian Tower, 21 piano", "Meridian Tower, piso 21",
 	],
 	"RE_MERIDIAN_21_DESC": [
-		"Penthouse-level corner flat, glass on two sides.",
-		"Attico d'angolo, vetrate su due lati.",
-		"Atico en esquina, ventanales en dos lados.",
+		"Executive office, a glass wall over the whole city.",
+		"Ufficio direzionale, una vetrata su tutta la citta'.",
+		"Oficina ejecutiva, un ventanal sobre toda la ciudad.",
 	],
 	"RE_GARAGE_NAME": ["GARAGE ON CROSS STREET", "GARAGE IN CROSS STREET", "GARAJE EN CROSS STREET"],
 	## Diceva "NIENTE FINESTRE", e il fondale dell'interno (`rooms/garage.png`) ne
@@ -157,6 +156,15 @@ const TEXT := {
 	"PC_TAB_SHOP": ["SHOP", "NEGOZIO", "TIENDA"],
 	"PC_TAB_MARKET": ["MARKET", "MERCATO", "MERCADO"],
 	"PC_TAB_STAFF": ["STAFF", "PERSONALE", "PERSONAL"],
+	# La scheda coi messaggi di Brian e degli altri: era la chat del telefono.
+	"PC_TAB_MESSAGES": ["MESSAGES", "MESSAGGI", "MENSAJES"],
+	# La lavagna dell'HUD (`chalkboard.gd`). PIXEL: si scrivono col pennello.
+	# Al plurale, perche' sotto c'e' quanti sono.
+	"BOARD_WEED": ["WEED", "ERBA", "HIERBA"],
+	"BOARD_SEEDS": ["SEEDS", "SEMI", "SEMILLAS"],
+	"BOARD_GROWERS": ["GROWERS", "COLTIVATORI", "CULTIVADORES"],
+	"BOARD_DRIVERS": ["DRIVERS", "AUTISTI", "CHOFERES"],
+	"BOARD_DEALERS": ["DEALERS", "SPACCIATORI", "VENDEDORES"],
 
 	# --- Il PC: etichette delle righe (PIXEL) ------------------------------
 	"PC_CASH": ["CASH", "CONTANTI", "EFECTIVO"],
@@ -263,6 +271,14 @@ const TEXT := {
 		"Il serbatoio e' a secco. Dal garage non esce niente finche' non fai il pieno.",
 		"El deposito esta seco. Del garaje no sale nada hasta que lo llenes.",
 	],
+	"PC_VAN_DRIVER": ["DRIVER", "AUTISTA", "CHOFER"],
+	"PC_DRIVER_YES": ["on the payroll", "assunto", "contratado"],
+	"PC_DRIVER_NO": ["nobody", "nessuno", "nadie"],
+	"PC_VAN_NO_DRIVER": [
+		"Nobody to drive it. Hire a driver from the STAFF tab and the loads can leave.",
+		"Non c'e' nessuno a guidarlo. Assumi un autista dalla scheda PERSONALE e i carichi possono partire.",
+		"No hay nadie que la conduzca. Contrata un chofer desde la pestana PERSONAL y las cargas pueden salir.",
+	],
 	## %d semi, %s posto, %s tempo che resta
 	"PC_BRIAN_NOTE_READY": [
 		"Brian brought %d seed(s) and is waiting at %s. He will not hang around forever: about %s left.",
@@ -275,10 +291,18 @@ const TEXT := {
 		"Brian trabaja en la clinica, donde le dan el material a los pacientes. Mandara un sitio para verse en cuanto pueda escaparse.",
 	],
 	"PC_BRIAN_NOTE_EMPTY": [
-		"Out of seeds. Ask your cousin Brian for more.",
-		"Semi finiti. Chiedine altri a tuo cugino Brian.",
-		"Sin semillas. Pidele mas a tu primo Brian.",
+		"Out of seeds. Buy a crate from the supplier downtown, or ask your cousin Brian.",
+		"Semi finiti. Compra una cassa dal grossista in centro, o chiedine a tuo cugino Brian.",
+		"Sin semillas. Compra una caja al mayorista del centro, o pidele a tu primo Brian.",
 	],
+	## Sotto ai semi nella scheda GROW: le casse non si ordinano da qui.
+	"PC_SEEDS_WHERE": [
+		"Crates of seeds you buy at the counter: click the supplier's warehouse downtown and they are yours on the spot.",
+		"I semi a cassette si comprano al banco: clicca sul magazzino del grossista in centro e sono subito tuoi.",
+		"Las semillas por cajas se compran en el mostrador: haz clic en el almacen del mayorista del centro y son tuyas al momento.",
+	],
+	## Una riga di chi scrive nella scheda MESSAGGI: %s e' il messaggio.
+	"PC_MSG_YOU": ["You: %s", "Tu: %s", "Tu: %s"],
 
 	# --- Il PC: scheda MARKET ----------------------------------------------
 	# I bottoni "vendi N grammi" e "vendi tutto" non ci sono piu': l'ingrosso
@@ -419,9 +443,9 @@ const TEXT := {
 	],
 	"STAFF_DRIVER": ["DRIVER", "AUTISTA", "CHOFER"],
 	"STAFF_DRIVER_NOTE": [
-		"Takes the van to the supplier for you: with him on the payroll you order the seeds from the PC instead of walking downtown. One van, one driver, and he gets paid whether he drives or not. Once the bus station opens you can hire a second one: he does the station pickups, and the van stays free.",
-		"Porta lui il furgone dal grossista: assunto, i semi si ordinano dal PC invece di farsi la strada fino in centro. Un furgone, un autista, e la paga la prende che guidi o no. Quando apre la stazione degli autobus se ne puo' assumere un secondo: fa lui i ritiri alla stazione, e il furgone resta libero.",
-		"Lleva el la furgoneta al mayorista: contratado, las semillas se piden desde el PC en vez de cruzar la ciudad. Una furgoneta, un chofer, y cobra conduzca o no. Cuando abre la estacion de autobuses puedes contratar un segundo: hace el los retiros en la estacion, y la furgoneta queda libre.",
+		"Drives the van: without him the wholesale loads do not leave. One van, one driver, and he gets paid whether he drives or not.",
+		"Guida il furgone: senza di lui i carichi all'ingrosso non partono. Un furgone, un autista, e la paga la prende che guidi o no.",
+		"Conduce la furgoneta: sin el, las cargas al mayoreo no salen. Una furgoneta, un chofer, y cobra conduzca o no.",
 	],
 	"STAFF_DEALER": ["DEALER", "SPACCIATORE", "VENDEDOR"],
 	"STAFF_DEALER_NOTE": [
@@ -430,13 +454,6 @@ const TEXT := {
 		"Trabaja la calle, y solo con lo que le dejas. Sin sueldo: se queda una parte de lo que vende, asi que parado no cuesta nada. La calle paga bien y levanta atencion.",
 	],
 
-	## Il bottone che apre il grossista dal PC: c'e' solo con l'autista assunto.
-	"PC_SEND_DRIVER": ["SEND THE DRIVER", "MANDA L'AUTISTA", "MANDA AL CHOFER"],
-	"PC_DRIVER_NOTE": [
-		"The driver does the run. Order from here and the van goes: same crates, same two hours.",
-		"Il viaggio lo fa l'autista. Ordini da qui e il furgone parte: stesse casse, stesse due ore.",
-		"El viaje lo hace el chofer. Pides desde aqui y la furgoneta sale: mismas cajas, mismas dos horas.",
-	],
 
 	# --- Messaggini dell'HUD -----------------------------------------------
 	"NOTE_PLANTED": ["PLANTED", "PIANTATO", "SEMBRADA"],
@@ -510,31 +527,24 @@ const TEXT := {
 	## %d = sconto in percentuale sul prezzo di Brian
 	"SW_PACK_NOTE": [
 		"%d%% off the usual price per seed.",
-		"%d%% in meno sul prezzo a seme di Brian.",
+		"%d%% in meno sul prezzo a seme di listino.",
 		"%d%% menos sobre el precio por semilla.",
 	],
-	"SW_ORDER": ["ORDER", "ORDINA", "PEDIR"],
+	"SW_ORDER": ["BUY", "COMPRA", "COMPRAR"],
 	"SW_NO_CASH": ["NOT ENOUGH", "SOLDI CORTI", "FALTA DINERO"],
-	"SW_VAN_OUT": ["THE VAN IS OUT", "IL FURGONE E FUORI", "LA FURGONETA ESTA FUERA"],
-	## %s = quanto manca
-	"SW_ON_THE_WAY": [
-		"Van on the way back: %s left.",
-		"Furgone in arrivo: mancano %s.",
-		"Furgoneta en camino: faltan %s.",
-	],
 	"SW_NOTE": [
-		"Order and the van goes to fetch them. It takes about two hours, and it is the same van that does the wholesale runs: one job at a time. With a second driver on the payroll he goes instead, and the van stays free.",
-		"Si ordina e il furgone va a prenderli. Ci mette un paio d'ore, ed e' lo stesso furgone dell'ingrosso: un viaggio alla volta. Con un secondo autista in organico ci va lui, e il furgone resta libero.",
-		"Pides y la furgoneta va a por ellas. Tarda un par de horas, y es la misma furgoneta del mayoreo: un viaje cada vez.",
+		"Pay at the counter and the seeds are in your stock right away.",
+		"Si paga al banco e i semi sono subito in magazzino.",
+		"Se paga en el mostrador y las semillas estan en el almacen al momento.",
 	],
 
 	# --- Il contatto fuori stato di Kevin (PIXEL il titolo) -----------------
 	"BS_TITLE": ["OUT OF STATE CONTACT", "CONTATTO FUORI STATO", "CONTACTO DE OTRO ESTADO"],
 	"BS_NAME": ["BUS STATION", "STAZIONE DEGLI AUTOBUS", "ESTACION DE AUTOBUSES"],
 	"BS_NOTE": [
-		"Order and the van goes to fetch them. It takes about six hours, and it is the same van that does the wholesale runs and the trips to the clinic supplier: one job at a time. With a second driver on the payroll he goes instead, and the van stays free.",
-		"Si ordina e il furgone va a prenderli. Ci mette circa sei ore, ed e' lo stesso furgone dell'ingrosso e del grossista in centro: un viaggio alla volta. Con un secondo autista in organico ci va lui, e il furgone resta libero.",
-		"Pides y la furgoneta va a por ellas. Tarda unas seis horas, y es la misma furgoneta del mayoreo y del mayorista del centro: un viaje cada vez. Con un segundo chofer en plantilla va el, y la furgoneta queda libre.",
+		"Pay at the counter and the seeds are in your stock right away. The biggest crates in town, and the best price per seed.",
+		"Si paga al banco e i semi sono subito in magazzino. Le casse piu' grandi della citta', e il prezzo a seme piu' basso.",
+		"Se paga en el mostrador y las semillas estan en el almacen al momento. Las cajas mas grandes de la ciudad, y el mejor precio por semilla.",
 	],
 	## Il messaggio di Kevin ai centomila dollari: apre il contatto fuori stato
 	## e mette Kevin in rubrica. PIXEL, quindi niente accenti ne punteggiatura.
@@ -557,50 +567,21 @@ el las importa desde otro estado
 Preguntale en la estacion de autobuses",
 	],
 
-	# --- Il telefono (PIXEL le voci del menu) ------------------------------
-	# I mittenti sono quelli che ci sono gia': `MSG_STAFF_SPEAKER` e
-	# `MSG_COUSIN_SPEAKER`. Chi scrive e' la stessa persona, che il messaggio
-	# arrivi qui o nel riquadro a tutto schermo.
-	#
-	# I corpi usano il font di SISTEMA, quindi ci possono stare le cifre; le
-	# voci del menu usano quello del gioco, quindi solo lettere e spazio.
-	## Le tre facce della voce del menu. Lo schermo del telefono e' largo poco
-	## piu' di cento pixel, quindi qui c'e' un tetto vero: oltre i
-	## `Strings.PHONE_MENU_CHARS` caratteri il testo viene tagliato a meta'
-	## parola, ed e' successo davvero ("BRIAN CI PENS"). Un controllo automatico
-	## lo verifica, perche' a leggerle qui sembrano tutte corte uguali.
-	"PHONE_CALL_BRIAN": ["CALL BRIAN", "CHIAMA BRIAN", "LLAMA A BRIAN"],
-	## Il bottone in fondo alla chat dell'autista, e cosa dice mentre e' fuori.
-	"PHONE_SEND_DRIVER": ["GET SEEDS", "PRENDI SEMI", "TRAE SEMILLAS"],
-	"PHONE_DRIVER_OUT": ["ON THE WAY", "IN VIAGGIO", "EN CAMINO"],
-	## %s quanti semi
-	"CHAT_SEND_DRIVER": [
-		"Go get %s seeds",
-		"Vai a prendere %s semi",
-		"Ve a por %s semillas",
-	],
-	"CHAT_DRIVER_ON_IT": [
-		"On my way. Back in a couple of hours.",
-		"Vado. Torno fra un paio d'ore.",
-		"Voy. Vuelvo en un par de horas.",
-	],
-	"PHONE_WAITING": ["HE IS ON IT", "CI PENSA LUI", "EL SE ENCARGA"],
-	"PHONE_BRIAN_HERE": ["HE IS WAITING", "TI ASPETTA", "TE ESPERA"],
-	# --- La chat con Brian --------------------------------------------------
-	# Il titolo della rubrica e' PIXEL (font del gioco); i messaggi no, si
-	# leggono in nuvoletta col font di sistema come tutti gli altri corpi.
-	"CHAT_TITLE": ["MESSAGES", "MESSAGGI", "MENSAJES"],
-	## Quando con un contatto non ci si e' ancora scritti niente. Nella chat di
-	## Brian si vede solo per il primo minuto di partita, prima che arrivi il
-	## messaggio d'apertura: dopo non e' piu' vuota mai.
+	# --- I messaggi di passaggio -------------------------------------------
+	# Erano i messaggi del telefono, che è stato tolto: adesso passano come
+	# messaggini dell'HUD col mittente davanti (`GameState.text_message()`), e
+	# quelli dell'appuntamento coi semi si rileggono nella scheda MESSAGGI del PC.
+	# --- I messaggi nel PC ---------------------------------------------------
+	## La scheda MESSAGGI quando non ha scritto ancora nessuno. Si vede solo nel
+	## primo minuto di partita, prima che arrivi il messaggio d'apertura.
 	"CHAT_EMPTY": [
 		"Nothing here yet.",
 		"Qui non c'e' ancora niente.",
 		"Aqui todavia no hay nada.",
 	],
-	## La richiesta di semi, cioe' l'unica riga che il giocatore **manda**.
-	## Vedi `Chat.live()`: non e' scritta da nessuna parte, si ricava
-	## dall'appuntamento aperto.
+	## La richiesta di semi, cioe' l'unica riga che il giocatore **manda**: la
+	## manda il bottone della scheda GROW. Vedi `Chat.live()`: non e' scritta da
+	## nessuna parte, si ricava dall'appuntamento aperto.
 	"CHAT_ASK_SEEDS": [
 		"Need seeds cousin.",
 		"Servono semi cugino.",
@@ -615,21 +596,14 @@ Preguntale en la estacion de autobuses",
 		"Yo me encargo. Te digo donde.",
 	],
 	# --- La guida ------------------------------------------------------------
-	# Si apre dalla rubrica, sotto ai contatti, ed e' l'unica schermata del
-	# telefono su carta bianca invece che sul vetro scuro: sono appunti, non
-	# messaggi, e la differenza si vede prima di leggere.
+	# Si apre dal tasto GUIDA nella colonna delle schede del PC.
 	#
-	# **Qui NIENTE e' PIXEL tranne la voce della rubrica.** Le sezioni si
+	# **Qui NIENTE e' PIXEL tranne il titolo.** Le sezioni si
 	# leggono col font di sistema, quindi ci vanno accenti, apostrofi, cifre e
 	# valute: sono le uniche pagine del gioco in cui si scrivono dei numeri per
 	# esteso, ed e' esattamente il motivo per cui la guida serve.
-	## La voce in fondo alla rubrica. Questa si legge col font del gioco: PIXEL.
+	## Il titolo, e il tasto nel PC. Questo si legge col font del gioco: PIXEL.
 	"GUIDE_TITLE": ["GUIDE", "GUIDA", "GUIA"],
-	"GUIDE_ROW_NOTE": [
-		"how the whole thing works",
-		"come funziona il giro",
-		"como funciona el asunto",
-	],
 	"GUIDE_LEAD": [
 		"Brian's notes. Worth a look when you get stuck.",
 		"Gli appunti di Brian. Da guardare quando ti impantani.",
@@ -638,16 +612,16 @@ Preguntale en la estacion de autobuses",
 
 	"GUIDE_PLANTS": ["THE PLANTS", "LE PIANTE", "LAS PLANTAS"],
 	"GUIDE_PLANTS_BODY": [
-		"A seed becomes about 20 grams in some twenty game hours. That clock runs while you are out in the street, and it runs while the game is closed.\n\nWater every 12 hours. Thirst does not stop a plant, it ruins the yield: a pot left dry for days comes in at a third of what it should. It is the most expensive mistake in the game, and fixing it costs nothing.",
-		"Un seme diventa circa 20 grammi in una ventina di ore di gioco. Quell'orologio gira mentre sei in giro per il quartiere, e gira anche a gioco chiuso.\n\nAnnaffia ogni 12 ore. La sete non ferma la pianta: le rovina la resa, e un vaso lasciato a secco per giorni rende un terzo di quello che dovrebbe. È l'errore che costa di più, e rimediare non costa niente.",
-		"Una semilla se convierte en unos 20 gramos en unas veinte horas de juego. Ese reloj corre mientras estás en la calle, y corre también con el juego cerrado.\n\nRiega cada 12 horas. La sed no detiene la planta: le arruina el rendimiento, y una maceta seca durante días da un tercio de lo que debería. Es el error más caro del juego, y arreglarlo no cuesta nada.",
+		"A seed becomes about 20 grams in some twenty game hours. That clock always runs, even while the game is closed.\n\nWater every 12 hours. Thirst does not stop a plant, it ruins the yield: a pot left dry for days comes in at a third of what it should. It is the most expensive mistake in the game, and fixing it costs nothing. A grower on the payroll waters for you.",
+		"Un seme diventa circa 20 grammi in una ventina di ore di gioco. Quell'orologio gira sempre, anche a gioco chiuso.\n\nAnnaffia ogni 12 ore. La sete non ferma la pianta: le rovina la resa, e un vaso lasciato a secco per giorni rende un terzo di quello che dovrebbe. È l'errore che costa di più, e rimediare non costa niente. Un coltivatore assunto annaffia al posto tuo.",
+		"Una semilla se convierte en unos 20 gramos en unas veinte horas de juego. Ese reloj corre siempre, también con el juego cerrado.\n\nRiega cada 12 horas. La sed no detiene la planta: le arruina el rendimiento, y una maceta seca durante días da un tercio de lo que debería. Es el error más caro del juego, y arreglarlo no cuesta nada. Un cultivador contratado riega por ti.",
 	],
 
 	"GUIDE_SEEDS": ["THE SEEDS", "I SEMI", "LAS SEMILLAS"],
 	"GUIDE_SEEDS_BODY": [
-		"Seeds come from Brian, out of the clinic. You call him from this phone, he takes a couple of hours, then he waits for you somewhere in the neighbourhood: go where he says and buy before he gets tired of standing there.\n\nEvery call is 6 to 12 seeds, never the same number twice. Call him before you run out, not after: while you wait, the pots sit empty.",
-		"I semi li porta Brian, dalla clinica. Lo chiami da questo telefono, ci mette un paio d'ore e poi ti aspetta in un posto del quartiere: vai dove ti dice e compra prima che si stanchi di stare lì.\n\nOgni chiamata sono dai 6 ai 12 semi, mai lo stesso numero. Chiamalo prima che finiscano, non dopo: mentre aspetti, i vasi restano vuoti.",
-		"Las semillas las trae Brian, de la clínica. Lo llamas desde este teléfono, tarda un par de horas y luego te espera en algún sitio del barrio: ve donde te diga y compra antes de que se canse de esperar.\n\nCada llamada son de 6 a 12 semillas, nunca el mismo número. Llámalo antes de quedarte sin, no después: mientras esperas, las macetas están vacías.",
+		"Seeds you buy at the counter: click the supplier's warehouse downtown, pick a crate, and they are in your stock right away. The bigger the crate, the lower the price per seed. Once you have made a name for yourself, Kevin opens up the bus station, with even bigger crates.\n\nBrian can bring you a handful too, from the clinic: ask him from the GROW tab, he takes a couple of hours, then waits somewhere in the neighbourhood. Find him on the map and click him before he gets tired of standing there.\n\nBuy before you run out, not after: without seeds the grower sits there and still gets paid.",
+		"I semi si comprano al banco: clicca sul magazzino del grossista in centro, scegli una cassa, e sono subito in magazzino. Più grande la cassa, più basso il prezzo a seme. Quando ti sarai fatto un nome, Kevin ti apre la stazione degli autobus, con casse ancora più grandi.\n\nAnche Brian te ne porta una manciata, dalla clinica: chiediglieli dalla scheda COLTIVA, ci mette un paio d'ore e poi ti aspetta in un posto del quartiere. Trovalo sulla mappa e cliccaci sopra prima che si stanchi di stare lì.\n\nCompra prima che finiscano, non dopo: senza semi il coltivatore sta fermo e la paga la prende lo stesso.",
+		"Las semillas se compran en el mostrador: haz clic en el almacén del mayorista del centro, elige una caja, y están en el almacén al momento. Cuanto más grande la caja, más barato cada semilla. Cuando te hayas hecho un nombre, Kevin te abre la estación de autobuses, con cajas aún más grandes.\n\nBrian también te trae un puñado, de la clínica: pídeselas desde la pestaña CULTIVO, tarda un par de horas y luego te espera en algún sitio del barrio. Búscalo en el mapa y haz clic en él antes de que se canse de esperar.\n\nCompra antes de quedarte sin, no después: sin semillas el cultivador está parado y cobra igual.",
 	],
 
 	"GUIDE_FASTER": ["GOING FASTER", "ANDARE PIÙ FORTE", "IR MÁS RÁPIDO"],
@@ -659,16 +633,16 @@ Preguntale en la estacion de autobuses",
 
 	"GUIDE_STAFF": ["HIRING", "IL PERSONALE", "EL PERSONAL"],
 	"GUIDE_STAFF_BODY": [
-		"At a thousand dollars the STAFF tab opens on the PC.\n\nA grower covers 6 pots: plants, waters and cuts for you, and keeps working while the game is closed. A dealer moves the product on the street and keeps a cut of it. A driver takes the van to the seed supplier: hire him and he turns up in your phone, so you order the crates from his chat or from the PC instead of walking downtown. You can keep 3 dealers, and 2 more for every property you buy.\n\nWages run every day whether there is work or not. Hiring before you have the pots to fill is just an expense.",
-		"Ai mille dollari si apre la scheda PERSONALE nel PC.\n\nUn coltivatore segue 6 vasi: pianta, annaffia e raccoglie al posto tuo, e continua a lavorare anche a gioco chiuso. Un dealer piazza la merce in strada e se ne tiene una quota. Un autista porta il furgone dal grossista dei semi: assunto ti compare in rubrica sul telefono, così le casse le ordini dalla sua chat o dal PC invece di farti la strada fino in centro. I dealer che puoi tenere sono 3, più 2 per ogni proprietà che compri.\n\nLe paghe corrono ogni giorno, che ci sia lavoro o no. Assumere prima di avere i vasi da riempire è solo una spesa.",
-		"A los mil dólares se abre la pestaña PERSONAL en el PC.\n\nUn cultivador lleva 6 macetas: planta, riega y corta por ti, y sigue trabajando con el juego cerrado. Un camello coloca la mercancía en la calle y se queda una parte. Un chofer lleva la furgoneta al mayorista de semillas: contratado te aparece en la agenda del teléfono, así pides las cajas desde su chat o desde el PC en vez de cruzar la ciudad. Puedes tener 3 camellos, y 2 más por cada propiedad que compres.\n\nLos sueldos corren cada día, haya trabajo o no. Contratar antes de tener macetas que llenar es solo un gasto.",
+		"Uncle left you a grower and a dealer. More are hired from the STAFF tab on the PC.\n\nA grower covers 6 pots: plants, waters and cuts for you, and keeps working while the game is closed. A dealer moves the product on the street and keeps a cut of it. A driver drives the van: without him the wholesale loads do not leave. You can keep 3 dealers, and 2 more for every property you buy.\n\nWages run every day whether there is work or not. Hiring before you have the pots to fill is just an expense.",
+		"Lo zio ti ha lasciato un coltivatore e uno spacciatore. Gli altri si assumono dalla scheda PERSONALE del PC.\n\nUn coltivatore segue 6 vasi: pianta, annaffia e raccoglie al posto tuo, e continua a lavorare anche a gioco chiuso. Uno spacciatore piazza la merce in strada e se ne tiene una quota. Un autista guida il furgone: senza di lui i carichi all'ingrosso non partono. Gli spacciatori che puoi tenere sono 3, più 2 per ogni proprietà che compri.\n\nLe paghe corrono ogni giorno, che ci sia lavoro o no. Assumere prima di avere i vasi da riempire è solo una spesa.",
+		"El tío te ha dejado un cultivador y un camello. Los demás se contratan desde la pestaña PERSONAL del PC.\n\nUn cultivador lleva 6 macetas: planta, riega y corta por ti, y sigue trabajando con el juego cerrado. Un camello coloca la mercancía en la calle y se queda una parte. Un chofer conduce la furgoneta: sin él, las cargas al mayoreo no salen. Puedes tener 3 camellos, y 2 más por cada propiedad que compres.\n\nLos sueldos corren cada día, haya trabajo o no. Contratar antes de tener macetas que llenar es solo un gasto.",
 	],
 
 	"GUIDE_WHOLESALE": ["WHOLESALE", "L'INGROSSO", "EL MAYOREO"],
 	"GUIDE_WHOLESALE_BODY": [
-		"The first time you put a kilo together, Brian tells you to get a van (5000$). Wholesale pays less per gram but takes the lot in one go: it is what you want once the street cannot keep up with what you grow.\n\nThe van also opens the clinic's seed supplier: whole crates instead of a handful, and no waiting on Brian.",
-		"La prima volta che metti insieme un chilo, Brian ti dice di prendere un furgone (5000$). All'ingrosso pagano meno al grammo ma prendono tutto in una volta: è quello che serve quando la strada non sta più dietro a quanto produci.\n\nCol furgone si apre anche il grossista di semi della clinica: casse intere invece di una manciata, e non devi più aspettare Brian.",
-		"La primera vez que juntas un kilo, Brian te dice que consigas una furgoneta (5000$). En el mayoreo pagan menos por gramo pero se lo llevan todo de una vez: es lo que hace falta cuando la calle ya no sigue el ritmo de lo que produces.\n\nCon la furgoneta se abre también el proveedor de semillas de la clínica: cajas enteras en vez de un puñado, y sin esperar a Brian.",
+		"The first time you put a kilo together, Brian tells you to get a van (5000$). Wholesale pays less per gram but takes the lot in one go: it is what you want once the street cannot keep up with what you grow.\n\nThe van needs a driver: hire one from the STAFF tab, then send the loads from the MARKET tab.",
+		"La prima volta che metti insieme un chilo, Brian ti dice di prendere un furgone (5000$). All'ingrosso pagano meno al grammo ma prendono tutto in una volta: è quello che serve quando la strada non sta più dietro a quanto produci.\n\nIl furgone vuole un autista: assumilo dalla scheda PERSONALE, poi i carichi si mandano dalla scheda MERCATO.",
+		"La primera vez que juntas un kilo, Brian te dice que consigas una furgoneta (5000$). En el mayoreo pagan menos por gramo pero se lo llevan todo de una vez: es lo que hace falta cuando la calle ya no sigue el ritmo de lo que produces.\n\nLa furgoneta necesita un chofer: contrátalo desde la pestaña PERSONAL, y luego las cargas se mandan desde la pestaña MERCADO.",
 	],
 
 	"GUIDE_HEAT": ["THE HEAT", "L'ATTENZIONE", "LA ATENCIÓN"],
@@ -705,18 +679,21 @@ Preguntale en la estacion de autobuses",
 		"Los tengo. Te espero aqui:\n%s",
 	],
 
-	# --- Messaggi sul telefono ---------------------------------------------
+	# --- Messaggi di Brian e degli altri -----------------------------------
+	# Compaiono nel riquadro al centro dello schermo e restano nella scheda
+	# MESSAGGI del PC: vedi `GameState.contact_message()`.
 	"MSG_COUSIN_SPEAKER": ["BRIAN", "BRIAN", "BRIAN"],
-	## L'apertura: da dove viene la casa.
+	## L'apertura: lo zio ha lasciato la sua attivita', con dentro cassa,
+	## coltivatore e spacciatore, e il nome della banda va dato subito.
 	##
 	## PIXEL, come tutte le vignette: si legge col font del gioco, quindi solo
 	## lettere e spazio. A mandare a capo e' la riga e non la punteggiatura, e
 	## ogni riga sta sotto ai quaranta caratteri — piu' lunga va a capo da sola
 	## e il conto delle righe salta.
 	"MSG_INTRO_BODY": [
-		"The old man left you the house\nYou know what a basement is for\nIt grows slow at first do not quit\nOn your phone you have a guide and me",
-		"Il vecchio ti ha lasciato la casa\nLo sai a cosa serve un seminterrato\nAll inizio cresce piano non mollare\nNel telefono trovi una guida e me",
-		"El viejo te ha dejado la casa\nYa sabes para que sirve un sotano\nAl principio crece lento no lo dejes\nEn el telefono tienes la guia y a mi",
+		"Uncle left you his little business\nSome cash a grower and a dealer\nRun it all from the PC\nYou will find a guide in there and me\nFirst the crew needs a name",
+		"Lo zio ti ha lasciato la sua attivita\nUn po di cassa un coltivatore\ne uno spacciatore\nSi manda avanti tutto dal PC\nLi dentro trovi una guida e me\nPrima pero serve un nome alla banda",
+		"El tio te ha dejado su negocito\nAlgo de caja un cultivador\ny un camello\nTodo se lleva desde el PC\nAhi dentro tienes la guia y a mi\nPrimero la banda necesita un nombre",
 	],
 	## Il chilo raggiunto. Niente cifra dentro: il font del gioco non ha i numeri,
 	## quindi il peso si dice a parole.
@@ -778,17 +755,17 @@ Te hara falta para seguir el ritmo",
 	## viaggio fino in centro lo si e' appena fatto a piedi: e' il momento in cui
 	## il consiglio si capisce da solo.
 	"MSG_DRIVER_BODY": [
-		"You went down there\nyourself cousin\nIf the trip wears you out\nput a driver on that van\nHe picks up the seeds\nyou order from home",
-		"Ci sei andato di persona\ncugino\nSe il viaggio ti pesa\nmettici un autista\nVa lui a prendere i semi\ne tu li ordini da casa",
-		"Fuiste tu mismo primo\nSi el viaje te pesa\nponle un chofer\na la furgoneta\nEl va a por las semillas\ny tu las pides desde casa",
+		"Nice van cousin\nBut it will not drive itself\nPut a driver on the payroll\nand the loads can leave",
+		"Bel furgone cugino\nMa da solo non guida\nAssumi un autista\ne i carichi possono partire",
+		"Buena furgoneta primo\nPero sola no conduce\nContrata un chofer\ny las cargas pueden salir",
 	],
 	"MSG_DRIVER_SPEAKER": ["DRIVER", "AUTISTA", "CHOFER"],
 	## La prima riga che scrive: arriva quando lo si assume, ed e' anche quella
 	## che mette il contatto in rubrica.
 	"MSG_DRIVER_HELLO": [
-		"I drive the van\nWrite me when the\nseeds run low",
-		"Sono io al furgone\nScrivimi quando i\nsemi finiscono",
-		"Conduzco yo jefe\nEscribeme cuando\nfalten semillas",
+		"I drive the van\nSend the loads from the PC\nand I take them out",
+		"Sono io al furgone\nManda i carichi dal PC\ne li porto fuori io",
+		"Conduzco yo jefe\nManda las cargas desde el PC\ny yo las saco",
 	],
 	"MSG_STAFF_SPEAKER": ["STAFF", "PERSONALE", "PERSONAL"],
 	"MSG_POWER_SPEAKER": ["POWER COMPANY", "SOCIETA ELETTRICA", "COMPANIA DE LUZ"],
@@ -814,9 +791,9 @@ Te hara falta para seguir el ritmo",
 	"MSG_OK": ["OK", "OK", "OK"],
 
 	# --- Il resoconto di quando si rientra ---------------------------------
-	# Il corpo del messaggio del telefono usa il font di SISTEMA (solo chi parla
-	# e il bottone usano quello del gioco), quindi qui le cifre si possono
-	# scrivere. Vedi `phone.gd`.
+	# Il corpo del riquadro usa il font di SISTEMA (solo chi parla e il bottone
+	# usano quello del gioco), quindi qui le cifre si possono scrivere. Vedi
+	# `phone_notice.gd`.
 	#
 	# Sono scritte come "etichetta: valore" e non come frasi ("2 vasi sono
 	# rimasti a secco") apposta: cosi' non c'e' nessun singolare da sbagliare
@@ -1208,19 +1185,6 @@ Te hara falta para seguir el ritmo",
 
 # --- Controlli sulla tabella ------------------------------------------------
 
-## Quanto lunghe possono essere le voci del menu del telefono.
-##
-## Non e' una regola di stile: il vetro del telefono e' largo 116 px (e la
-## larghezza della scocca e' scelta apposta perche' ci stiano, vedi `SIZE` in
-## `phone.gd`) e il bottone taglia quello che avanza. Tredici caratteri col font
-## del gioco a corpo 12 sono quello che ci sta. Vedi `PHONE_CALL_BRIAN`.
-const PHONE_MENU_CHARS := 13
-## Le voci che devono stare in quella larghezza.
-const PHONE_MENU_KEYS := [
-	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE",
-	"PHONE_SEND_DRIVER", "PHONE_DRIVER_OUT",
-]
-
 ## Caratteri che il font del gioco sa disegnare: lettere e spazio, nient'altro.
 ## Vedi la regola 2 in cima al file.
 ##
@@ -1241,12 +1205,14 @@ const PIXEL_KEYS := [
 	"MENU_SURE",
 	# Le righe del menu a tre righe in partita: si leggono col pennello.
 	"STAFF_DEALER", "STAFF_GROWER",
-	"ROOM_ENTRANCE", "ROOM_KITCHEN", "ROOM_BASEMENT", "ROOM_GARAGE", "ROOM_GENERIC",
+	"ROOM_BASEMENT", "ROOM_GARAGE", "ROOM_OFFICE", "ROOM_GENERIC",
 	"ROOM_EXIT",
 	"PC_TITLE", "PC_CLOSE",
 	"RE_TITLE", "RE_CLOSE", "RE_BUY", "RE_OWNED", "RE_NO_CASH", "RE_CASH",
 	"RE_EMPTY", "RE_GARAGE_NAME", "RE_GARAGE_DESC", "RE_TITLE_DOWNTOWN",
 	"PC_TAB_OVERVIEW", "PC_TAB_GROW", "PC_TAB_SHOP", "PC_TAB_MARKET", "PC_TAB_STAFF",
+	"PC_TAB_MESSAGES",
+	"BOARD_WEED", "BOARD_SEEDS", "BOARD_GROWERS", "BOARD_DRIVERS", "BOARD_DEALERS",
 	"PC_CASH", "PC_DAY", "PC_STOCK", "PC_SEEDS", "PC_POTS_IN_USE", "PC_READY_TO_CUT",
 	"PC_ATTENTION", "PC_GRAMS_HARVESTED", "PC_GRAMS_SOLD", "PC_TOTAL_EARNED",
 	"PC_STAFF", "PC_WAGES", "PC_SALES_SPLIT", "PC_RESERVED", "PC_WHOLESALE_TODAY",
@@ -1255,17 +1221,16 @@ const PIXEL_KEYS := [
 	"MSG_COUSIN_SPEAKER", "MSG_STAFF_SPEAKER", "MSG_AWAY_SPEAKER", "MSG_POWER_SPEAKER",
 	"MSG_TAX_SPEAKER",
 	"MSG_OK",
-	# I corpi delle vignette: si leggono col font del gioco, non con quello di
-	# sistema come gli avvisi. Vedi `phone.gd`.
+	# I corpi dei messaggi di Brian e degli altri: si leggono col pennello, non
+	# col font di sistema come gli avvisi.
 	"MSG_INTRO_BODY", "MSG_KILO_BODY", "MSG_EXPAND_BODY", "MSG_COUSIN_BODY",
 	"MSG_ORG_NAME_BODY", "ORG_NAME_TITLE",
 	"PRESTIGE_ROOKIE_1", "PRESTIGE_ROOKIE_2", "PRESTIGE_ROOKIE_3",
 	"MSG_SEED_WHOLESALE_BODY", "MSG_DRIVER_BODY", "MSG_DRIVER_HELLO", "SW_TITLE",
 	"MSG_DRIVER_SPEAKER",
 	"MSG_KEVIN_SPEAKER", "MSG_KEVIN_BUS_STATION_BODY", "BS_TITLE",
-	"PHONE_CALL_BRIAN", "PHONE_WAITING", "PHONE_BRIAN_HERE", "CHAT_TITLE",
-	# Della guida solo la voce in rubrica: dentro si legge col font di
-	# sistema, e le cifre servono.
+	# Della guida solo il titolo: dentro si legge col font di sistema, e le
+	# cifre servono.
 	"GUIDE_TITLE",
 	"CUT_VAN_OUT",
 ]
@@ -1297,15 +1262,4 @@ static func problems() -> Array:
 	for key in PIXEL_KEYS:
 		if not TEXT.has(key):
 			found.append("%s e' segnata PIXEL ma non esiste" % key)
-	# Le voci del menu del telefono hanno anche un tetto di lunghezza: oltre
-	# quello il bottone le taglia a meta' parola. Vedi `PHONE_MENU_CHARS`.
-	for key in PHONE_MENU_KEYS:
-		if not TEXT.has(key):
-			found.append("%s e' una voce del telefono ma non esiste" % key)
-			continue
-		for i in (TEXT[key] as Array).size():
-			var line := str(TEXT[key][i])
-			if line.length() > PHONE_MENU_CHARS:
-				found.append("%s (%s) e' lunga %d: sullo schermo del telefono ce ne stanno %d" % [
-					key, LOCALES[i], line.length(), PHONE_MENU_CHARS])
 	return found

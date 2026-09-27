@@ -1,7 +1,7 @@
 extends "res://scripts/ui/interactive_button.gd"
 
-## Segnaposto cliccabile dentro a una stanza (il PC in cantina, un domani il
-## telefono, la cassaforte, il banco di lavoro...).
+## Segnaposto cliccabile che apre una finestra: il PC sulla scrivania delle
+## stanze; un domani la cassaforte, il banco di lavoro...
 ##
 ## Eredita da `interactive_button.gd` per avere lo stesso hover giallino di
 ## tutti gli altri tasti del gioco, e aggiunge l'unica cosa che gli serve:

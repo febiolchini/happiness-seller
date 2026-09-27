@@ -9,30 +9,31 @@ extends RefCounted
 ##
 ## Il grossista di Kevin (`SeedRun`) arriva a sessanta semi a cassetta: va bene
 ## per riempire cantina e garage in un colpo o due, ma un'attività che gira sul
-## personale a pieno organico li brucia più in fretta di quanto convenga
-## rifare la strada fino in centro ogni volta. Il contatto fuori stato è il
+## personale a pieno organico li brucia in fretta. Il contatto fuori stato è il
 ## passo dopo: fino a duecentocinquanta semi, con lo sconto più alto del
 ## gioco, ma un traguardo in soldi prima di poterci parlare.
 ##
-## ## Come è fatto, e perché come `SeedRun`
+## ## Al banco della stazione, come da Kevin
 ##
-## Stessa forma, stesso schema: niente timer, si scrive l'ora di rientro e lo
-## stato è una funzione di che ore sono adesso. Il furgone è lo stesso di
-## `Delivery` e `SeedRun` — uno solo, un viaggio alla volta — e le tre classi
-## si escludono a vicenda: vedi `can_order()`.
+## Era un ordine: il furgone andava a ritirare il pacco alla stazione e ci
+## metteva sei ore, e un secondo autista serviva a non tenere fermo il mezzo di
+## casa. Adesso, come dal grossista in centro, si clicca la stazione, si paga e
+## i semi sono in magazzino. Il furgone serve solo all'ingrosso della merce.
+##
+## `bus_run` nel salvataggio resta solo per le partite salvate con un ritiro in
+## corso: `tick()` lo consegna all'ora prevista, e nessuno ne apre più.
 
 ## Quanto cash serve per sbloccare il contatto. La prima volta che ci si
-## arriva, Kevin manda il messaggio e la stazione degli autobus compare in
-## COMMERCIAL DISTRICT: vedi `GameState._check_milestones()`.
+## arriva, Kevin manda il messaggio e lo sportello della stazione degli
+## autobus si apre: vedi `GameState._check_milestones()`.
 const UNLOCK_CASH := 100000
 const UNLOCK_FLAG := "bus_station_unlocked"
 
-## Il viaggio è più lungo di quello dal grossista in centro (`SeedRun.TRIP_HOURS`,
-## due ore): il pacco arriva fuori stato in autobus e il furgone lo va a
-## prendere alla stazione. Sei ore di gioco, circa un minuto e mezzo reale.
+## Quanto ci metteva il ritiro alla stazione: resta per leggere i viaggi dei
+## salvataggi vecchi.
 const TRIP_HOURS := 6.0
 
-## I tagli ordinabili: quanti semi, e quanto si paga l'uno.
+## I tagli: quanti semi, e quanto si paga l'uno.
 ##
 ## Continuano la scala di `SeedRun.PACKS` (10/25/60, sconto 10/20/30%): stessa
 ## idea, un gradino più su. Lo sconto è sempre sul listino di
@@ -59,32 +60,11 @@ static func check_unlock(data: SaveData) -> bool:
 	data.set_flag(UNLOCK_FLAG, true)
 	return true
 
-# --- Il viaggio -------------------------------------------------------------
+# --- Comprare ---------------------------------------------------------------
 
+## C'è ancora in viaggio un ritiro di un salvataggio vecchio?
 static func is_running(data: SaveData) -> bool:
 	return data != null and not data.bus_run.is_empty()
-
-## Col secondo autista (`Staff.max_drivers()`, che si apre con la stazione) il
-## ritiro alla stazione lo fa lui, e il furgone di casa resta libero per
-## l'ingrosso e per il grossista in centro. Con uno solo e' tutto come prima:
-## un furgone, un viaggio alla volta.
-static func has_own_driver(data: SaveData) -> bool:
-	return Staff.count(data, "driver") >= 2
-
-## Il viaggio alla stazione sta tenendo fermo il furgone di casa? E' la domanda
-## che si fanno gli altri viaggi prima di partire.
-static func holds_van(data: SaveData) -> bool:
-	return is_running(data) and not has_own_driver(data)
-
-## Quanti semi sta andando a prendere, 0 se è fermo.
-static func load_seeds(data: SaveData) -> int:
-	return int(data.bus_run.get("seeds", 0)) if is_running(data) else 0
-
-## Quanto manca al rientro, in ore di gioco. 0 se è fermo o se è già ora.
-static func hours_left(data: SaveData, now: float) -> float:
-	if not is_running(data):
-		return 0.0
-	return maxf(0.0, float(data.bus_run.get("back_at", now)) - now)
 
 ## Quanto costa un taglio, in totale.
 static func pack_price(pack: Dictionary, strain_id := Economy.DEFAULT_STRAIN) -> int:
@@ -92,38 +72,26 @@ static func pack_price(pack: Dictionary, strain_id := Economy.DEFAULT_STRAIN) ->
 	var unit := float(Economy.seed_price(strain_id)) * (1.0 - float(pack["discount"]))
 	return maxi(1, int(roundf(unit * float(seeds))))
 
-## Si può ordinare? No se il contatto non si è ancora sbloccato, se questo
-## viaggio è già in corso, se il furgone è in giro per la merce o per il
-## grossista di Kevin e non c'è un secondo autista a cui darlo, o se i soldi non
-## bastano.
+## Si può comprare? Serve il contatto e servono i soldi.
 static func can_order(data: SaveData, pack: Dictionary,
 		strain_id := Economy.DEFAULT_STRAIN) -> bool:
-	if data == null or not is_unlocked(data) or is_running(data):
-		return false
-	if not has_own_driver(data) and (Delivery.is_running(data) or SeedRun.is_running(data)):
+	if data == null or not is_unlocked(data):
 		return false
 	return data.cash >= pack_price(pack, strain_id)
 
-## Manda il furgone. Restituisce i semi ordinati, 0 se non si poteva.
-##
-## I soldi si pagano subito, come da Kevin: è un ordine, e un ordine si paga
-## quando lo si fa.
-static func order(data: SaveData, pack: Dictionary, now: float,
+## Compra un taglio: si paga e i semi vanno subito in magazzino. Restituisce i
+## semi comprati, 0 se non si poteva. Stessa firma di `SeedRun.order()`.
+static func order(data: SaveData, pack: Dictionary, _now: float,
 		strain_id := Economy.DEFAULT_STRAIN) -> int:
 	if not can_order(data, pack, strain_id):
 		return 0
 	var seeds := int(pack["seeds"])
 	data.cash -= pack_price(pack, strain_id)
-	data.bus_run = {
-		"seeds": seeds,
-		"strain": strain_id,
-		"left_at": now,
-		"back_at": now + TRIP_HOURS,
-	}
+	data.add_item(Economy.seed_item(strain_id), seeds)
 	return seeds
 
-## Fa rientrare il furgone se è ora, e scarica i semi. Restituisce quanti ne ha
-## portati, 0 se non è ancora rientrato o se non era partito.
+## Consegna un ritiro rimasto in viaggio in un salvataggio vecchio, quando è
+## ora. Restituisce i semi arrivati, 0 se non c'era niente o non è ancora ora.
 static func tick(data: SaveData, now: float) -> int:
 	if not is_running(data) or now < float(data.bus_run.get("back_at", now)):
 		return 0

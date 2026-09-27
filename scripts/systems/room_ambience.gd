@@ -102,6 +102,10 @@ var _ambient := Color.WHITE
 ## `_move_particles()` sia da `_draw()`, invece che da `Weather.of()` in tutti
 ## e due.
 var _wet := false
+## Dietro ai vetri c'e' la citta' vera (`WindowView`), che il cielo dell'ora ce
+## l'ha gia': il velo di `_draw_outside()` ci dipingerebbe sopra una seconda
+## notte, con le sue tre finestre finte.
+var _live_view := false
 
 ## La chiama `room.gd` appena costruita la stanza.
 ##
@@ -110,8 +114,9 @@ var _wet := false
 ## `quad` è facoltativo: vedi `_quad`. Vuoto vuol dire una finestra dritta, e
 ## gli angoli si prendono da `window`.
 func setup(tint: CanvasModulate, has_daylight: bool, window: Rect2, readable: Array,
-		quad := PackedVector2Array()) -> void:
+		quad := PackedVector2Array(), live_view := false) -> void:
 	_tint = tint
+	_live_view = live_view
 	_daylight = has_daylight
 	_window = window
 	if quad.size() == 4:
@@ -238,7 +243,8 @@ func _draw() -> void:
 	if _window.size.x > 0.0:
 		# Prima cosa si vede fuori, poi la luce che entra, poi l'acqua sul
 		# vetro: dal più lontano al più vicino, come si guarda una finestra.
-		_draw_outside()
+		if not _live_view:
+			_draw_outside()
 		if _daylight:
 			_draw_shaft()
 		if _wet:
@@ -281,9 +287,12 @@ func _draw_shaft() -> void:
 		var spread := across * _window.size.x * 0.3 * step
 		var color := SHAFT
 		color.a = 0.055 * power
-		draw_colored_polygon(PackedVector2Array([
+		# L'inviluppo e non i quattro punti in fila: col sole radente il taglio
+		# e' quasi parallelo al davanzale, il quadrilatero si incrocia su se'
+		# stesso e Godot non lo triangola (un errore a fotogramma, al tramonto).
+		draw_colored_polygon(Geometry2D.convex_hull(PackedVector2Array([
 			left, right, right + reach + spread, left + reach - spread,
-		]), Daylight.emissive(color, _ambient))
+		])), Daylight.emissive(color, _ambient))
 
 ## Quello che si vede FUORI dalla finestra.
 ##

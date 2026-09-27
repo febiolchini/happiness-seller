@@ -90,9 +90,8 @@ const FRAME_DEPTH := 1024.0
 ## Il rettangolo che la camera può inquadrare: la città più la cornice.
 ##
 ## **Non** è lo stesso di `WORLD_BOUNDS`, ed è la distinzione che conta: la
-## cornice si guarda e basta. La griglia dei percorsi resta su `WORLD_BOUNDS`
-## (vedi `CityNavigation.build()`), perché nelle montagne non ci si cammina, e
-## spargerci sopra centomila celle di A* per non andarci mai non è un affare.
+## cornice si guarda e basta: le strade del gioco, i passanti e i posti degli
+## appuntamenti restano dentro a `WORLD_BOUNDS`.
 static func view_bounds() -> Rect2:
 	return WORLD_BOUNDS.grow(FRAME_DEPTH)
 
@@ -456,8 +455,8 @@ const LOTS := [
 ]
 
 ## L'aeroporto, in basso a sinistra: i quattro isolati fra MILL ROAD e FURNACE
-## STREET, e fra QUARRY LANE e COUNTY LINE, marciapiedi esclusi. Dentro non si
-## cammina (e' recintato: vedi `CityNavigation`), e tutto quello che ci
+## STREET, e fra QUARRY LANE e COUNTY LINE, marciapiedi esclusi. Dentro non ci
+## vanno i passanti (e' recintato), e tutto quello che ci
 ## succede — piste, aerei, mezzi — sta in `AirportPlan` e `airport.gd`.
 const AIRPORT := Rect2(880, 7200, 1760, 1248)
 
@@ -624,6 +623,9 @@ const FOUNTAINS := [Vector2(160, 2660), Vector2(1700, 3350)]
 ## `interior` scena in cui si entra cliccando (opzionale)
 ## `owned`  se vero, dentro ci si entra solo dopo aver comprato la proprieta'
 ##          dall'agenzia (`SaveData.owns()` sullo stesso `id`)
+## `property` con `owned`: l'id della proprieta' che apre la porta, quando non e'
+##          l'edificio intero ma un suo pezzo — l'appartamento al 21 piano apre
+##          la MERIDIAN TOWER. Senza, e' l'`id` dell'edificio
 ## `in_front` a parita' di riga di terra, questo edificio si disegna davanti agli
 ##          altri (l'Y-sort, a parita' di y, non ha niente da decidere)
 ## `lit`    il PNG delle finestre accese, appoggiato sopra al disegno e acceso
@@ -658,10 +660,10 @@ const FOUNTAINS := [Vector2(160, 2660), Vector2(1700, 3350)]
 ## riferimento, non un quartiere.
 const BUILDINGS := [
 	{
-		# Casa. Resta a x 320 perche' li' nasce il protagonista quando comincia
-		# una partita nuova, e quel numero e' scritto in tre posti: il default
-		# di `SaveData.player_position`, il suo ripiego in lettura, e
-		# `home_doorstep()`. Per accostarle si sono spostati gli altri due.
+		# Casa. Resta a x 320 perche' li' guarda la camera quando comincia una
+		# partita (`home_doorstep()`), e da li' sono misurati il vialetto del
+		# furgone e gli appuntamenti di Brian. Per accostarle si sono spostati
+		# gli altri due. Cliccandola si apre direttamente il seminterrato.
 		#
 		# `click` e' il MURO, non il PNG: il disegno comprende anche il cortile
 		# con la staccionata, largo 153 px per parte contro i 211 del corpo.
@@ -677,12 +679,11 @@ const BUILDINGS := [
 		"lit": "res://assets/sprites/buildings/flatsHouseLit.png",
 		"offset": Vector2(-153, -361), "click": Rect2(-107, -361, 211, 361),
 		# Ventiquattro e non quaranta: a quaranta la porta cadeva a y 280, cioe'
-		# otto pixel DENTRO l'asfalto di MAIN STREET (272..368), e si andava a
-		# bussare da mezza carreggiata. Cosi' invece coincide con
-		# `home_doorstep()` (320, 264), che e' lo stesso zerbino visto da un
-		# altro file: da li' si esce, li' aspetta a volte Brian, e i due numeri
+		# otto pixel DENTRO l'asfalto di MAIN STREET (272..368). Cosi' invece
+		# coincide con `home_doorstep()` (320, 264), che e' lo stesso zerbino
+		# visto da un altro file: li' aspetta a volte Brian, e i due numeri
 		# devono dire lo stesso posto.
-		"entry": Vector2(0, 24), "interior": "res://scenes/rooms/Entrance.tscn",
+		"entry": Vector2(0, 24), "interior": "res://scenes/rooms/Basement.tscn",
 	},
 	{
 		# Il palazzo occupato, muro contro muro con casa. E' il pezzo piu' alto
@@ -1105,15 +1106,13 @@ const BUILDINGS := [
 		# merce. Primo edificio disegnato del COMMERCIAL DISTRICT — lo
 		# costruisce `render_buildings.py` sotto la voce "magazzino".
 		#
-		# **Compare solo dopo il furgone.** `unlock_flag` è la chiave che lo
-		# tiene fuori dalla città finché Brian non lo presenta (vedi `SeedRun` e
-		# `GameState._check_milestones()`): prima di allora l'edificio non
-		# esiste proprio, invece di stare lì spento a dire che c'è qualcosa che
-		# non puoi ancora avere.
+		# **C'è dall'inizio.** Era nascosto finché non si comprava il furgone
+		# (`unlock_flag`), perché i semi li andava a prendere il furgone; adesso
+		# si comprano al banco cliccando sull'edificio, e il fornitore dello zio
+		# fa parte dell'attività che si eredita.
 		#
 		# Sta nel quartiere commerciale, fra HILL DRIVE e PORT STREET — il nome
-		# non è più solo di comodo, il quartiere si chiama proprio così — ed è
-		# lontano da casa abbastanza da giustificare le due ore di viaggio.
+		# non è più solo di comodo, il quartiere si chiama proprio così.
 		#
 		# Il parcheggio sta DIETRO e non è in questo disegno: è il lotto
 		# "asphalt" qui sopra in `LOTS`, coi suoi lampioni in `lot_lamps()`.
@@ -1129,7 +1128,6 @@ const BUILDINGS := [
 		# 688, e ne restano trentadue per parte.
 		"id": "SeedSupplier", "base": Vector2(4712, 240),
 		"district": "COMMERCIAL DISTRICT",
-		"unlock_flag": SeedRun.UNLOCK_FLAG,
 		"label": "SW_NAME",
 		"texture": "res://assets/sprites/buildings/wholesale.png",
 		"lit": "res://assets/sprites/buildings/wholesaleLit.png",
@@ -1289,6 +1287,10 @@ const BUILDINGS := [
 		"glass": "res://assets/sprites/buildings/meridianTowerGlass.png",
 		"offset": Vector2(-153, -2291), "click": Rect2(-153, -480, 305, 480),
 		"entry": Vector2(0, 20),
+		# Dentro c'e' l'ufficio del 21 piano, e ci si entra comprandolo: la
+		# torre non si vende intera. Vedi `property` in cima alla tabella.
+		"interior": "res://scenes/rooms/Office.tscn", "owned": true,
+		"property": "MeridianApt21",
 	},
 	{
 		# HARBOR HEIGHTS: la torre residenziale con le solette a vista, 80
@@ -1562,8 +1564,9 @@ static func art_max_depth() -> float:
 ## sposta anche la casa qualunque che gli stava accanto.
 static func all_buildings() -> Array:
 	# Gli edifici con un `unlock_flag` non ancora acceso non entrano proprio in
-	# città: né disegno, né click, né ostacolo per chi cammina. Vedi la voce
-	# `SeedSupplier`.
+	# città: né disegno né click. Oggi non ce n'è nessuno — il grossista dei
+	# semi lo era, e adesso c'è dall'inizio — ma il meccanismo resta per il
+	# prossimo edificio che deve comparire più avanti.
 	var landmarks: Array = []
 	for entry: Dictionary in BUILDINGS:
 		var flag := str(entry.get("unlock_flag", ""))
@@ -2167,9 +2170,8 @@ static func _flag_on(flag: String) -> bool:
 ## Il punto è sulla CARREGGIATA? Marciapiedi esclusi: è il posto in cui un
 ## pedone si fa investire, e il posto in cui un'auto deve frenare.
 ##
-## Sta qui e non in `CityNavigation` perché è una domanda sulla pianta, non sui
-## percorsi: la fa anche chi non ha una griglia sotto mano — le auto, e il
-## protagonista quando guarda se può scendere dal cordolo.
+## È una domanda sulla pianta, non sui percorsi: la fanno le auto e chi
+## attraversa.
 static func on_road(point: Vector2) -> bool:
 	return _crosses(ROADS_H, point) or _crosses(ROADS_V, point)
 
@@ -2322,10 +2324,9 @@ const MEET_CROSS_RANGE := 96.0
 ## tutta la quota dei marciapiedi a SUD di una strada, dove gli edifici hanno il
 ## corpo che sale fino a toccarli: ci si passa, ma non ci si può stare.
 ##
-## Il numero è più largo di quel margine più una cella. È scritto qui e non
-## preso da `CityNavigation` perché la pianta non deve dipendere da chi ci
-## cammina sopra; a tenere i due d'accordo c'è il controllo automatico
-## "ogni posto è calpestabile", che fallisce se si allontanano.
+## Il numero veniva dalla griglia dei percorsi del protagonista, tolta col
+## passaggio al gestionale: oggi serve a tenere Brian fuori dai muri, e lo
+## verifica il controllo automatico "nessun posto cade dentro a un edificio".
 const MEET_CLEARANCE := 28.0
 
 ## I posti in cui Brian può dare appuntamento: punti di marciapiede a uno o due

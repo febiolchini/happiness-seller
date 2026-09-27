@@ -3,9 +3,18 @@ extends CanvasLayer
 ## HUD: quello che sta addosso alla città mentre si gioca.
 ##
 ## Poca roba, e è il punto: la **sveglia** in alto a destra
-## (`digital_clock.gd`), il **tasto a tre righe** in alto a sinistra
-## (`hud_menu.gd`) con dentro i soldi e la scorta, e sotto alla sveglia una riga
-## che compare solo quando c'è qualcosa da dire. Più i messaggini che scorrono.
+## (`digital_clock.gd`), sotto di lei l'ingranaggio delle impostazioni e i tasti
+## del tempo (`speed_controls.gd`), poi una riga che compare solo quando c'è
+## qualcosa da dire, e sul bordo sinistro, col centro a metà altezza, la
+## **lavagna** (`chalkboard.gd`) con l'erba,
+## i semi e il personale. Più la cassa in cima al centro, il prestigio accanto
+## alla sveglia e i messaggini che scorrono a destra sotto alla sveglia.
+##
+## Il **tasto a tre righe** in alto a sinistra, che teneva quelle stesse voci
+## in un cassetto, è stato tolto insieme al tasto PC e alla barra del sospetto
+## (2026-09-27): le voci sono sulla lavagna, il PC si apre dalla scrivania del
+## seminterrato, e il sospetto della polizia tornerà quando Federico lo avrà
+## risistemato (`suspicion_bar.gd` è ancora sul disco).
 ##
 ## ## Perché non è un pannello
 ##
@@ -40,9 +49,6 @@ extends CanvasLayer
 ##   e la parola "PIOGGIA" in un angolo non aggiungeva niente a quello che si
 ##   sta già guardando. Cosa cambi il tempo — si vende meno in strada, ci si fa
 ##   notare meno — lo spiega la guida, che è il posto delle regole.
-## - **I soldi e la scorta**, che sono finiti dentro al menu. Non sono spariti
-##   come gli altri due: sono a un click, e chi li vuole davanti tiene il menu
-##   aperto. Il perché sta in `hud_menu.gd`.
 ##
 ## Quello che resta nella riga **compare solo quando ha qualcosa da dire**: per
 ## ora solo il posto dove aspetta Brian, e solo finché aspetta. Quasi sempre
@@ -75,8 +81,11 @@ const DOT := "·"
 ## qualcuno si ricordi di aggiungerla a un elenco in un altro file.
 
 const PRESTIGE_BADGE := preload("res://scripts/ui/prestige_badge.gd")
-const SUSPICION_BAR := preload("res://scripts/ui/suspicion_bar.gd")
 const ORG_NAME_WINDOW := preload("res://scripts/ui/org_name_window.gd")
+const CHALKBOARD := preload("res://scripts/ui/chalkboard.gd")
+const SPEED_CONTROLS := preload("res://scripts/ui/speed_controls.gd")
+## Quanto sta lontana la lavagna dal bordo sinistro: come la sveglia dal destro.
+const BOARD_MARGIN := 8.0
 
 ## Spento quando la mappa fa solo da sfondo a un menu. Senza questo l'HUD si
 ## rimostrerebbe da solo al primo `_refresh()`, comparendo dietro ai bottoni.
@@ -94,15 +103,14 @@ const ORG_NAME_WINDOW := preload("res://scripts/ui/org_name_window.gd")
 ## `text` riceve la partita corrente e restituisce la stringa già formattata.
 ## `show` è opzionale: quando c'è, la voce compare solo se restituisce true.
 ##
-## **Qui ci va solo roba che serve mentre si cammina.** Tutto quello che si
-## guarda per decidere — i soldi, la scorta — sta dietro al menu o dentro al
-## PC: la differenza è fra un'informazione che si legge muovendosi e una che si
-## legge fermi.
+## **Qui ci va solo roba di passaggio**, che compare e sparisce. Quello che
+## serve sempre sta sulla lavagna qui sotto; quello che si guarda per decidere
+## sta dentro al PC.
 var _segments := [
 	# Dove aspetta Brian, finché aspetta. Il messaggino che annuncia
 	# l'appuntamento se ne va dopo due secondi e mezzo, e senza questa voce
-	# l'unico modo di ripescare il posto sarebbe riaprire il telefono — che si
-	# può fare, ma è un gesto in più per una cosa che serve mentre si cammina.
+	# l'unico modo di ripescare il posto sarebbe riaprire il PC — che si può
+	# fare, ma è un gesto in più per una cosa che serve mentre lo si cerca.
 	{
 		"color": SPOT_COLOR,
 		"text": func(data: SaveData) -> String: return SeedDeal.place(data),
@@ -119,6 +127,8 @@ var _labels: Array[Label] = []
 var _dots: Array[Label] = []
 ## Ultimo testo mostrato per ogni segmento, per non riscrivere le Label ogni frame.
 var _shown: Array[String] = []
+## La finestra del nome della banda, finché è aperta o sta per aprirsi.
+var _org_window: CanvasLayer = null
 
 func _ready() -> void:
 	_build_meters()
@@ -172,10 +182,9 @@ func _refresh() -> void:
 			UiTheme.dress_world_text(_labels[i], text, UiTheme.brush_size(INFO_SIZE),
 				INFO_SIZE, UiTheme.W_MEDIUM, Color(0, 0, 0, 0.85))
 
-## Il prestigio a sinistra della sveglia e il sospetto della polizia sul lato
-## sinistro dello schermo. Costruiti da codice e non nella scena, cosi' le
-## scene che istanziano l'HUD non si ritrovano nodi nuovi da sistemare. Sono
-## segnaposto disegnati in attesa della grafica vera: vedi i due script.
+## Il prestigio a sinistra della sveglia, e la lavagna sotto. Costruiti da
+## codice e non nella scena, cosi' le scene che istanziano l'HUD non si
+## ritrovano nodi nuovi da sistemare.
 func _build_meters() -> void:
 	var root: Control = $Root
 	var badge := Control.new()
@@ -188,23 +197,44 @@ func _build_meters() -> void:
 	badge.offset_top = 14.0
 	badge.offset_bottom = 48.0
 	root.add_child(badge)
-	var bar := Control.new()
-	bar.set_script(SUSPICION_BAR)
-	bar.name = "Suspicion"
-	bar.position = Vector2(12, 40)
-	bar.size = Vector2(10, 122)
-	root.add_child(bar)
+	# Ingranaggio e tasti del tempo, subito sotto alla sveglia e sopra alla
+	# riga del posto di Brian. Vedi `speed_controls.gd`.
+	var speed := Control.new()
+	speed.set_script(SPEED_CONTROLS)
+	speed.name = "Speed"
+	speed.size_flags_horizontal = Control.SIZE_SHRINK_END
+	var corner: VBoxContainer = $Root/Corner
+	corner.add_child(speed)
+	corner.move_child(speed, 1)
+	# La lavagna sul bordo sinistro, col centro a metà altezza dello schermo:
+	# a destra c'è la colonna della sveglia e dei messaggini.
+	var board := Control.new()
+	board.set_script(CHALKBOARD)
+	board.name = "Chalkboard"
+	board.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+	board.offset_left = BOARD_MARGIN
+	board.offset_right = BOARD_MARGIN + CHALKBOARD.SIZE.x
+	board.offset_top = -CHALKBOARD.SIZE.y * 0.5
+	board.offset_bottom = CHALKBOARD.SIZE.y * 0.5
+	root.add_child(board)
 
 ## Brian ha chiesto il nome e non c'e' ancora: si apre la finestra. Controllato
 ## qui e non con un segnale perche' deve valere anche dopo un caricamento — chi
 ## chiude il gioco senza aver dato il nome se la ritrova alla riapertura.
+##
+## Una partita nuova il nome lo chiede subito, mentre la scena si sta ancora
+## costruendo: per questo la finestra si appende in differita, e `_org_window`
+## evita di accodarne una seconda nei fotogrammi prima che entri nell'albero
+## (fino ad allora non è nel gruppo dei modali, e questo controllo ripasserebbe).
 func _check_org_name(data: SaveData) -> void:
 	if not data.org_name.is_empty():
 		return
 	if not bool(data.get_flag(GameState.ORG_NAME_FLAG, false)):
 		return
-	var window: CanvasLayer = ORG_NAME_WINDOW.new()
-	get_tree().current_scene.add_child(window)
+	if _org_window != null and is_instance_valid(_org_window):
+		return
+	_org_window = ORG_NAME_WINDOW.new()
+	get_tree().current_scene.add_child.call_deferred(_org_window)
 
 ## La lingua è cambiata: i testi si ricalcolano al prossimo giro, ma `_shown` li
 ## crede ancora buoni e li salterebbe. Azzerandolo si forza la riscrittura.

@@ -12,12 +12,13 @@ extends Node2D
 ## pianta della città: così spostare un quartiere è cambiare due numeri in una
 ## tabella, non trascinare trenta nodi in un file di scena.
 ##
-## ## Un click, tre significati
+## ## Un click apre, non cammina
 ##
-## Cliccare vuol dire "vai lì", "vai a parlargli" o "vai a entrarci", e la
-## differenza la fa cosa c'è sotto il puntatore. In tutti e tre i casi prima si
-## cammina: quello che succede all'arrivo se lo ricorda `_talking_to` /
-## `_entering` e lo esegue `_on_player_arrived()`.
+## Non c'è più un protagonista in strada: il gioco è un gestionale, e la mappa
+## è il posto da cui si guarda l'attività e si raggiungono gli sportelli.
+## Cliccare su una persona apre subito il dialogo, cliccare su un edificio
+## apre subito la sua finestra (o la stanza, per casa e le proprietà). Un click
+## sul vuoto non fa niente, e trascinare col sinistro sposta la visuale.
 ##
 ## ## Il nome sotto al puntatore
 ##
@@ -35,7 +36,7 @@ extends Node2D
 ## davanti a tutto su una tela sua (`WeatherLayer`). Nessuno di questi nodi sa
 ## niente degli altri: guardano tutti l'orologio della partita.
 ##
-## Esc = menu principale, tasto destro trascinando = pan, rotellina = zoom.
+## Esc = menu principale, trascinando (sinistro o destro) = pan, rotellina = zoom.
 
 const TILE_SIZE := 32
 const MAIN_MENU := "res://scenes/main/Main.tscn"
@@ -52,8 +53,12 @@ const FOUNTAIN := preload("res://scenes/components/Fountain.tscn")
 const STREET_LAMP := preload("res://scenes/components/StreetLamp.tscn")
 const DELIVERY_VAN := preload("res://scenes/components/DeliveryVan.tscn")
 
-## Quanto lontano dalla facciata si ferma il protagonista.
+## Quanto sta davanti alla facciata il punto della porta: è lì sopra che si
+## appoggia il segnalino arancione degli sportelli (`enterable_building.gd`).
 const APPROACH := 26.0
+## Dove guarda la camera all'avvio, rispetto allo zerbino di casa: un po' più
+## su, così la casa sta in mezzo allo schermo e non sotto.
+const START_VIEW_NUDGE := Vector2(0, -60)
 
 ## L'etichetta col nome dell'edificio sotto al puntatore.
 ##
@@ -73,7 +78,6 @@ const HOVER_MARGIN := 6.0
 ## Disattivata quando la mappa è usata solo come sfondo decorativo (menu).
 @export var interactive := true
 
-@onready var _player: CharacterBody2D = $Player
 @onready var _effects: Node2D = $Effects
 @onready var _buildings: Node2D = $Buildings
 @onready var _props: Node2D = $Props
@@ -81,17 +85,7 @@ const HOVER_MARGIN := 6.0
 @onready var _traffic: Node2D = $Traffic
 @onready var _camera: Camera2D = $Camera2D
 @onready var _hud: CanvasLayer = $HUD
-@onready var _phone: Control = $Phone/Screen
 @onready var _dialogue: CanvasLayer = $DialogueBox
-
-## Il reticolo su cui si cammina. Costruito una volta dalla stessa pianta che
-## costruisce gli edifici, così non possono divergere.
-var _navigation := CityNavigation.new()
-
-## Edificio in cui si sta entrando: il protagonista ci sta camminando verso.
-var _entering: EnterableBuilding = null
-## Personaggio con cui si sta andando a parlare.
-var _talking_to: Npc = null
 
 ## L'etichetta col nome dell'edificio sotto al puntatore, e quello che ci sta
 ## scritto adesso: senza il secondo la Label si riscriverebbe ogni fotogramma.
@@ -113,9 +107,6 @@ func _ready() -> void:
 	# Da sfondo di un menu la mappa non deve toccare la partita in corso,
 	# e nemmeno mostrare l'HUD dietro ai bottoni.
 	_hud.enabled = interactive
-	# Dietro ai bottoni del menu principale non ci va nemmeno la linguetta del
-	# telefono: lì la mappa è carta da parati, non una partita.
-	_phone.enabled = interactive
 	if not interactive:
 		return
 
@@ -128,16 +119,13 @@ func _ready() -> void:
 	# La mappa È il "fuori": arrivarci vuol dire non essere più in nessuna stanza.
 	GameState.current.current_room = ""
 	GameState.clock_running = true
-	_player.arrived.connect(_on_player_arrived)
-	_camera.follow = _player
 	# La camera arriva fino alle montagne, non al bordo della citta': e' tutta
 	# la ragione per cui la cornice esiste. Vedi `CityMap.view_bounds()`.
 	_camera.set_bounds(CityMap.view_bounds())
+	# Si comincia guardando casa: è il centro dell'attività, e da lì si
+	# trascina la visuale verso il resto della città.
+	_camera.jump_to(CityMap.home_doorstep() + START_VIEW_NUDGE)
 
-	# Dove sta il protagonista lo sa solo la scena, non `SaveData`: prima di
-	# ogni scrittura su disco lo riversiamo noi. Vale anche per i salvataggi
-	# automatici, che partono da `GameState` e non passano di qui.
-	GameState.saving.connect(_collect_state)
 	# Brian non è nel roster: compare solo quando c'è un appuntamento. Il
 	# segnale copre il caso in cui la posizione arriva mentre si è già in
 	# strada; `_apply_state()` quello in cui c'era già entrando qui.
@@ -150,14 +138,6 @@ func _ready() -> void:
 	# appeso a `GameState`. Vedi `delivery_van.gd` e `van_cutscene.gd`.
 	GameState.van_left.connect(_on_van_left)
 	GameState.van_back.connect(_on_van_back)
-	# Il viaggio dal grossista dei semi muove lo stesso mezzo, quindi riusa le
-	# stesse due animazioni: esce da casa e rientra. Vedi `SeedRun`.
-	GameState.seed_run_left.connect(_on_van_left)
-	GameState.seed_run_back.connect(_on_van_back)
-	# Il contatto fuori stato di Kevin muove lo stesso furgone: stessa ragione
-	# del grossista in centro. Vedi `BusImport`.
-	GameState.bus_order_left.connect(_on_van_left)
-	GameState.bus_order_back.connect(_on_van_back)
 	_build_hover_label()
 	# Arrivare in strada è un punto di controllo: da qui in poi la partita
 	# ricomincerebbe fuori, non nella stanza da cui si è appena usciti.
@@ -189,10 +169,6 @@ func _build_city() -> void:
 	for entry in buildings:
 		if bool(entry.get("in_front", false)):
 			_add_building(_make_building(entry))
-	# Da sfondo di un menu non si cammina, e costruire la griglia costerebbe
-	# un caricamento in più per niente.
-	if interactive:
-		_navigation.build(buildings)
 	# Il campo da football (erba a shader + gradinata/torre faro/porte) è stato
 	# tolto dalla mappa il 2026-09-16 insieme a tutti gli altri segnaposto di
 	# `CityMap.LOTS` — vedi il commento lì. `GRASS_FIELD`, `grass_field.gdshader`
@@ -254,7 +230,7 @@ func _build_city() -> void:
 		fountain.position = point
 		_props.add_child(fountain)
 	# I lampioni stanno fra i `Props` e non fra il terreno: hanno un'altezza,
-	# quindi vanno Y-sortati come gli edifici, o il protagonista passerebbe
+	# quindi vanno Y-sortati come gli edifici, o i passanti passerebbero
 	# davanti al palo anche camminandoci dietro.
 	# I lampioni delle strade e quelli dei piazzali sono lo stesso nodo: un palo
 	# in un parcheggio e un palo sul marciapiede si accendono alla stessa ora e
@@ -277,13 +253,13 @@ func _build_city() -> void:
 	var parking := ParkingLot.new()
 	parking.name = "SteakhouseParking"
 	add_child(parking)
-	parking.setup(CityMap.steakhouse_parking(), _traffic, _player)
+	parking.setup(CityMap.steakhouse_parking(), _traffic, null)
 	# Gli autobus della stazione, stesso principio. Ci sono dall'inizio, come
 	# la stazione: lo sblocco di Kevin apre solo lo sportello (vedi `BusDepot`).
 	var depot := BusDepot.new()
 	depot.name = "BusDepot"
 	add_child(depot)
-	depot.setup(CityMap.bus_depot(), _traffic, _player)
+	depot.setup(CityMap.bus_depot(), _traffic, null)
 
 ## Pianta un edificio nell'albero e, se è cliccabile, lo tiene anche in
 ## `_enterable_buildings`: vedi il commento lì.
@@ -351,9 +327,7 @@ func _make_building(entry: Dictionary) -> Node2D:
 		sole.set_script(SUN_GLASS)
 		node.add_child(sole)
 	# I fondali dentro agli isolati restano uno sprite e basta: murati dietro
-	# alla fila che dà sulla strada, non hanno una porta a cui andare, e un
-	# click che manda il protagonista a sbattere contro il muro davanti sarebbe
-	# peggio di un click che non fa niente.
+	# alla fila che dà sulla strada, non hanno niente da aprire.
 	if bool(entry.get("backdrop", false)):
 		return node
 
@@ -366,6 +340,7 @@ func _make_building(entry: Dictionary) -> Node2D:
 	node.display_name = str(entry.get("label", ""))
 	node.building_id = str(entry["id"])
 	node.needs_ownership = bool(entry.get("owned", false))
+	node.property_id = str(entry.get("property", ""))
 	node.entry_offset = _entry_offset(entry)
 	# L'insegna è figlia dell'edificio e non un nodo a sé: così segue la
 	# schiacciata del click e la luce dell'ora come fosse dipinta sul muro, che
@@ -384,13 +359,14 @@ func _make_building(entry: Dictionary) -> Node2D:
 		node.add_child(sign)
 	return node
 
-## Dove si ferma il protagonista davanti a un edificio.
+## Il punto della porta, sul marciapiede davanti all'edificio.
 ##
-## `front` dice su quale lato della strada sta l'edificio, quindi da che parte
-## è il marciapiede. Gli edifici a sud di una strada hanno la base *sotto* la
-## carreggiata, col corpo che sale fino al marciapiede: per loro "davanti" è
-## sopra, non sotto, altrimenti il protagonista andrebbe a parcheggiarsi dietro
-## al muro. Stessa cosa, ruotata, per quelli sulle strade verticali.
+## Serviva a dire dove si fermava il protagonista; adesso è solo dove si
+## appoggia il segnalino degli sportelli. `front` dice su quale lato della
+## strada sta l'edificio, quindi da che parte è il marciapiede. Gli edifici a
+## sud di una strada hanno la base *sotto* la carreggiata, col corpo che sale
+## fino al marciapiede: per loro "davanti" è sopra, non sotto. Stessa cosa,
+## ruotata, per quelli sulle strade verticali.
 func _entry_offset(entry: Dictionary) -> Vector2:
 	if entry.has("entry"):
 		return entry["entry"]
@@ -415,7 +391,6 @@ func _build_traffic() -> void:
 			# strada capita di tutto, e un ciclo regolare si legge come una
 			# fila ordinata di modelli che si ripete.
 			car.setup(lane, float(i) / float(count), Car.random_vehicle())
-			car.watch = _player
 
 # --- Stato della partita ---------------------------------------------------
 
@@ -423,7 +398,6 @@ func _build_traffic() -> void:
 ## anche gli edifici posseduti e lo stato della storia man mano che esistono:
 ## la scena si costruisce dai dati, mai il contrario.
 func _apply_state(data: SaveData) -> void:
-	_player.global_position = data.player_position
 	# Un appuntamento fissato mentre si era in cantina, o lasciato aperto
 	# chiudendo il gioco: tornando in strada Brian deve essere lì ad aspettare.
 	if SeedDeal.is_ready(data):
@@ -473,19 +447,8 @@ var _parked_van: Node2D = null
 ## serve, non si tiene in vita un contatore.
 func _refresh_parked_van() -> void:
 	var data := GameState.current
-	# **Tutti e tre i viaggi, non solo la consegna.** Il furgone è uno: quello
-	# che porta la merce all'ingrosso è lo stesso che va a ritirare i semi dal
-	# grossista (`SeedRun`) o dal contatto fuori stato di Kevin (`BusImport`),
-	# e `can_order` lo sa già — non si può ordinare mentre è fuori. Qui invece
-	# si guardava solo `Delivery`, e il risultato era che ordinati i semi il
-	# furgone restava parcheggiato nel vialetto per tutte le ore del viaggio.
-	# Peggio: al rientro `_on_van_back` trova un furgone già in sosta e non fa
-	# niente, quindi non si vedeva nemmeno arrivare. Il giro dei semi è proprio
-	# quello in cui si torna a casa a piedi, cioè quello in cui lo si guarda.
 	var should_park := (
-		data != null and Delivery.has_van(data)
-		and not Delivery.is_running(data) and not SeedRun.is_running(data)
-		and not BusImport.holds_van(data))
+		data != null and Delivery.has_van(data) and not Delivery.is_running(data))
 	if not should_park:
 		if _parked_van != null and is_instance_valid(_parked_van):
 			_parked_van.queue_free()
@@ -500,8 +463,8 @@ func _refresh_parked_van() -> void:
 ## Parte: se c'è il furgone in sosta è **quello** a muoversi, non una copia.
 ## Vederne uno uscire mentre l'altro resta parcheggiato butterebbe a terra tutta
 ## la finzione.
-## Parte. Il parametro è quello che sta andando a muovere — grammi da vendere o
-## semi da ritirare — e qui non serve: quello che si vede è il furgone che esce.
+## Parte. Il parametro sono i grammi del carico, e qui non serve: quello che
+## si vede è il furgone che esce.
 func _on_van_left(_carico: int) -> void:
 	var van := _parked_van
 	if van == null or not is_instance_valid(van):
@@ -512,10 +475,6 @@ func _on_van_left(_carico: int) -> void:
 
 ## Rientra e parcheggia: nessun filmato, solo il mezzo che si rimette al suo
 ## posto. Tornare a casa non ha bisogno di essere raccontato.
-##
-## Vale sia per il carico venduto sia per i semi ritirati dal grossista: il
-## furgone è lo stesso, e l'unica differenza — cosa c'è dentro — l'ha già detta
-## il messaggino.
 func _on_van_back(_carico: int) -> void:
 	if _parked_van != null and is_instance_valid(_parked_van):
 		return
@@ -537,14 +496,6 @@ func _on_seed_deal_closed() -> void:
 	# Un appuntamento chiuso è un punto di controllo: i semi comprati e i soldi
 	# spesi non devono dipendere dal prossimo salvataggio automatico.
 	GameState.save_game()
-
-## Riversa nella partita quello che la mappa sa (per ora solo dove sta il
-## giocatore). Agganciata al segnale `GameState.saving`, quindi vale per ogni
-## scrittura: quella volontaria, quella automatica e quella alla chiusura.
-func _collect_state() -> void:
-	if GameState.current == null:
-		return
-	GameState.current.player_position = _player.global_position
 
 func save() -> void:
 	if not interactive or GameState.current == null:
@@ -629,48 +580,23 @@ func _unhandled_input(event: InputEvent) -> void:
 		save()
 		get_tree().change_scene_to_file(MAIN_MENU)
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	# Al rilascio e non alla pressione: col sinistro si trascina anche la
+	# visuale, e solo alla fine si sa se era un click o una trascinata.
+	if event is InputEventMouseButton and not event.pressed \
+			and event.button_index == MOUSE_BUTTON_LEFT:
+		if _camera.was_drag():
+			return
 		var point := get_global_mouse_position()
 		# Le persone hanno la precedenza sugli edifici: stanno davanti, e chi
 		# clicca su un passante fermo davanti a un negozio vuole il passante.
 		var npc := _npc_at(point)
 		if npc != null:
-			_go_talk(npc)
+			npc.acknowledge()
+			npc.talk(_dialogue)
 			return
 		var building := _building_at(point)
 		if building != null:
-			_go_enter(building)
-			return
-		# Nelle montagne non si va. La griglia dei percorsi copre la citta' e
-		# basta (`CityMap.WORLD_BOUNDS`), e un click fuori le veniva accostato
-		# alla cella di bordo piu' vicina mentre la destinazione restava quella
-		# cliccata: il protagonista usciva dalla mappa e si incamminava dentro
-		# a un monte. Un click li' non e' un ordine, e' un click a vuoto.
-		if not CityMap.WORLD_BOUNDS.has_point(point):
-			return
-		_order_move(point)
-
-func _order_move(target: Vector2) -> void:
-	# Un click altrove annulla quello che si stava andando a fare.
-	_entering = null
-	_talking_to = null
-	_walk_to(target)
-	var ripple := RIPPLE.instantiate()
-	ripple.position = target
-	_effects.add_child(ripple)
-
-## Manda il protagonista a un punto seguendo le strade.
-##
-## Se un percorso non si trova — un bersaglio murato, o una pianta della città
-## che cambia sotto ai piedi — si va comunque in linea retta: meglio un tragitto
-## brutto che un personaggio che ignora il click e sembra rotto.
-func _walk_to(target: Vector2) -> void:
-	var path := _navigation.find_path(_player.global_position, target)
-	if path.is_empty():
-		_player.move_to(target)
-	else:
-		_player.follow_path(path)
-	_camera.recenter()
+			_open(building)
 
 ## Edificio visitabile sotto al punto indicato. Se due si sovrappongono vince
 ## quello più in basso, cioè quello che l'Y-sort disegna davanti: è quello che
@@ -699,53 +625,26 @@ func _npc_at(point: Vector2) -> Npc:
 			found = npc
 	return found
 
-func _go_enter(building: EnterableBuilding) -> void:
+## Apre quello che c'è dentro a un edificio: la sua finestra, o la sua stanza.
+func _open(building: EnterableBuilding) -> void:
 	building.press()
-	_talking_to = null
 	if not building.can_open():
-		# Edificio cliccabile ma non visitabile: ci si avvicina e basta. Una
-		# proprietà in vendita lo dice, perché lì la porta chiusa è una regola
-		# del gioco e non un muro — sapere che si apre comprandola è metà del
-		# motivo per andare in agenzia.
+		# Una proprietà in vendita lo dice, perché lì la porta chiusa è una
+		# regola del gioco e non un muro — sapere che si apre comprandola è
+		# metà del motivo per andare in agenzia.
 		if not building.is_unlocked():
 			# Chiusa per un flag (la stazione prima del contatto di Kevin) o
 			# perche' non e' roba propria: due porte chiuse diverse.
 			GameState.notify(tr("NOTE_NO_CONTACT" if not building.window_flag.is_empty()
 				else "NOTE_NOT_YOURS"))
-		_order_move(building.entry_point())
 		return
-	_entering = building
-	_walk_to(building.entry_point())
-
-func _go_talk(npc: Npc) -> void:
-	npc.acknowledge()
-	_entering = null
-	_talking_to = npc
-	_walk_to(npc.approach_point())
-
-func _on_player_arrived() -> void:
-	if _talking_to != null:
-		var npc := _talking_to
-		_talking_to = null
-		npc.talk(_dialogue)
-		return
-	if _entering == null:
-		return
-	var building := _entering
-	_entering = null
-	# Sportello e non porta: il protagonista resta sul marciapiede e la finestra
-	# si apre sopra la citta'. Niente `vanish()`, niente cambio scena, niente
-	# salvataggio — non si e' mosso da dove si vede che e' fermo.
+	# Sportello e non porta: la finestra si apre sopra la città, senza cambiare
+	# scena e senza salvare.
 	if not building.window_scene.is_empty():
 		var finestra: PackedScene = load(building.window_scene)
 		if finestra != null:
 			add_child(finestra.instantiate())
 		return
-	await _player.vanish().finished
-	# La posizione salvata è quella davanti alla porta: uscendo di casa il
-	# protagonista ricompare lì, non dove era prima di incamminarsi.
-	GameState.current.player_position = building.entry_point()
-	# Si salva PRIMA di cambiare scena: dopo, questo nodo non esiste più e
-	# nessuno saprebbe più dire dov'era il protagonista.
+	# Si salva PRIMA di cambiare scena: dopo, questo nodo non esiste più.
 	GameState.save_game()
 	get_tree().change_scene_to_file(building.interior_scene)

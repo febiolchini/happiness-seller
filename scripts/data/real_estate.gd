@@ -55,8 +55,9 @@ const LISTINGS := [
 		"corrente": 120,
 	},
 	# I due appartamenti nella MERIDIAN TOWER, il grattacielo piu' alto: li
-	# vende l'agenzia di DOWNTOWN. Per ora si comprano e basta — dentro non si
-	# entra ancora, quindi non hanno `interior` e la torre resta com'e'.
+	# vende l'agenzia di DOWNTOWN. Quello al 21 piano e' l'ufficio, e comprarlo
+	# apre la porta della torre (`property` nella sua voce di `CityMap`); quello
+	# al 5 per ora si compra e basta.
 	{
 		"id": "MeridianApt5",
 		"edificio": "MeridianTower",

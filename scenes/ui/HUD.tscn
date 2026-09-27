@@ -1,9 +1,8 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://scripts/ui/digital_clock.gd" id="2_clock"]
 [ext_resource type="Texture2D" path="res://assets/sprites/ui/clock.png" id="3_shell"]
-[ext_resource type="Script" path="res://scripts/ui/hud_menu.gd" id="4_menu"]
 [ext_resource type="Script" path="res://scripts/ui/money_badge.gd" id="5_money"]
 
 [node name="HUD" type="CanvasLayer"]
@@ -63,15 +62,6 @@ offset_bottom = 34.0
 grow_horizontal = 2
 mouse_filter = 2
 script = ExtResource("5_money")
-
-[node name="Menu" type="Control" parent="Root"]
-layout_mode = 1
-anchors_preset = 0
-offset_left = 8.0
-offset_top = 7.0
-offset_right = 26.0
-offset_bottom = 23.0
-script = ExtResource("4_menu")
 
 [node name="Toasts" type="VBoxContainer" parent="Root"]
 layout_mode = 1

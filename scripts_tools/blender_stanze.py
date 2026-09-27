@@ -725,10 +725,42 @@ def render(percorso):
     bpy.ops.render.render(write_still=True)
 
 
+def buco(name):
+    """Materiale holdout: dove si vede, il render e' trasparente. Per i vetri
+    delle stanze con la vista vera: dietro ci mette la citta' il gioco."""
+    mat = _nuovo(name)
+    N, L = mat.node_tree.nodes, mat.node_tree.links
+    N.clear()
+    out = N.new("ShaderNodeOutputMaterial")
+    h = N.new("ShaderNodeHoldout")
+    L.new(h.outputs[0], out.inputs["Surface"])
+    return mat
+
+
+def emissivo(name, col, forza=1.0):
+    """Solo emissione: non lo tocca nessuna luce della stanza."""
+    mat = _nuovo(name)
+    N, L = mat.node_tree.nodes, mat.node_tree.links
+    N.clear()
+    out = N.new("ShaderNodeOutputMaterial")
+    e = N.new("ShaderNodeEmission")
+    e.inputs["Color"].default_value = srgb(col)
+    e.inputs["Strength"].default_value = forza
+    L.new(e.outputs[0], out.inputs["Surface"])
+    return mat
+
+
 def renderizza(nome, solo_fondale=False, solo=None):
     svuota()
     stanza = STANZE[nome]()
     impostazioni()
+    if stanza.get("trasparente"):
+        # Pellicola trasparente e PNG con l'alfa: l'unica cosa che buca il
+        # fondale e' l'holdout dei vetri, perche' il vuoto intorno alla stanza
+        # e' un piano scuro vero (vedi `ufficio()`).
+        sc = bpy.context.scene
+        sc.render.film_transparent = True
+        sc.render.image_settings.color_mode = "RGBA"
     cartella = os.path.join(OUT, nome)
     os.makedirs(cartella, exist_ok=True)
     anims = stanza.get("animazioni", [])
@@ -2058,11 +2090,406 @@ def garage():
     }
 
 
+# ----------------------------------------------------------------------
+#  UFFICIO (Meridian Tower, 21 piano)
+# ----------------------------------------------------------------------
+
+def pianta_palma(name, loc, vaso_mat, foglia_mat, foglie=9, alta=1.1, apertura=1.0):
+    """Palma in vaso. Torna il perno della chioma: e' lui a ondeggiare."""
+    x, y, z = loc
+    tornio(name + "_vaso", [(0.2, 0), (0.24, 0.05), (0.26, 0.5), (0.27, 0.55)], loc, vaso_mat, seg=4,
+           rot=(0, 0, 45))
+    box(name + "_terra", (0.36, 0.36, 0.02), (x, y, z + 0.52), piatto(name + "_terra_m", "#2E2219", 1.0))
+    tronco = piatto(name + "_tronco", "#5A4430", 0.9)
+    cilindro(name + "_tronco", 0.03, alta - 0.3, (x, y, z + 0.52), tronco, seg=6)
+    chioma = perno(name + "_chioma", (x, y, z + 0.5))
+    rnd = random.Random(len(name) * 7 + foglie)
+    for k in range(foglie):
+        yaw = 360.0 * k / foglie + rnd.uniform(-12, 12)
+        su = rnd.uniform(15, 55)
+        p = perno(f"{name}_f{k}", (0, 0, alta - 0.3 + rnd.uniform(-0.15, 0.1)), parent=chioma)
+        p.rotation_euler = Euler((0, math.radians(-su), math.radians(yaw)))
+        lung = rnd.uniform(0.45, 0.6) * apertura
+        f = sfera(f"{name}_foglia{k}", 0.1, (lung * 0.5, 0, 0), foglia_mat, parent=p,
+                  scala=(lung * 5.0, 0.9, 0.22), seg=10)
+        f.rotation_euler = Euler((math.radians(rnd.uniform(-20, 20)), math.radians(18), 0))
+    return chioma
+
+
+def ufficio():
+    """L'ufficio da un milione: il 21 piano della MERIDIAN TOWER.
+
+    Dal disegno di riferimento: pavimento lucido a lastre calde, la vetrata a
+    tutta altezza sul fondo, il salotto di pelle nera sul tappeto chiaro a
+    sinistra, la scrivania direzionale sul tappeto scuro a destra, la credenza
+    col quadro dello skyline, la libreria nell'angolo, le piante, la porta.
+
+    **La vetrata e' un buco.** Dietro ai vetri non c'e' un cielo dipinto: c'e'
+    un holdout, cioe' il fondale li' e' trasparente, e sotto ci disegna il
+    gioco la citta' vera vista da quassu' (`window_view.gd`). La vetrata guarda
+    a NORD, come la camera: quello che si vede fuori e' la mappa a nord della
+    torre.
+
+    Il vuoto intorno allo spaccato e' un piano scuro vero e non la pellicola
+    trasparente: cosi' l'unica trasparenza del PNG e' il vetro, e il gioco puo'
+    metterci sotto la vista senza che spunti anche intorno alla stanza.
+    """
+    mondo("#1E1B22", 0.5)
+    muro = macchiato("muro_ufficio", "#CDBFA6", "#C3B49A", scala=2.0, seme=6.0, rough=0.8)
+    taglio = piatto("taglio_muro", "#2A2320", 0.8)
+    pav = mattonelle("pav_ufficio", "#A87C52", "#9C714A", "#5E4028", lato=0.62, fuga_px=0.006,
+                     sporco=("#86603C", 2.0, 0.35), rough=0.14)
+    noce = macchiato("noce", "#5A3620", "#4C2D1A", scala=6, stira=(7, 1, 1), rough=0.35)
+    noce_v = macchiato("noce_v", "#5A3620", "#4C2D1A", scala=6, stira=(1, 1, 7), rough=0.35)
+    pelle = macchiato("pelle", "#2B2B31", "#24242A", scala=9, rough=0.3)
+    cromo = piatto("cromo", "#C8CCD2", 0.15, metal=1.0)
+    nero = piatto("nero_opaco", "#18181B", 0.5)
+    telaio = piatto("telaio_vetrata", "#2E3036", 0.35, metal=0.6)
+    tappeto_chiaro = macchiato("tappeto_chiaro", "#C9BCA4", "#B8AA90", scala=14,
+                               macchie=("#9A8C72", 11.0, 0.66, 0.5))
+    tappeto_scuro = macchiato("tappeto_scuro", "#4A4B50", "#404146", scala=16)
+    foglia = macchiato("foglia_palma", "#3E7A34", "#2F6428", scala=9)
+    vaso = piatto("vaso_ufficio", "#3A3A3E", 0.4)
+    carta = piatto("carta", "#E8E2D4", 0.8)
+
+    X0, X1 = 0.0, 9.0
+    Y1 = 6.0
+    HC = 3.1
+    SP = 0.2
+
+    # Il vuoto sotto e intorno allo spaccato.
+    vuoto = box("vuoto", (80, 80, 0.1), (4.5, 10, -6.0), emissivo("vuoto", "#15131A"), linee=False)
+    vuoto.visible_shadow = False
+
+    # Il solaio: lastre lucide sopra, bordo scuro tagliato.
+    box("solaio", (X1 - X0 + 2 * SP, Y1 + SP + 0.15, 0.35), (4.5, (Y1 + SP - 0.15) / 2, -0.37), taglio)
+    box("pavimento", (X1 - X0, Y1, 0.02), (4.5, Y1 / 2, -0.02), pav)
+
+    # Muri di lato, col taglio scuro in cima come nello spaccato di un plastico.
+    box("muro_o", (SP, Y1 + SP + 0.15, HC), (X0 - SP / 2, (Y1 + SP - 0.15) / 2, 0), muro)
+    box("muro_o_taglio", (SP + 0.02, Y1 + SP + 0.17, 0.04), (X0 - SP / 2, (Y1 + SP - 0.15) / 2, HC), taglio)
+    DY0, DY1, DH = 0.55, 1.65, 2.25
+    muro_con_buchi("muro_e", "y", X1, -0.15, Y1 + SP, HC, [(DY0, DY1, 0.0, DH)], muro, spessore=SP)
+    box("muro_e_taglio", (SP + 0.02, Y1 + SP + 0.17, 0.04), (X1 + SP / 2, (Y1 + SP - 0.15) / 2, HC), taglio)
+    for nome_z, (x, verso) in (("o", (X0, 1)), ("e", (X1, -1))):
+        box(f"battiscopa_{nome_z}", (0.02, Y1, 0.08), (x + verso * 0.01, Y1 / 2, 0), noce)
+
+    # La porta sul muro di destra, socchiusa di un niente: vetro satinato.
+    box("porta_uff", (0.05, DY1 - DY0, DH), (X1 + 0.03, (DY0 + DY1) / 2, 0), noce_v)
+    box("porta_uff_vetro", (0.02, DY1 - DY0 - 0.4, 1.5), (X1 + 0.0, (DY0 + DY1) / 2, 0.45),
+        piatto("satinato", "#D9C7A0", 0.3, luce="#F2D9A4", forza=0.6))
+    box("porta_uff_maniglia", (0.06, 0.16, 0.03), (X1 - 0.04, DY0 + 0.15, 1.02), cromo)
+    for k, yy in enumerate((DY0 - 0.04, DY1 + 0.04)):
+        box(f"porta_uff_stipite{k}", (0.08, 0.08, DH + 0.06), (X1 - 0.02, yy, 0), noce_v)
+    box("porta_uff_architrave", (0.08, DY1 - DY0 + 0.16, 0.08), (X1 - 0.02, (DY0 + DY1) / 2, DH), noce_v)
+    box("interruttore_uff", (0.02, 0.08, 0.12), (X1 - 0.01, DY1 + 0.3, 1.05), piatto("placca", "#E4E0D6", 0.4))
+
+    # --- La vetrata ---------------------------------------------------------
+    # Quattro specchi da 2,25 m fra montanti di metallo scuro, uno zoccolo e
+    # la trave in alto. Dietro, l'holdout: il vetro vero lo fa il gioco.
+    ZB, ZT = 0.1, HC - 0.28
+    box("vetrata_zoccolo", (X1 - X0 + 2 * SP, SP, ZB), (4.5, Y1 + SP / 2, 0), telaio)
+    box("vetrata_trave", (X1 - X0 + 2 * SP, SP, HC - ZT), (4.5, Y1 + SP / 2, ZT), telaio)
+    box("vetrata_taglio", (X1 - X0 + 2 * SP + 0.02, SP + 0.02, 0.04), (4.5, Y1 + SP / 2, HC), taglio)
+    for k, x in enumerate((X0 + 0.03, 2.25, 4.5, 6.75, X1 - 0.03)):
+        box(f"montante{k}", (0.09, SP, ZT - ZB), (x, Y1 + SP / 2, ZB), telaio)
+    box("traverso_basso", (X1 - X0, 0.06, 0.04), (4.5, Y1 + 0.03, 0.55), telaio)
+    fuori = lastra("fuori", X1 - X0, ZT - ZB, (4.5, Y1 + 0.12, ZB), buco("vetro_buco"), linee=False)
+    fuori.visible_shadow = False
+    for attr in ("visible_glossy", "visible_diffuse"):
+        if hasattr(fuori, attr):
+            setattr(fuori, attr, False)
+    # Il cielo che il pavimento lucido riflette e che illumina la stanza: la
+    # camera non lo vede (davanti c'e' l'holdout), i riflessi si'.
+    cielo = lastra("cielo_riflesso", X1 - X0, ZT - ZB, (4.5, Y1 + 0.35, ZB),
+                   emissivo("cielo_riflesso", "#BFD6EE", 1.6), linee=False)
+    cielo.visible_camera = False
+    cielo.visible_shadow = False
+    luce("vetrata_luce", "AREA", (4.5, Y1 - 0.15, 1.5), 260.0, "#DCE8F6", rot=(-90, 0, 0),
+         dim=(X1 - X0, ZT - ZB))
+
+    # --- Il salotto, a sinistra --------------------------------------------
+    box("tappeto_salotto", (3.3, 2.5, 0.012), (2.35, 2.35, 0), tappeto_chiaro)
+    # Divano di pelle nera, schienale verso la vetrata.
+    SX, SY = 2.35, 3.55
+    box("divano_base", (2.5, 0.95, 0.3), (SX, SY, 0.1), pelle)
+    for dx in (-1.1, 1.1):
+        for dy in (-0.35, 0.35):
+            box("divano_piede", (0.06, 0.06, 0.1), (SX + dx, SY + dy, 0), noce)
+        box("divano_bracciolo", (0.22, 0.95, 0.62), (SX + dx * 1.04, SY, 0.1), pelle)
+    box("divano_schienale", (2.5, 0.25, 0.78), (SX, SY + 0.36, 0.1), pelle)
+    for k in range(3):
+        box(f"divano_seduta{k}", (0.74, 0.72, 0.13), (SX - 0.76 + k * 0.76, SY - 0.08, 0.4), pelle)
+        box(f"divano_cuscino{k}", (0.72, 0.18, 0.42), (SX - 0.76 + k * 0.76, SY + 0.18, 0.5), pelle,
+            rot=(-12, 0, 0))
+    # Poltrona, girata verso il tavolino.
+    PX, PY = 1.3, 1.35
+    pol = perno("poltrona", (PX, PY, 0))
+    pol.rotation_euler = Euler((0, 0, math.radians(75)))
+    box("poltrona_base", (0.95, 0.9, 0.35), (0, 0, 0.08), pelle, parent=pol)
+    box("poltrona_schienale", (0.95, 0.22, 0.72), (0, 0.36, 0.08), pelle, parent=pol)
+    for dx in (-0.42, 0.42):
+        box("poltrona_bracciolo", (0.18, 0.9, 0.58), (dx, 0, 0.08), pelle, parent=pol)
+    box("poltrona_cuscino", (0.64, 0.66, 0.12), (0, -0.06, 0.43), pelle, parent=pol)
+    # Tavolino basso con libri, pianta, tazza.
+    TX, TY = 2.4, 2.2
+    box("tavolino", (1.5, 0.8, 0.06), (TX, TY, 0.36), noce)
+    for dx in (-0.68, 0.68):
+        for dy in (-0.34, 0.34):
+            box("tavolino_gamba", (0.06, 0.06, 0.36), (TX + dx, TY + dy, 0), noce_v)
+    for k, (c, h) in enumerate((("#2E4A6A", 0.05), ("#8A3A2E", 0.04), ("#D8D0C0", 0.035))):
+        box(f"libro_tav{k}", (0.42 - k * 0.04, 0.3, h), (TX - 0.35, TY + 0.02, 0.42 + k * 0.045),
+            piatto(f"libro_tav{k}", c, 0.7), rot=(0, 0, 8 - k * 7))
+    tornio("vasetto_tav", [(0.07, 0), (0.09, 0.14)], (TX + 0.25, TY + 0.1, 0.42), piatto("vasetto", "#E6E2DA", 0.4),
+           seg=4, rot=(0, 0, 45))
+    for k in range(6):
+        f = sfera(f"piantina_tav{k}", 0.05, (TX + 0.25, TY + 0.1, 0.62), foglia, scala=(3.2, 0.9, 0.3), seg=8)
+        f.rotation_euler = Euler((0, math.radians(-40), math.radians(60 * k)))
+    tornio("tazza_tav", [(0.04, 0), (0.045, 0.09)], (TX + 0.5, TY - 0.2, 0.42), nero, seg=10)
+
+    # Consolle sul muro di sinistra: lampada, cornice, pianta; sopra il
+    # televisore con la borsa.
+    CX = 0.3
+    box("consolle", (0.5, 2.3, 0.72), (CX, 2.45, 0.08), noce)
+    box("consolle_zoccolo", (0.44, 2.2, 0.08), (CX, 2.45, 0), nero)
+    for k in range(3):
+        box(f"consolle_anta{k}", (0.02, 0.72, 0.6), (CX + 0.25, 1.7 + k * 0.75, 0.14), noce_v)
+        box(f"consolle_pomello{k}", (0.03, 0.12, 0.02), (CX + 0.27, 1.7 + k * 0.75, 0.62), cromo)
+    LX, LY = CX, 1.65
+    tornio("lampada_base", [(0.07, 0), (0.08, 0.02), (0.03, 0.05), (0.03, 0.34)], (LX, LY, 0.8), cromo, seg=12)
+    tornio("lampada_paralume", [(0.2, 0), (0.15, 0.26)], (LX, LY, 1.12),
+           piatto("paralume_uff", "#F2DDB2", 0.9, luce="#FFD9A0", forza=2.2), seg=4, chiudi=(False, False),
+           rot=(0, 0, 45))
+    luce("lampada_luce", "POINT", (LX + 0.05, LY, 1.22), 55.0, "#FFC98A", raggio=0.08)
+    box("cornice_consolle", (0.03, 0.2, 0.26), (CX + 0.05, 2.35, 0.8), noce_v, rot=(0, -12, 0))
+    box("foto_consolle", (0.01, 0.15, 0.2), (CX + 0.08, 2.35, 0.83), piatto("foto", "#7A9AB0", 0.6), rot=(0, -12, 0))
+    tornio("vasetto_consolle", [(0.07, 0), (0.08, 0.13)], (CX, 3.2, 0.8), piatto("vasetto2", "#D8D2C6", 0.4), seg=12)
+    for k in range(7):
+        f = sfera(f"piantina_cons{k}", 0.04, (CX, 3.2, 0.98), foglia, scala=(3.4, 0.9, 0.3), seg=8)
+        f.rotation_euler = Euler((0, math.radians(-35), math.radians(52 * k)))
+    # Il televisore: schermo nero con il grafico della borsa.
+    TVY, TVZ, TVW, TVH = 2.45, 1.55, 1.5, 0.84
+    box("tv", (0.05, TVW, TVH), (X0 + 0.03, TVY, TVZ), nero)
+    box("tv_schermo", (0.01, TVW - 0.06, TVH - 0.06), (X0 + 0.06, TVY, TVZ + 0.03),
+        piatto("tv_schermo", "#0C1418", 0.3, luce="#0E2A30", forza=0.8))
+    box("tv_barra", (0.012, TVW - 0.14, 0.012), (X0 + 0.065, TVY, TVZ + 0.2),
+        emissivo("tv_asse", "#2E5A58", 1.0), linee=False)
+
+    # Palma alta nell'angolo della vetrata a sinistra: e' lei a ondeggiare
+    # quando parte il condizionatore.
+    palma = pianta_palma("palma", (0.75, 5.25, 0), vaso, foglia, foglie=11, alta=1.55, apertura=1.25)
+    pianta_palma("palma2", (4.55, 5.35, 0), vaso, foglia, foglie=9, alta=1.2)
+
+    # --- Lo studio, a destra ------------------------------------------------
+    box("tappeto_studio", (3.8, 3.1, 0.012), (6.55, 3.35, 0), tappeto_scuro)
+    DX, DYs = 6.55, 3.4
+    box("scrivania_piano", (2.5, 1.05, 0.06), (DX, DYs, 0.72), noce)
+    for dx in (-0.98, 0.98):
+        box("scrivania_cassettiera", (0.52, 0.95, 0.72), (DX + dx, DYs, 0), noce_v)
+        for k in range(3):
+            box(f"scrivania_cassetto{k}", (0.46, 0.02, 0.19), (DX + dx, DYs - 0.48, 0.07 + k * 0.22), noce)
+            box(f"scrivania_maniglia{k}", (0.14, 0.02, 0.02), (DX + dx, DYs - 0.5, 0.18 + k * 0.22), cromo)
+    box("scrivania_pannello", (1.45, 0.04, 0.5), (DX, DYs - 0.38, 0.2), noce_v)
+    # Monitor verso chi siede, tastiera, lampada, carte, telefono, tazza.
+    box("monitor_piede", (0.2, 0.16, 0.02), (DX - 0.1, DYs + 0.2, 0.78), nero)
+    box("monitor_collo", (0.05, 0.04, 0.2), (DX - 0.1, DYs + 0.22, 0.78), nero)
+    box("monitor", (0.72, 0.05, 0.44), (DX - 0.1, DYs + 0.2, 0.93), nero, rot=(0, 0, 8))
+    box("tastiera", (0.46, 0.15, 0.02), (DX - 0.1, DYs + 0.36, 0.78), piatto("tastiera", "#2C2C30", 0.5))
+    box("carte", (0.3, 0.22, 0.04), (DX + 0.55, DYs - 0.1, 0.78), carta, rot=(0, 0, -10))
+    box("cartella", (0.34, 0.26, 0.02), (DX + 0.55, DYs - 0.1, 0.82), piatto("cartella", "#7A2E26", 0.6),
+        rot=(0, 0, 4))
+    tornio("lampada_scr_base", [(0.08, 0), (0.08, 0.02)], (DX - 0.95, DYs + 0.25, 0.78), nero, seg=12)
+    cilindro("lampada_scr_asta", 0.012, 0.36, (DX - 0.95, DYs + 0.25, 0.8), nero, seg=6)
+    tornio("lampada_scr_cappello", [(0.1, 0), (0.05, 0.1)], (DX - 0.95, DYs + 0.12, 1.08), nero, seg=12,
+           rot=(-35, 0, 0))
+    luce("lampada_scr_luce", "SPOT", (DX - 0.95, DYs + 0.1, 1.08), 40.0, "#FFD29A", raggio=0.05,
+         rot=(-20, 0, 0), cono=80)
+    # La tazza di caffe' fumante.
+    MX, MY = DX - 0.55, DYs - 0.15
+    tornio("tazza", [(0.04, 0), (0.046, 0.095)], (MX, MY, 0.78), piatto("tazza", "#EDE8DE", 0.3), seg=12)
+    box("tazza_caffe", (0.07, 0.07, 0.005), (MX, MY, 0.86), piatto("caffe", "#2A1810", 0.2), linee=False)
+    # Il telefono con la spia rossa.
+    box("telefono", (0.2, 0.18, 0.05), (DX + 0.55, DYs + 0.3, 0.78), nero, rot=(0, 0, -15))
+    box("cornetta", (0.2, 0.06, 0.04), (DX + 0.55, DYs + 0.36, 0.83), nero, rot=(0, 0, -15))
+    spia_mat = piatto("spia", "#5A1A18", 0.3, luce="#FF3A2A", forza=0.0)
+    sfera("spia", 0.014, (DX + 0.63, DYs + 0.24, 0.835), spia_mat, linee=False, seg=8)
+
+    # La poltrona direzionale dietro alla scrivania: ogni tanto ruota.
+    CHX, CHY = DX, DYs + 0.95
+    sedia_p = perno("poltrona_dir", (CHX, CHY, 0))
+    for k in range(5):
+        a = math.radians(72 * k)
+        box(f"razza{k}", (0.32, 0.04, 0.03), (0.14 * math.cos(a), 0.14 * math.sin(a), 0.06), cromo,
+            rot=(0, 0, 72 * k), parent=sedia_p)
+    cilindro("poltrona_dir_asta", 0.03, 0.35, (0, 0, 0.08), cromo, seg=8, parent=sedia_p)
+    box("poltrona_dir_seduta", (0.6, 0.58, 0.14), (0, 0, 0.43), pelle, parent=sedia_p)
+    box("poltrona_dir_schienale", (0.56, 0.14, 0.82), (0, 0.3, 0.55), pelle, parent=sedia_p, rot=(8, 0, 0))
+    box("poltrona_dir_testa", (0.44, 0.13, 0.16), (0, 0.36, 1.38), pelle, parent=sedia_p, rot=(8, 0, 0))
+    for dx in (-0.31, 0.31):
+        box("poltrona_dir_bracciolo", (0.07, 0.42, 0.04), (dx, 0.0, 0.68), nero, parent=sedia_p)
+        box("poltrona_dir_bracciolo_ferro", (0.03, 0.03, 0.2), (dx, 0.0, 0.5), cromo, parent=sedia_p)
+    sedia_base = sedia_p.rotation_euler.copy()
+
+    # Le due sedie degli ospiti, cromo e pelle, verso la scrivania.
+    for k, gx in enumerate((DX - 0.55, DX + 0.55)):
+        g = perno(f"ospite{k}", (gx, DYs - 1.05, 0))
+        g.rotation_euler = Euler((0, 0, math.radians(188 if k == 0 else 172)))
+        for dx in (-0.24, 0.24):
+            box("ospite_slitta", (0.03, 0.55, 0.03), (dx, 0, 0), cromo, parent=g)
+            box("ospite_montante", (0.03, 0.03, 0.44), (dx, -0.25, 0), cromo, parent=g)
+            box("ospite_montante_d", (0.03, 0.03, 0.8), (dx, 0.25, 0), cromo, parent=g)
+        box("ospite_seduta", (0.5, 0.5, 0.08), (0, 0, 0.42), pelle, parent=g)
+        box("ospite_schienale", (0.5, 0.06, 0.4), (0, 0.25, 0.52), pelle, parent=g)
+
+    # Credenza lunga sul muro di destra, col quadro dello skyline sopra.
+    KX = X1 - 0.28
+    box("credenza", (0.5, 2.6, 0.72), (KX, 3.45, 0.06), noce)
+    box("credenza_zoccolo", (0.44, 2.5, 0.06), (KX, 3.45, 0), nero)
+    for k in range(4):
+        box(f"credenza_anta{k}", (0.02, 0.62, 0.62), (KX - 0.25, 2.32 + k * 0.65, 0.11), noce_v)
+        box(f"credenza_pomello{k}", (0.03, 0.1, 0.02), (KX - 0.27, 2.32 + k * 0.65, 0.62), cromo)
+    tornio("mappamondo_piede", [(0.07, 0), (0.02, 0.04), (0.015, 0.14)], (KX, 2.55, 0.78), piatto("ottone_uff", "#B08A42", 0.3, metal=0.9), seg=12)
+    sfera("mappamondo", 0.13, (KX, 2.55, 1.06), macchiato("globo", "#B8924E", "#6A7A5A", scala=4), seg=16)
+    for k in range(2):
+        box(f"cornice_cred{k}", (0.03, 0.22, 0.28), (KX - 0.02, 3.2 + k * 0.32, 0.78), nero, rot=(0, 12, 0))
+        box(f"foto_cred{k}", (0.01, 0.17, 0.22), (KX - 0.05, 3.2 + k * 0.32, 0.81),
+            piatto(f"foto_cred{k}", ("#9AA8B0", "#B0987A")[k], 0.6), rot=(0, 12, 0))
+    for k, c in enumerate(("#E0DAD0", "#2E3A4A", "#D8D2C6")):
+        box(f"libri_cred{k}", (0.3, 0.4, 0.05), (KX, 4.25, 0.78 + k * 0.05), piatto(f"libri_cred{k}", c, 0.7))
+    # Il quadro: lo skyline in grigio-azzurro, in cornice dorata.
+    qp, _tela = quadro("quadro_skyline", 1.9, 1.05, (X1 - 0.02, 3.45, 1.35), piatto("cornice_oro", "#8A6A3A", 0.4, metal=0.6),
+                       "#8C98A6", "#6A7686", rot=(90, 0, -90), seme=3.0)
+    rnd = random.Random(21)
+    x = -0.8
+    while x < 0.8:
+        w = rnd.uniform(0.07, 0.16)
+        h = rnd.uniform(0.15, 0.7)
+        box(f"skyline_{x:.2f}", (w, h, 0.01), (x + w / 2, -0.47 + h / 2, 0.04),
+            piatto(f"skyline_{x:.2f}", rnd.choice(("#3C4652", "#4A5462", "#343C48")), 0.8),
+            parent=qp, linee=False)
+        x += w + rnd.uniform(0.0, 0.03)
+    # Due faretti sul quadro.
+    for k, yy in enumerate((2.9, 4.0)):
+        box(f"faretto{k}", (0.1, 0.08, 0.08), (X1 - 0.06, yy, 2.45), nero)
+        luce(f"faretto{k}_luce", "SPOT", (X1 - 0.15, yy, 2.4), 70.0, "#FFD8A8", raggio=0.04,
+             rot=(0, 35, 0), cono=45)
+
+    # Libreria nell'angolo fra la vetrata e il muro di destra.
+    BX, BY = X1 - 0.24, 5.25
+    # Aperta davanti: fianchi, schiena e cielo, cosi' i libri si vedono.
+    box("libreria_schiena", (0.03, 1.2, 2.3), (X1 - 0.03, BY, 0), piatto("vano_libreria", "#2A1A10", 0.9))
+    for k, dy in enumerate((-0.58, 0.58)):
+        box(f"libreria_fianco{k}", (0.42, 0.04, 2.3), (BX, BY + dy, 0), noce_v)
+    box("libreria_cielo", (0.42, 1.2, 0.04), (BX, BY, 2.3), noce_v)
+    rnd = random.Random(33)
+    colori_libri = ["#6A2A24", "#2E3E5A", "#3E5A3A", "#B89A62", "#E0D8C8", "#4A3A2E", "#7A6A5A"]
+    for k in range(5):
+        z = 0.08 + k * 0.44
+        box(f"ripiano{k}", (0.4, 1.12, 0.03), (BX, BY, z), noce)
+        y = BY - 0.5
+        while y < BY + 0.45:
+            if rnd.random() < 0.12:
+                y += 0.12
+                continue
+            s = rnd.uniform(0.035, 0.07)
+            h = rnd.uniform(0.24, 0.36)
+            box(f"libro{k}_{y:.2f}", (0.28, s, h), (BX - 0.06, y + s / 2, z + 0.03),
+                piatto(f"libro{k}_{y:.2f}", rnd.choice(colori_libri), 0.7))
+            y += s + 0.005
+    tornio("vaso_libreria", [(0.09, 0), (0.11, 0.16)], (BX - 0.05, BY - 0.25, 2.3), vaso, seg=12)
+    for k in range(9):
+        f = sfera(f"edera_lib{k}", 0.05, (BX - 0.12, BY - 0.25 + (k % 3) * 0.06, 2.4 - k * 0.09), foglia,
+                  scala=(1.2, 1.2, 1.6), seg=8)
+
+    # Una pianta piccola nell'angolo della porta.
+    pianta_palma("palmetta", (0.5, 0.5, 0), vaso, foglia, foglie=7, alta=0.9, apertura=0.8)
+
+    # --- Luci ---------------------------------------------------------------
+    luce("riempi", "AREA", (4.5, 1.0, 5.0), 260.0, "#F2E6D6", rot=(20, 0, 0), dim=(9.0, 5.0))
+    luce("calda", "POINT", (6.5, 2.5, 2.6), 60.0, "#FFD6A0", raggio=0.5)
+
+    camera_libera((4.5, -5.6, 8.4), (49.0, 0.0, 0.0), fov=58.0)
+
+    # --- Animazioni ---------------------------------------------------------
+    # Il vapore dal caffe'.
+    sbuffi = []
+    for k in range(3):
+        m = piatto(f"vapore_uff{k}", "#EEEAE2", 1.0, luce="#EEEAE2", forza=0.3, alpha=0.3)
+        ob = sfera(f"vapore_uff{k}", 0.03, (MX, MY, 0.9), m, linee=False, seg=10)
+        sbuffi.append((ob, m))
+
+    def posa_vapore(t):
+        for k, (ob, m) in enumerate(sbuffi):
+            f = (t + k / 3.0) % 1.0
+            ob.location = (MX + 0.03 * math.sin(f * 5 + k), MY, 0.88 + f * 0.32)
+            s = 0.6 + f * 1.8
+            ob.scale = (s, s, s * 0.8)
+            _set(_bsdf(m), "Alpha", 0.35 * math.sin(math.pi * f) ** 1.2)
+
+    # La spia del telefono: due lampeggi, poi spenta.
+    def posa_spia(t):
+        i = int(round(t * 8))
+        _set(_bsdf(spia_mat), "Emission Strength", 6.0 if i in (1, 3) else 0.0)
+
+    # La poltrona che ruota da sola, come quando qualcuno ci si e' appena alzato.
+    def posa_sedia(t):
+        a = 24.0 * math.sin(2 * math.pi * t) * (1.0 - t) ** 0.7
+        r = sedia_base.copy()
+        r[2] = sedia_base[2] + math.radians(a)
+        sedia_p.rotation_euler = r
+
+    # Il grafico della borsa sul televisore: una linea che scorre.
+    rnd = random.Random(4)
+    serie = [0.5]
+    for _ in range(40):
+        serie.append(min(0.95, max(0.08, serie[-1] + rnd.uniform(-0.16, 0.19))))
+    N_BARRE = 16
+    barre = []
+    for k in range(N_BARRE):
+        m = emissivo(f"borsa{k}", "#46D27A", 1.4)
+        ob = box(f"borsa{k}", (0.012, (TVW - 0.2) / N_BARRE * 0.7, 0.02),
+                 (X0 + 0.068, TVY - (TVW - 0.2) / 2 + (k + 0.5) * (TVW - 0.2) / N_BARRE, TVZ + 0.2), m, linee=False)
+        barre.append((ob, m))
+
+    def posa_borsa(t):
+        i0 = int(round(t * 8))
+        for k, (ob, m) in enumerate(barre):
+            v = serie[i0 + k]
+            prima = serie[i0 + k - 1] if i0 + k > 0 else v
+            ob.scale = (1, 1, max(0.3, v * (TVH - 0.3) / 0.02))
+            em = next(n for n in m.node_tree.nodes if n.type == "EMISSION")
+            em.inputs["Color"].default_value = srgb("#46D27A" if v >= prima else "#E0564A")
+
+    posa_vapore(0.0)
+    posa_spia(0.0)
+    posa_sedia(0.0)
+    posa_borsa(0.0)
+
+    return {
+        "trasparente": True,
+        "animazioni": [
+            dondolo("palma", palma, 4.0, asse="Y", periodo=2.4, smorza=3.0, pausa=(9.0, 20.0),
+                    spinta=(0.5, 1.0)),
+            evento("poltrona", posa_sedia, 16, 10, (25.0, 60.0)),
+            ciclo("borsa", posa_borsa, 8, 3),
+            ciclo("vapore", posa_vapore, 12, 6),
+            evento("telefono", posa_spia, 8, 5, (6.0, 16.0)),
+        ],
+        "punti": {
+            "finestra": [(X0, Y1, ZB), (X1, Y1, ZB), (X0, Y1, ZT), (X1, Y1, ZT)],
+            "personaggio": (4.4, 1.5, 0.0),
+            "pc": [(DX - 0.5, DYs + 0.2, 0.78), (DX + 0.3, DYs + 0.2, 0.78),
+                   (DX - 0.5, DYs + 0.2, 1.37), (DX + 0.3, DYs + 0.2, 1.37)],
+        },
+    }
+
+
 STANZE = {
     "ingresso": ingresso,
     "cucina": cucina,
     "cantina": cantina,
     "garage": garage,
+    "ufficio": ufficio,
 }
 
 

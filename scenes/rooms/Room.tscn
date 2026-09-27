@@ -1,7 +1,6 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/rooms/room.gd" id="1_room"]
-[ext_resource type="Texture2D" path="res://assets/sprites/characters/protagonista.png" id="2_char"]
 [ext_resource type="FontFile" path="res://assets/sprites/ui/brush.fnt" id="3_font"]
 [ext_resource type="PackedScene" path="res://scenes/ui/HUD.tscn" id="4_hud"]
 
@@ -34,19 +33,6 @@ grow_vertical = 2
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
-
-[node name="Character" type="Sprite2D" parent="."]
-position = Vector2(320, 196)
-scale = Vector2(4, 4)
-texture = ExtResource("2_char")
-offset = Vector2(0, -1)
-hframes = 9
-frame = 8
-
-[node name="Shadow" type="Polygon2D" parent="Character"]
-z_index = -1
-color = Color(0, 0, 0, 0.34)
-polygon = PackedVector2Array(9, 19, 7.794, 20.5, 4.5, 21.598, 0, 22, -4.5, 21.598, -7.794, 20.5, -9, 19, -7.794, 17.5, -4.5, 16.402, 0, 16, 4.5, 16.402, 7.794, 17.5)
 
 [node name="Title" type="Label" parent="."]
 layout_mode = 1

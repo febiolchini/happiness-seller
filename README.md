@@ -15,14 +15,24 @@ riconosceva a colpo d'occhio. L'idea è che le logiche di gioco siano già in
 piedi e complete, e che la pixel art le sostituisca un pezzo per volta senza
 toccarle. Ogni sezione qui sotto dice cosa va rimpiazzato e come.
 
-Il giro di gioco è: **chiedi semi a Brian dal PC → vai all'appuntamento →
-piantali nel seminterrato → annaffiali → raccogli → vendi**, all'ingrosso dal
-PC o in strada ai clienti. Vedi "Coltivare e vendere".
+È un **gestionale quasi puro**: non c'è un protagonista che cammina. La
+mappa c'è com'era — quartieri, traffico, passanti, luce e meteo — ma è il
+posto da cui si guarda l'attività e si raggiungono gli sportelli: **si clicca
+su un edificio e si apre la sua finestra**, si clicca su una persona e le si
+parla. Tutto il resto si gestisce dal **PC** del seminterrato (click su casa),
+e quello che conta si legge sempre sulla **lavagna** a destra dell'HUD. Vedi "Il gestionale: niente protagonista".
 
-Poi il giro si allarga: col **negozio online** si compra l'attrezzatura che lo
-rende meno faticoso (attrezzatura, lampade, filtri), e a **1000 $** il
-prologo si chiude e si può **assumere personale** che coltiva e vende da solo.
-Vedi "Il negozio online", "La fine del prologo" e "Il personale".
+La storia comincia con lo **zio che lascia la sua piccola attività avviata**:
+2500 $ in cassa, un coltivatore, uno spacciatore e tre piante già in crescita
+nel seminterrato. Il giro è: **compra i semi dal grossista (click sul
+magazzino) → il coltivatore pianta, annaffia e raccoglie → lo spacciatore
+vende in strada**, e il giocatore decide dal PC quanto personale tenere, quanti
+vasi aprire, cosa comprare. Vedi "Coltivare e vendere" e "Il personale".
+
+Poi il giro si allarga: col **negozio online** si compra l'attrezzatura
+(attrezzatura, lampade, filtri), al chilo di merce si apre l'**ingrosso** col
+furgone e il suo autista, e più avanti le proprietà, il garage, la stazione
+degli autobus. Vedi "Il negozio online" e "L'ingrosso".
 
 Il mondo non si ferma quando si chiude il gioco: riaprendolo, il personale ha
 lavorato e le piante sono cresciute — tutto a resa piena, fino a un massimo di
@@ -34,6 +44,35 @@ ombre girano col sole, al tramonto si accendono i lampioni, e ogni
 mezzanotte esce il tempo del giorno dopo — che non è solo da guardare, perché
 sotto la pioggia si vende meno in strada ma ci si fa anche notare meno. Vedi
 "Luce, ore e meteo".
+
+## Il gestionale: niente protagonista
+
+Fino al 2026-09-27 c'era un protagonista che camminava per la città seguendo le
+strade, entrava in casa passando da ingresso, cucina e seminterrato, andava
+agli appuntamenti con Brian e al grossista a piedi, e aveva un telefono in
+tasca. È stato tolto tutto insieme, su decisione di Federico, per rendere il
+gioco più giocabile e più gestionale. Cosa è cambiato, in breve:
+
+| Prima | Adesso |
+|---|---|
+| click = il protagonista ci va | click su un edificio = si apre subito la sua finestra (o la stanza); click su una persona = si apre subito il dialogo; click sul vuoto = niente |
+| la camera segue il protagonista | la camera parte su casa e si trascina col sinistro o col destro (`camera_zoom.gd`, `jump_to()` / `was_drag()`) |
+| casa: ingresso, cucina, seminterrato | casa apre direttamente il seminterrato; `Entrance.tscn` e `Kitchen.tscn` sono state tolte (i PNG e `blender_stanze.py` restano) |
+| il protagonista in piedi nelle stanze | le stanze hanno i vasi, il PC e l'uscita |
+| il telefono: rubrica, chat, guida, ordini all'autista | tolto. I traguardi di Brian compaiono in un riquadro e restano nella scheda **MESSAGGI** del PC; gli avvisi di passaggio sono messaggini dell'HUD; la guida si apre dal tasto **GUIDA** del PC |
+| il menu a tre righe in alto a sinistra con scorta e personale | la **lavagna** sul bordo sinistro, a metà altezza, sempre a vista (erba, semi, coltivatori, autisti, spacciatori) |
+| si parte con 120 $ e un prologo fino ai 1000 | si parte con l'attività dello zio: 2500 $, un coltivatore, uno spacciatore, tre piante avviate, e il nome della banda chiesto subito (`Economy.setup_new_game()`) |
+| i semi del grossista li va a prendere il furgone (2 ore), e l'autista serve a non andarci a piedi | il grossista c'è dall'inizio e **i semi si comprano al banco**, subito, cliccando il magazzino; stessa cosa alla stazione degli autobus |
+| l'autista porta il furgone dal grossista; un secondo autista per la stazione | l'autista serve **solo all'ingrosso**: senza, i carichi non partono. Uno solo |
+
+Restano per i **salvataggi vecchi**: il prologo (una partita cominciata prima si
+chiude ancora ai 1000 $), e gli ordini di semi rimasti in viaggio (`seed_run`,
+`bus_run`), che arrivano all'ora prevista (`GameState._tick_legacy_seed_orders()`).
+La posizione del protagonista non si salva più.
+
+Lo sprite del protagonista (`assets/sprites/characters/protagonista.png`) e la
+sua catena Blender restano sul disco: il personaggio è uscito dal gioco, non il
+disegno.
 
 ## Struttura cartelle
 
@@ -304,14 +343,30 @@ si sviluppa **verso l'alto**. Il campo `"front"` dice su quale lato della strada
 sta l'edificio, quindi da che parte è il marciapiede:
 
 - **nord** → base sul bordo alto del marciapiede (es. y 240 per MAIN STREET),
-  il protagonista si avvicina da sotto;
+  porta in basso;
 - **sud** → base più in basso della strada, col corpo che arriva a toccare il
-  marciapiede, e il protagonista si avvicina da sopra;
+  marciapiede, porta in alto;
 - **ovest** / **est** → lo stesso ruotato, per gli edifici affacciati su una
   strada verticale.
 
-Da lì `city.gd::_entry_offset()` ricava dove si ferma il protagonista.
-Sbagliarlo si vede subito: il personaggio va a fermarsi dietro al muro.
+Da lì `city.gd::_entry_offset()` ricava il punto della porta. (Era dove si
+fermava il protagonista; oggi non lo usa più nessuno a schermo.)
+
+### I segnalini sopra ai tetti
+
+Sopra a ogni edificio che si apre dondola un triangolo, il disegno di Federico
+(`import_segni_ui.py`, alto 72 px — era 36 e si perdeva fra le finestre):
+**verde** sopra a casa e alle proprietà comprate, **giallo-arancio**
+(`triangolo_arancio.png`, lo stesso ricolorato) sopra agli sportelli —
+agenzie, grossista, stazione quando è aperta. Lo sceglie
+`enterable_building.gd::marker_texture()` da quello che l'edificio sa fare.
+
+### Il verde dei menu
+
+Nei menu i dettagli che erano arancio sono verdi (Federico, 2026-09-27): cassa,
+prezzi e titoli della guida (`UiTheme.ACCENT`, un verde più scuro di `GOOD`),
+il cerchio della voce scelta (`cerchio_verde.png`, ricolorato dall'oro), la
+scelta accesa nelle impostazioni. I bottoni restano rossi.
 
 La prima casa su una strada verticale è la **casetta azzurra** su WESTGATE
 AVENUE (`blender_casa_blu.py`, `"front": "east"`): ingresso a ovest. La camera
@@ -548,155 +603,22 @@ personaggio sta nel suo ruolo e la scena resta l'unico posto in cui si decide
 come sono fatti i dialoghi.
 
 Una scelta con `keep_open` si occupa lei di riscrivere il dialogo: è come fanno
-i negozi, perché comprare tre volte di fila non deve costare tre camminate fino
-alla clinica.
+i negozi, perché comprare tre volte di fila non deve costare tre click sulla
+persona.
 
-## Come si cammina
+Il dialogo si apre **al click sulla persona**, subito: non c'è più nessuno che
+le cammini accanto (`city.gd::_unhandled_input()`).
 
-`scripts/systems/city_navigation.gd` è una griglia A* (`AStarGrid2D`) costruita
-dalla **stessa** pianta che costruisce gli edifici, quindi le due non possono
-divergere. Celle da 16 px, perché tutta la mappa è allineata a multipli di 16 e
-così il bordo di un marciapiede cade su un confine fra celle invece di tagliarne
-una a metà.
+## Come si cammina (non più)
 
-Costruirla costa 7 ms, e un percorso da un capo all'altro della città circa 11.
+C'era una griglia A* (`city_navigation.gd`) su cui camminava il protagonista,
+coi costi di marciapiede e asfalto, la semplificazione dei percorsi e
+l'attesa al cordolo. È stata tolta con lui (vedi "Il gestionale: niente
+protagonista"); resta nella storia di git.
 
-### Il costo, non solo il muro
-
-Bloccare gli edifici non basta. Senza costi il protagonista taglierebbe in
-diagonale attraverso cortili e prati perché è più corto, e non camminerebbe mai
-su un marciapiede. Ogni cella ha quindi un prezzo:
-
-| Terreno | Costo |
-|---|---|
-| Marciapiede | 1.0 |
-| Tutto il resto (cortili, prati, piazzali) | 3.0 |
-| Asfalto | 4.0 |
-
-L'asfalto è il più caro di tutti, più di un prato. Non è il rischio di
-essere investiti — quello lo guarda `Traffic` al momento di scendere dal
-cordolo — è che una persona sulla carreggiata **non ci cammina**, ci passa e
-basta. Con il 2.2 di prima il tragitto più conveniente era spessissimo quello
-dritto in mezzo alla strada, che è più corto: misurato su una quarantina di
-tragitti lunghi, più della metà dei passi cadeva sull'asfalto.
-
-A quattro volte il marciapiede l'attraversamento resta pagabile — sei celle, la
-strada è larga 96 px — e percorrerla per il lungo no. Di riflesso
-l'attraversamento viene **perpendicolare** da solo, senza doverlo scrivere da
-nessuna parte: in diagonale di celle d'asfalto se ne toccherebbero la metà in
-più. Oggi la stessa misura dà l'86% dei passi sul marciapiede e il 9%
-sull'asfalto, e quel 9% sono gli attraversamenti e gli incroci.
-
-Il percorso più conveniente diventa così da solo quello che farebbe una persona:
-si segue la via, si attraversa la carreggiata invece di percorrerla, e si taglia
-per un prato solo quando il giro sarebbe molto più lungo.
-
-Il terreno non è mai *impraticabile*, solo caro: un edificio in mezzo a un
-isolato deve restare raggiungibile, e chi clicca in mezzo a un parco ci deve
-andare.
-
-### La semplificazione deve rispettare il costo
-
-A* su una griglia restituisce una scaletta di celle: seguita così, il
-personaggio cammina a zig-zag anche su una strada dritta. Si tiene quindi un
-punto solo quando da quello prima non si vede più il successivo.
-
-Ma la scorciatoia non può essere solo "il muro non c'è": deve **costare quanto
-o meno del pezzo di percorso che sostituisce**. Senza questo vincolo la
-semplificazione butta via la preferenza per i marciapiedi appena calcolata da
-A*, e un tragitto attraverso la città torna a serpeggiare in diagonale dentro
-agli isolati, infilandosi in ogni varco fra due palazzi.
-
-Il confronto è fra i due costi **per intero**, e ci è arrivato in due passi.
-La prima versione usava un tetto: la scorciatoia era permessa se non metteva
-piede su un terreno più caro del più caro già attraversato. Sembra la stessa
-cosa e non lo è — un tetto non guarda **quanto** terreno caro si attraversa,
-solo di che tipo e'. Bastava quindi toccare l'asfalto una volta, per un
-attraversamento, perché da lì in poi tutto l'asfalto fosse gratis, e la
-scorciatoia successiva poteva tagliare per la carreggiata in diagonale per
-centinaia di pixel. E' metà del motivo per cui il protagonista camminava in
-mezzo alla strada.
-
-Adesso si sommano i costi dei due tragitti e si confrontano (`_segment_cost()`):
-un attraversamento passa perché accorcia davvero, un tratto in diagonale sulla
-carreggiata no perché costa quattro volte il marciapiede che aveva accanto, e
-su terreno uniforme la semplificazione è identica a prima. Le scorciatoie si
-cercano solo entro 400 px (`SHORTCUT_REACH`), o il confronto si allunga col
-percorso e un tragitto da un capo all'altro della città arriva a costare una
-pausa che si sente nel momento del click.
-
-### Quando un percorso non c'è
-
-Gli estremi vengono spostati sulla cella libera più vicina: si può cliccare
-sopra a un edificio, e il protagonista può ritrovarsi dentro a un muro
-(riprendendo un salvataggio fatto prima che quell'edificio esistesse). Se
-nonostante tutto un percorso non si trova, `city.gd` manda il personaggio in
-linea retta: meglio un tragitto brutto che un click ignorato, che si legge come
-un gioco rotto.
-
-### Il passo, e perché è uno solo
-
-Il protagonista ha **una** velocità: 48 px/s, un passo svelto
-(`player.gd::speed`). I passanti girano a 30 e le auto fra i 96 e i 132, quindi
-si cammina una volta e mezza un passeggio e circa la metà del traffico — è il
-rapporto che si legge stando su un marciapiede vero.
-
-Prima ce n'erano due, 90 di passo e 190 oltre i 320 px dalla meta, per non
-metterci un minuto e mezzo ad attraversare la città. Erano sbagliate tutte e
-due: a 90 il protagonista camminava più forte di un'auto, a 190 scivolava. E il
-problema che risolvevano non è la velocità di un pedone — è che le distanze
-grandi vogliono un mezzo. I mezzi si compreranno; il pedone resta un pedone.
-
-Attorno al passo ci sono due dettagli che fanno la differenza fra una persona e
-una figurina trascinata:
-
-- **Si parte e ci si ferma in un tempo**, non di scatto (`accel_time` 0.22 s,
-  `brake_time` 0.12 s, più corto perché fermarsi è più rapido che partire
-  per chiunque). Il rallentamento guarda la META e non la prossima svolta, o si
-  singhiozzerebbe a ogni angolo.
-- **Il saltello va a passi e non a tempo**: si avanza di `stride` (20 px, la
-  falcata giusta per un personaggio alto 48) e si fa un passo. Legato ai
-  secondi, un personaggio che rallenta continua a sobbalzare alla stessa
-  cadenza e sembra che pattini.
-
-### Attraversare solo se non si viene investiti
-
-`scripts/systems/traffic.gd`. Arrivato al cordolo il protagonista si ferma,
-guarda a destra e a sinistra, e scende quando c'è il buco.
-
-Il conto è di **tempi, non di distanze**: "c'è un'auto entro cento pixel" non
-dice niente, perché un'auto lenta a cento pixel la si passa davanti
-comodamente e una veloce a duecento no. Si confrontano invece due intervalli —
-quando il pedone occupa la corsia, camminando a passo suo, e quando la occupa
-l'auto, dal muso alla coda più un margine — e si aspetta solo se si
-sovrappongono. Ne viene fuori da solo il comportamento giusto: si taglia la
-strada a un'auto lontana, si lascia passare quella vicina, e dietro a una appena
-transitata si riparte subito invece di restare fermi come davanti a un semaforo
-che non c'è.
-
-Si guarda **solo il passaggio dal marciapiede all'asfalto**. Una volta in mezzo
-alla strada non ci si ferma più per nessun motivo: fermarsi lì è la cosa
-peggiore da fare, per il pedone e da guardare.
-
-La parte che si sbaglia facilmente è lo **stallo**. Le auto frenano per chi sta
-sulla carreggiata, e prima frenavano anche per chi era fermo sul marciapiede a
-venti pixel dalla corsia (`BRAKE_WIDTH` era largo mezza carreggiata): messo
-insieme al pedone che aspetta un buco, faceva due che si guardano per sempre —
-lui fermo perché l'auto è lì, lei ferma perché lui è lì. Adesso un'auto
-frena solo per chi è **davvero sull'asfalto** (`CityMap.on_road()`), quindi chi
-aspetta al cordolo vede sempre auto in movimento e il buco arriva. Resta
-comunque una scappatoia da otto secondi: non dovrebbe mai servire, ma un
-protagonista che non riparte più è un gioco rotto.
-
-Vale anche per i passanti (`npc.gd`), con la stessa regola e per lo stesso
-motivo: un'auto che passa attraverso una persona è la cosa che fa sembrare
-finta una città.
-
-Misurato in città, col traffico vero: su 52 attraversamenti l'attesa media al
-cordolo è **mezzo secondo** (massimo 4,7) e le investite sono zero; su tragitti
-lunghi da un capo all'altro si cammina a 44 px/s di media contando le attese, si
-sta sull'asfalto il 7-9% del tempo e non si resta piantati da nessuna parte.
-`scripts_tools/WalkShot.tscn` fotografa un attraversamento per guardarlo.
+I **passanti** non la usavano: seguono i loro percorsi scritti in
+`NpcRoster`, e attraversano solo quando le auto lo permettono
+(`Traffic.crossing_clear()`), che resta.
 
 ## Traffico
 
@@ -707,9 +629,9 @@ ottantotto auto sulle undici strade.
 
 Le corsie seguono la guida a destra — su una strada orizzontale chi va verso est
 sta nella corsia più in basso, su una verticale chi va verso sud sta in quella
-più a ovest — e le auto **frenano** se il protagonista è davanti al muso e
-sulla carreggiata: due righe, ma un'auto che ci passa attraverso senza
-rallentare si legge subito come un bug. Di notte accendono i fari.
+più a ovest. Frenavano anche se il protagonista era davanti al muso e sulla
+carreggiata (`Car.watch`, che oggi resta sempre vuoto). Di notte accendono i
+fari.
 
 Vanno dai 96 ai 132 px/s, velocità diverse per corsia perché tutte uguali si
 muovono come un trenino. Sono salite quando il protagonista è tornato a
@@ -877,15 +799,10 @@ dall'avvio.
 
 ### Lo stato che vive in scena
 
-Non tutto sta dentro a `SaveData` mentre si gioca: **dove sta il protagonista lo
-sa solo la mappa**. Per questo `GameState` emette `saving` subito prima di
-scrivere, e `city.gd` ci aggancia `_collect_state()`.
-
-Senza quel gancio funzionerebbe solo il salvataggio volontario (che passava per
-`city.gd`), mentre quello automatico scriverebbe una posizione vecchia e
-riprendendo la partita il protagonista ricomparirebbe dove stava qualche minuto
-prima. È il punto in cui agganciare qualsiasi altro stato che in futuro viva
-nell'albero invece che nei dati.
+`GameState` emette `saving` subito prima di scrivere: è il gancio per uno
+stato che vive nell'albero invece che nei dati, da riversare in `SaveData`
+prima che finisca su disco. Lo usava la mappa per la posizione del
+protagonista; oggi non lo usa nessuno, e resta per il prossimo.
 
 ### Qual è "l'ultima partita"
 
@@ -1282,309 +1199,97 @@ principale, prima ancora di vedere la città, non lo legge nessuno.
 L'ultimo — i posti in vendita — per ora è **solo un messaggio**: le proprietà
 non ci sono ancora.
 
-## Il telefono
+## Il telefono (tolto)
 
-`scenes/ui/Phone.tscn`: il telefono in basso a sinistra. Scivola su quando
-arriva un messaggio, si apre con la **freccia su**, e aperto è un'app di
-messaggi — la rubrica, e dentro la chat con Brian, da cui si chiedono i semi
-senza tornare al PC in cantina e si rileggono i messaggi vecchi. Sotto ai
-contatti c'è il tasto che apre la **guida**, che però non si legge lì dentro:
-vedi "La guida".
+C'era un telefono in basso a sinistra, con la rubrica, la chat con Brian e
+l'autista, il tasto della guida e il menu per mandare l'autista a prendere i
+semi. È stato tolto col protagonista: il gioco adesso si gestisce dal PC.
+Dove sono finite le sue cose:
 
-La scocca è un disegno — `assets/sprites/ui/phone.png`, nel nodo `Shell` di
-`Phone.tscn` — e non più il rettangolo col bordo che c'era al suo posto. Il
-`_draw()` di `phone.gd` è rimasto per quello che sta **sopra** al vetro e cambia
-mentre si gioca: il velo dello schermo acceso, le tacche, l'orologio, il
-triangolino che pulsa. `Shell` ha `show_behind_parent`, e questo è tutto quello
-che serve a tenere l'ordine giusto: il disegno sotto, il `_draw()` sopra, le
-etichette del messaggio sopra ancora.
-
-Il telefono è cresciuto passando dal segnaposto al disegno, da 132x184 a
-140x258, e non per scelta: un telefono vero è molto più stretto in proporzione,
-e la cornice si mangia un settimo della larghezza. Sotto ai 140 px di scocca il
-vetro scende sotto ai 112 che servono al menù e "LLAMA A BRIAN" si taglia
-(vedi "Chiamare Brian da qui"); l'altezza viene dietro alle proporzioni del
-disegno, perché schiacciarlo per farlo stare più comodo in basso a sinistra si
-vedrebbe.
-
-Il **notch** non è decorazione gratis: il velo dello schermo acceso lo lascia
-fuori apposta, ed è il pezzo che fa capire a colpo d'occhio che quello è un
-telefono e non un pannello. Le tacche e l'orologio gli stanno **di fianco**,
-ventisei pixel per parte, come su un telefono vero: sotto ruberebbero una riga
-al messaggio.
-
-Dove stia il vetro dentro alla scocca non è deciso a occhio.
-`scripts_tools/import_phone_art.py` riduce il disegno alla taglia del gioco e
-**misura** il rettangolo del vetro e quello del notch, stampandoli già nella
-forma delle costanti di `phone.gd`:
-
-```
-python scripts_tools/import_phone_art.py
-```
-
-La riduzione è la stessa degli edifici (premoltiplicazione e ritaglio: vedi "Gli
-edifici disegnati si portano alla scala del gioco con uno script"), e
-l'originale da 1254 px sta in `assets/sprites/ui/_source/` dietro a un
-`.gdignore` come gli altri. Se la scocca viene ridisegnata con la cornice un po'
-più spessa, senza rilanciare quello il testo del messaggio finisce sopra al
-bordo.
-
-### Perché non bastavano i messaggini dell'HUD
-
-L'HUD ha già i suoi (`GameState.notify()`): durano due secondi e mezzo e
-servono per le cose che si leggono con la coda dell'occhio — "+40 G RACCOLTI".
-Due cose non ci stanno dentro:
-
-1. **Vengono da qualcuno.** "I semi sono finiti" lo dice il personale, "sono
-   arrivato" lo dice Brian. Un messaggino senza mittente è il gioco che parla;
-   un messaggio sul telefono è una persona che scrive, ed è la differenza fra un
-   promemoria e un pezzo di mondo.
-2. **Vanno ritrovate.** Il messaggino sparisce dopo due secondi e mezzo.
-   L'ultimo messaggio arrivato resta invece dentro al telefono e si rilegge
-   aprendolo.
-
-Resta separato anche dal riquadro a tutto schermo di `phone_notice.gd`: quello
-ferma tutto per le cose che non si possono perdere — la fine del prologo — e si
-chiude con un bottone. Questo scivola su, si legge e se ne va da solo, senza
-togliere il controllo di mano. Tre canali, tre pesi diversi.
-
-### I tre stati
-
-| | |
+| Cosa faceva | Dove sta adesso |
 |---|---|
-| chiuso | fuori resta solo la **cima del telefono** — cornice, notch e il triangolino sotto, che pulsa di verde finché c'è un messaggio non letto |
-| messaggio | scivola su fin dove finisce il testo, si legge, e dopo 5,5 s torna giù da solo |
-| aperto | tutto fuori, ed è un'app di messaggi: la rubrica (i contatti, e sotto il tasto della guida), e dentro a ognuno la chat |
+| i traguardi di Brian (apertura, chilo, allargarsi, autista, Kevin) | riquadro al centro (`GameState.contact_message()` → `message()`), e restano nella scheda **MESSAGGI** del PC |
+| gli avvisi di passaggio ("fra poco me ne vado", "semi finiti") | messaggini dell'HUD col mittente davanti (`GameState.text_message()`) |
+| il giro dell'appuntamento coi semi | scheda MESSAGGI, ricavato dall'appuntamento come prima (`Chat.live()`) |
+| la guida | tasto **GUIDA** nella colonna delle schede del PC |
+| chiamare Brian | il bottone nella scheda GROW, com'era già |
+| mandare l'autista dal grossista | non serve più: i semi si comprano al banco |
 
-Chiuso **non sparisce mai del tutto**: quei trentaquattro pixel di telefono che
-spuntano sono l'unica cosa che si vede per la maggior parte della partita, e
-sono anche l'unico posto in cui si può dire "c'è qualcosa per te". Una
-scorciatoia che non si vede da nessuna parte non la trova nessuno.
-
-Il triangolino punta **in su** quando c'è da aprire e **in giù** quando c'è da
-chiudere: è la stessa freccia della tastiera, e a telefono aperto una freccia
-che punta ancora in su direbbe di premere il tasto che non fa niente.
-
-Aperto e messaggio **non si mescolano mai**: l'avviso è un messaggio solo scritto
-grande sul mezzo telefono che spunta e si legge senza fare niente, la chat è
-tutto il filo e chiede di fermarsi a guardarla. Farli convivere vorrebbe dire
-scrivere lo stesso messaggio due volte, una sopra all'altra. Per la stessa
-ragione un messaggio che arriva **a telefono già aperto** non lo fa ripiegare
-per annunciarsi: è appena comparso nella chat che si sta guardando.
-
-### Chi scrive, e quando
-
-| Mittente | Quando |
-|---|---|
-| PERSONALE | i semi sono finiti e ci sono vasi fermi (`Staff.seedless_alert()`) |
-| BRIAN | ha mandato la posizione ed è sul posto ad aspettare |
-
-I mittenti sono quelli che c'erano già (`MSG_STAFF_SPEAKER`,
-`MSG_COUSIN_SPEAKER`): chi scrive è la stessa persona, che il messaggio arrivi
-qui o nel riquadro a tutto schermo.
-
-L'avviso dei semi parte **una volta sola** per ogni secca, e il permesso torna
-da solo appena arrivano altri semi. Il flag sta nel salvataggio
-(`Staff.SEEDLESS_FLAG`), non in memoria: senza, riaprire il gioco a magazzino
-vuoto lo farebbe ripartire da capo ogni volta. E se i semi sono finiti mentre il
-gioco era **chiuso**, a dirlo è già il resoconto del rientro (`AWAY_IDLE`),
-quindi `Offline` segna il flag e il telefono non ripete un attimo dopo una
-notizia appena letta.
-
-C'è anche un caso in cui NON si avvisa: semi a zero ma vasi tutti pieni. Non c'è
-niente da segnalare, il lavoro sta andando avanti.
-
-### La chat, e le due specie di messaggio
-
-Aperto, il telefono è una **rubrica** e dentro ci sta la **chat**: il filo dei
-messaggi in nuvolette, le sue a sinistra e le tue a destra, col bottone in fondo
-dove in un'app di messaggi c'è la casella da cui si scrive.
-
-I contatti sono due, e il secondo compare quando arriva: **Brian** sempre, e
-**l'autista** da quando lo si assume (`Chat.contacts()` guarda l'organico).
-Quando la rubrica aveva un contatto solo sembrava un passaggio in più, e non lo
-era per due motivi. Il primo è che la riga porta sotto al nome **l'ultima cosa
-che si sono detti**, quindi la rubrica è già una risposta alla domanda "che mi
-aveva detto?" e il click serve solo a leggere il resto. Il secondo è che aprire
-il telefono dritto su una chat vorrebbe dire che il telefono *è* quella chat, e
-il secondo contatto avrebbe costretto a rifare la schermata. Il secondo contatto
-è arrivato, ed è stata una riga in `contacts()`.
-
-### Mandare l'autista dal telefono
-
-Nella chat dell'autista il bottone in fondo non chiede niente a nessuno: apre il
-**menu dei tagli**, che è una terza pagina del telefono (`Page.PICK`) e non una
-tendina sopra alla chat — su un vetro largo centoquattordici pixel una tendina
-coprirebbe la conversazione e lascerebbe metà bottone fuori. Tre righe con
-quanti semi e quanto costano, la freccia indietro torna alla chat.
-
-Scelto il taglio parte lo stesso ordine dello sportello del grossista
-(`SeedRun.order()`), il furgone esce dalla città e in chat restano due righe —
-"vai a prendere 25 semi" e "vado, torno fra un paio d'ore" — che **spariscono da
-sole** quando il furgone rientra, perché non le scrive nessuno: se le ricava
-`Chat.driver_live()` da `seed_run`, come quelle dell'appuntamento con Brian.
-
-I tagli sono gli stessi tre di sempre: `SeedRun.PACKS` è una tabella sola, e il
-telefono è il terzo posto che la mostra dopo l'edificio e il PC, senza che
-nessuno dei tre sappia degli altri.
-
-Dentro alla chat ci sono **due specie di riga**, e la differenza è tutto il
-punto di `scripts/data/chat.gd`:
-
-| | cosa sono | dove stanno |
-|---|---|---|
-| restano | i messaggi dei traguardi: l'apertura, la fine del prologo ai mille, il consiglio di allargarsi, il chilo, il grossista | nel salvataggio, `SaveData.chat_log` |
-| non restano | il giro della richiesta di semi a Brian, e l'ordine mandato all'autista | da nessuna parte: si ricavano |
-
-I primi sono pezzi di storia e si rileggono a distanza di giorni. I secondi
-finito l'appuntamento non vogliono più dire niente, e tenerli vorrebbe dire che
-dopo dieci chiamate la chat con Brian è una fila di richieste identiche in cui i
-cinque messaggi che contano non si trovano più.
-
-**E il modo in cui spariscono è la cosa da capire di questo file: non li
-cancella nessuno.** L'appuntamento è già tutto scritto dentro a
-`SaveData.seed_deal` — quando è partita la richiesta, quando arriva la
-posizione, dove, se Brian ha già avvisato che sta per andarsene — e da lì
-`Chat.live()` riscrive il filo ogni volta che si apre la chat. Chiuso
-l'appuntamento `seed_deal` si svuota (`SeedDeal.clear()`) e quei messaggi
-smettono di esistere da soli: nessuna lista che qualcuno si può dimenticare di
-ripulire, e nessun modo di ritrovarsi mezzo giro di messaggi di un appuntamento
-finito ieri. È lo stesso trucco delle piante e dell'appuntamento stesso — lo
-stato è una funzione di quello che c'è scritto nel salvataggio — e qui in più
-fa da sé il lavoro di cancellare.
-
-Ne viene dietro una cosa gratis: i semi chiesti **dal PC in cantina** compaiono
-nella chat esattamente come quelli chiesti dal telefono, perché nessuno dei due
-scrive niente — aprono l'appuntamento, e il filo lo legge da lì.
-
-Nella cronologia ci finiscono **chiavi di traduzione, non frasi**
-(`{"key": "MSG_KILO_BODY", "at": 53.5}`). Una cronologia di frasi già scritte
-resterebbe nella lingua in cui la partita è cominciata anche cambiando lingua
-dalle impostazioni, e sarebbe l'unico posto del gioco a farlo.
-
-C'è anche una **pausa** fra la richiesta e la risposta (`Chat.REPLY_GAP`, un
-paio di secondi veri): premendo il bottone si vede partire il messaggio e poi
-arrivare la risposta. Senza, le due righe comparirebbero insieme e non si
-leggerebbero come una conversazione ma come un blocco di testo che si accende.
-Anche quella è ricavata — è un'ora di gioco dopo `asked_at`, non un timer.
-
-### La guida
-
-In fondo alla rubrica, staccato dai contatti da un filetto e scritto di un
-altro colore, c'è il tasto della **guida**: come funziona il giro, in sei
-sezioni — le piante, i semi, andare più forte, il personale, l'ingrosso,
-l'attenzione della polizia.
-
-**Il tasto sta nel telefono, la guida no.** Quella è una finestra a tutto
-schermo (`scenes/ui/GuideBook.tscn`), appesa a `GameState` come il riquadro dei
-messaggi e il filmato del furgone. Il motivo è la misura: il vetro del telefono
-è largo centoquattordici pixel, e sei pagine di spiegazioni lì dentro vengono
-fuori a quattro parole per riga — si scorre per un minuto e non si è letto
-niente. Il telefono è il posto in cui la guida si **trova** (è lì che uno va a
-cercare le cose, e una guida in un menu di impostazioni non la trova nessuno);
-la finestra è il posto in cui si **legge**. Due lavori diversi, due schermate.
-
-La finestra ha la pelle del gestionale del PC (`UiTheme`) e non una nuova: sono
-la stessa cosa — roba da leggere, non da guardare — e due carte diverse nello
-stesso gioco si notano. Colonna delle sezioni a sinistra come nel PC, perché sei
-paragrafi uno sotto l'altro si scorrono ma per ritrovare quello che serve
-bisogna rileggerli tutti. Entra nel gruppo `modal`, quindi HUD e telefono si
-tolgono di mezzo da soli e tornano quando si chiude.
-
-Una cosa che vale la pena sapere: un paragrafo che comincia con una parola
-**tutta maiuscola seguita da un punto** diventa un occhiello in grassetto
-("PIÙ VASI.", "GROW TOOLKIT.", "LAMPADE."). È un trucco tipografico e non una
-struttura dati, e deve restare tale — il testo si scrive in `Strings` come si
-scriverebbe comunque, e chi traduce non deve imparare nessuna convenzione.
-
-**Perché una guida e non un tutorial.** Questo è un gestionale, e un gestionale
-si gioca su dei numeri che il giocatore non può indovinare: che una pianta ci
-metta venti ore, che la sete tolga due terzi del raccolto, che una lampada valga
-per **un** vaso solo e non per tutti. Senza quelle cose scritte da qualche parte
-i primi giorni di partita sono lenti e sembrano rotti — si pianta, si aspetta,
-si raccoglie meno del previsto, e non c'è modo di capire perché. Un tutorial le
-direbbe una volta all'inizio, quando non servono ancora e infatti non le legge
-nessuno; la guida sta sempre lì e si apre quando ci si impantana, che è il
-momento in cui uno ha una domanda — l'unico in cui una risposta si legge
-davvero.
-
-È anche il motivo per cui il **messaggio d'apertura** di Brian la nomina: "all
-inizio cresce piano non mollare, nel telefono trovi una guida e me". Il
-messaggio dice che la lentezza è normale, la guida dice cosa farci. Un controllo
-automatico verifica che quel messaggio nomini la guida in tutte e tre le lingue:
-chi riscrive il messaggio e si dimentica quella riga lascia la guida dove nessuno
-la cerca.
-
-Quel messaggio è anche il più lungo che il gioco manda, ed è il primo che si
-legge: è lui a decidere quanto il telefono resta fuori durante un avviso
-(`PEEK`, centonovantaquattro pixel). A centosettantotto perdeva l'ultima riga,
-che è proprio quella che manda alla guida.
-
-**Dentro la guida niente è PIXEL.** È l'unico posto del gioco in cui si scrivono
-dei numeri di bilanciamento per esteso — 154$, il 15%, dodici ore — e per
-quelli serve il font di sistema, che le cifre ce le ha (il font disegnato del
-gioco resta per il titolo della finestra, come nel gestionale). Il che vuol dire
-anche che quei numeri devono restare allineati a `Economy`, `Shop`, `Grow` e
-`Staff`: **quando si ritocca il bilanciamento, la guida è la tabella da
-rileggere.** Una guida che dice il falso è peggio di nessuna guida. Un controllo
-automatico verifica almeno che tutte le chiavi esistano, perché una che manca
-non avvisa: `tr()` restituisce la chiave, e a schermo comparirebbe
-`GUIDE_HEAT_BODY` al posto di un paragrafo.
-
-### Chiamare Brian da qui
-
-Il menù ha per ora una voce sola, ed è la stessa cosa che fa il bottone nella
-scheda GROW del PC. **Non è un doppione per sbaglio**: i semi finiscono mentre
-si è in giro per la città, e prima l'unico modo di chiederne altri era tornare
-in cantina ad aprire il PC — cioè attraversare la mappa per premere un bottone.
-
-Come nel PC è **un bottone solo che cambia faccia** invece di tre che si
-accendono a turno: `CHIAMA BRIAN`, `CI PENSA LUI` mentre si aspetta, `TI
-ASPETTA` quando è sul posto, spento quando non c'è niente da fare.
-
-Quelle tre scritte hanno un **tetto di lunghezza vero** (`Strings.PHONE_MENU_CHARS`,
-tredici caratteri): il vetro del telefono è largo 116 px e il bottone taglia
-quello che avanza. È già successo — "BRIAN CI PENS" — e adesso c'è un controllo
-automatico che lo verifica, perché a leggerle nella tabella sembrano tutte corte
-uguali.
-
-### Uno per scena, il testo no
-
-Il telefono è un nodo di scena: sta in `City.tscn`, e nelle stanze lo costruisce
-`room.gd` da codice (stessa ragione dell'atmosfera — `Room.tscn` è la scena base
-delle altre tre e aggiungerci un nodo sposterebbe i loro indici).
-
-Quello che c'è **scritto dentro** invece non sta nel telefono, e sta in due posti
-diversi a seconda di quanto deve durare. L'**ultimo avviso** vive su
-`GameState.last_text`: un messaggio arrivato in cantina si rilegge uscendo di
-casa, ma non finisce nel salvataggio — è quello che è appena successo, non un
-pezzo di partita. La **chat** invece sta nel salvataggio (`SaveData.chat_log`) e
-nell'appuntamento, ed è il motivo per cui il telefono può essere un nodo di
-scena senza portarsi dietro niente: ne esiste uno per stanza, e trovano tutti le
-stesse cose scritte.
+`scripts/data/chat.gd` resta com'era — righe che restano nel salvataggio e
+righe che si ricavano — e la legge la scheda MESSAGGI. La scena del riquadro si
+chiama ancora `PhoneNotice.tscn`: il nome viene da lì.
 
 ## HUD
 
 `scenes/ui/HUD.tscn`: quello che sta addosso alla città mentre si gioca, e i
-messaggini che scorrono sotto. Quattro cose, e ognuna sta dove sta per un
-motivo — la **cassa** in cima al centro, la **sveglia** in alto a destra, il
-**tasto a tre righe** in alto a sinistra, e sotto alla sveglia una riga che
-compare solo quando c'è qualcosa da dire (per ora: il posto dove aspetta Brian,
-finché aspetta). Sta sia in strada sia **dentro agli edifici** — è figlio di
+messaggini che scorrono sotto alla sveglia. Ognuna sta dove sta per un
+motivo — la **cassa** in cima al centro, la **sveglia** in alto a destra col
+prestigio accanto, sotto alla sveglia una riga che compare solo quando c'è
+qualcosa da dire (per ora: il posto dove aspetta Brian, finché aspetta), e
+sul bordo sinistro a metà altezza la **lavagna**. L'angolo in alto a sinistra è vuoto: il tasto a
+tre righe, il tasto PC e la barra del sospetto sono stati tolti il 2026-09-27
+(la barra tornerà risistemata; `suspicion_bar.gd` resta sul disco). Sta sia in strada sia **dentro agli edifici** — è figlio di
 `Room.tscn`, quindi tutte le stanze se lo ritrovano senza che vadano toccate una
 per una.
 
 ```
- ≡              4.820 $              [ 15:40  DAY 20 ]
+                4.820 $     ROOKIE I [ 15:40  DAY 20 ]
 
- (col menu aperto)
- ┌────────────────────┐
- │ SCORTA      340 g │
- │ SEMI            6 │
- │ SPACCIATORE     1 │
- │ COLTIVATORE     2 │
- └────────────────────┘
+                                       ┌───────────┐
+                                       │ * ERBA 340G│
+                                       │ SEMI     6 │
+                                       │ ...        │
+                                       └───────────┘
 ```
+
+### Il tempo e le impostazioni
+
+Sotto alla sveglia (`scripts/ui/speed_controls.gd`): **⚙ ◀◀ ❚❚ ▶▶**, come nei
+gestionali di città. ◀◀ e ▶▶ scorrono fra le tre velocità di
+`GameState.SPEEDS` — 0.5×, normale, 2× — senza andare oltre; ❚❚ ferma
+l'orologio (diventa ▶ per ripartire), e anche la **barra spaziatrice**. Il
+tasto della velocità in uso resta acceso di verde. Cambia solo l'orologio di
+gioco: piante, personale, furgone e bollette leggono tutti `total_hours()`,
+quindi seguono da soli; passanti e traffico no. La velocità non si salva: una
+partita riaperta riparte normale e non in pausa. L'autosalvataggio conta secondi
+veri anche in pausa.
+
+L'ingranaggio apre le impostazioni sopra al gioco (`settings.gd`, `in_game`):
+senza la città finta del menu dietro, e "indietro" o Esc chiudono la finestra
+invece di tornare al menu principale.
+
+### La lavagna
+
+`scripts/ui/chalkboard.gd`, sul disegno di Federico `assets/sprites/ui/board.png`.
+Cinque voci — erba pronta, semi, coltivatori, autisti, spacciatori — che sono
+com'è messa la produzione. Stavano nel cassetto del menu a tre righe e
+andavano aperte per leggerle; in un gestionale senza protagonista sono proprio
+quello che si guarda, quindi stanno sempre a vista, sul bordo sinistro col
+centro a metà altezza dello schermo.
+
+Il disegno arrivava **senza trasparenza** (la scacchiera era dipinta nei
+pixel): `scripts_tools/import_board_art.py` la toglie col riempimento partito
+dai bordi, che si ferma sul contorno nero della cornice, riduce la lavagna a
+84 px di larghezza e stampa `SIZE` e `SLATE` — il rettangolo del verde, in cui
+vanno le scritte — da ricopiare in `chalkboard.gd`:
+
+```
+python scripts_tools/import_board_art.py
+```
+
+Una riga per voce, nome a sinistra e numero a destra ("WEED 456 g"), con la
+foglia del PC (`foglia.png`) davanti all'erba. Dal chilo in su l'erba si conta
+in chili con tre cifre (1.23, 12.3, 123) e l'unità è scritta piccola accanto
+(`weight_number()` / `weight_unit()`): "1009 G" usciva dalla cornice. Se una
+riga non ci sta cede il nome, mai il numero (`clip_text`).
+
+**Deve sembrare gesso, non etichette.** Niente `brush.fnt` (ha l'ombra scura
+dipinta dentro e staccava le lettere come adesivi): `brush_ink.fnt`, senza
+ombra, con sopra la grana di `assets/shaders/chalk.gdshader` — puntini dove il
+gesso non ha preso, fissati allo schermo così un numero che cambia passa sulla
+stessa lavagna — e ogni riga appena storta (`TILT`), come scritta a mano.
+
+I messaggini dell'HUD restano a destra, sotto alla sveglia.
 
 ### La cassa
 
@@ -1627,41 +1332,10 @@ si legge come un'ombra portata, il colore scurito si legge come lo spessore
 della stessa lettera. È la differenza fra una scritta con l'ombra e una scritta
 di plastica.
 
-### Il menu a tre righe
+### Il menu a tre righe (tolto)
 
-`scripts/ui/hud_menu.gd`. Dentro c'è **com'è messa la produzione**: la merce
-pronta, i semi in mano, quanti vendono e quanti coltivano. Sono le quattro cose
-che dicono se la macchina sta girando, e hanno in comune di essere tutte cose
-che **si vanno a controllare** — nessuna cambia mentre si cammina per strada, e
-nessuna chiede di essere guardata di continuo.
-
-I nomi dei ruoli sono quelli del PC (`Staff.ROLES`, quindi SPACCIATORE e
-COLTIVATORE) e non due parole scritte nel menu: nel gestionale si assume
-"SPACCIATORE", e trovarselo chiamato in un altro modo qui vorrebbe dire due
-mestieri invece di uno.
-
-**Il pannello è un interruttore, non un tasto da tenere premuto**: si apre e
-resta aperto finché non lo si chiude. Chi vuole quei numeri sempre davanti se li
-tiene aperti, chi non li vuole ha uno schermo che è tutto città.
-
-Sta a sinistra perché a destra c'è già la sveglia e sotto ci passano i
-messaggini: è l'unico angolo in alto rimasto vuoto, ed è anche quello in cui un
-menu si cerca per abitudine. Da chiuso è tre righe, da aperto diventa una X —
-il pannello dice che c'è qualcosa di aperto ma non dice **dove si clicca per
-chiuderlo**, e tre righe che non cambiano sembrano un tasto che non ha fatto
-niente.
-
-È anche l'unico pezzo dell'HUD con un fondo, e non contraddice il "niente fondo"
-del resto: quella regola vale per le cose che stanno lì sempre, mentre questo è
-un cassetto che si apre, e un cassetto senza pareti non si legge come aperto.
-(La cassa in cima non ha un fondo neanche lei: a tenerla staccata dalla città
-c'è il rilievo.)
-
-Una cosa da sapere se ci si aggiunge una riga: **la misura del pannello si
-chiede al pannello, non si scrive**. Si allarga col numero che ha dentro
-("1.250.000 $" è metà più largo di "4.820 $") e il rettangolo del nodo è quello
-che si mangia i click — se resta della misura scritta a mano, cliccare sulla
-parte di pannello che avanza manda il protagonista a camminare sotto al menu.
+Era il tasto in alto a sinistra con dentro scorta, semi e personale
+(`hud_menu.gd`). Le sue voci sono sulla lavagna; il file è nella storia di git.
 
 ### La sveglia
 
@@ -1776,7 +1450,7 @@ tempo — si vende meno in strada, ci si fa notare meno — lo spiega la guida, 
 
 Quello che resta nella riga sotto alla sveglia compare solo quando ha qualcosa
 da dire, e la regola per aggiungercene altre è una sola: **ci va solo roba che
-serve mentre si cammina**. Tutto quello che si guarda per decidere — la scorta,
+serve mentre si guarda la città**. Tutto quello che si guarda per decidere — la scorta,
 i semi, il personale, l'attenzione — sta dietro al menu o dentro al PC. La
 differenza è fra un'informazione che si legge muovendosi e una che si legge
 fermi.
@@ -1789,13 +1463,14 @@ immediato il giocatore non sa se il click ha fatto qualcosa.
 
 ## Entrare negli edifici
 
-Cliccando sulla casa questa si schiaccia un istante come un pulsante, il
-protagonista ci cammina davanti, svanisce nella porta e si apre la stanza.
+Cliccando su un edificio questo si schiaccia un istante come un pulsante e
+si apre subito quello che c'è dentro: la stanza (casa → seminterrato, garage,
+ufficio) o la finestra dello sportello (agenzia, grossista, stazione).
 
 Il pezzo riutilizzabile è `scripts/components/enterable_building.gd`, che
 `city.gd` attacca allo `Sprite2D` dell'edificio — così la schiacciata al click
 agisce sul disegno vero. Ce l'hanno tutti gli edifici che danno su una strada:
-quelli senza `interior_scene` fanno solo avvicinare il protagonista, e rendere
+quelli senza `interior_scene` né `window_scene` si schiacciano e basta, e rendere
 visitabile il minimarket vuol dire aggiungere `"interior"` alla sua voce in
 `CityMap.BUILDINGS`, niente altro. Non ce l'hanno i **fondali** dentro agli
 isolati, che sono sprite e basta: vedi "Come si riempie un quartiere".
@@ -1804,8 +1479,7 @@ isolati, che sono sprite e basta: vedi "Come si riempie un quartiere".
 
 Una voce con `"owned": true` ha un interno che esiste già ma resta chiuso finché
 quell'edificio non è fra le proprietà della partita. È il caso del **garage su
-CROSS STREET**: prima dell'acquisto ci si cammina davanti e basta, e l'HUD dice
-perché; comprato dall'agenzia, la porta si apre come quella di casa.
+CROSS STREET**: prima dell'acquisto il click non apre niente e l'HUD dice perché; comprato dall'agenzia, la porta si apre come quella di casa.
 
 La chiave è l'`id` della pianta, che è già quello con cui l'agenzia vende
 (`real_estate.gd`) e quello con cui la partita segna il posseduto
@@ -1814,7 +1488,7 @@ proprietà nuova è una riga di dati**, un annuncio in `RealEstate.LISTINGS` e u
 `"interior"` con `"owned": true` nella sua voce di `CityMap.BUILDINGS`.
 
 Per adesso l'interno del garage è una stanza a **fondale vuoto**: nome in alto,
-protagonista, uscita. Il disegno arriverà come è arrivato quello delle altre
+uscita. Il disegno arriverà come è arrivato quello delle altre
 stanze, senza toccare niente di questo.
 
 ### Il nome sotto al puntatore
@@ -1881,8 +1555,8 @@ all'arrivo se lo ricordano `_talking_to` / `_entering` e lo esegue
 
 ## Stanze
 
-`scenes/rooms/Room.tscn` è la stanza base; `Entrance`, `Kitchen`, `Basement` e
-`Garage` sono **scene ereditate** che cambiano solo `room_name`,
+`scenes/rooms/Room.tscn` è la stanza base; `Basement`, `Garage` e `Office` sono
+**scene ereditate** che cambiano solo `room_name`,
 `background_color`, `exits`, `art` (quale fondale animato è) e i campi della
 luce — `daylight`, `window_rect` e, per le finestre viste di sbieco,
 `window_quad`. La logica sta tutta in `scripts/rooms/room.gd`, una volta sola.
@@ -1983,7 +1657,11 @@ diventava tutto lo schermo — e le luci che tremolano hanno una **portata**
 tagliata, per lo stesso motivo. Il lampadario invece deve cambiare tutta la
 stanza, ed è la striscia più pesante (circa due mega per stanza).
 
-### Il protagonista e i vasi
+### I vasi
+
+Il protagonista nelle stanze non c'è più (vedi "Il gestionale: niente
+protagonista"): `Room.tscn` ha perso il nodo `Character`, e le scene ereditate
+i loro indici sono scalati di uno. Quello che segue sui vasi vale com'era.
 
 Il nodo `Shadow` sotto a `Character` (un `Polygon2D` ellittico con
 `z_index = -1`) gli fa da ombra a terra e lo « appoggia » sul pavimento, e un
@@ -2060,16 +1738,66 @@ sopra al monitor), sopra la riga dei vasi e senza toccarla: apre lo stesso `Mana
 in cantina. Non è una copia, è lo stesso gestionale: da qualunque PC si vedono
 tutti i vasi, di tutte e due le proprietà.
 
-Il protagonista sta apposta a destra (x 528), davanti alla serranda, e non in
+(Storico: il protagonista, tolto col gestionale, stava apposta a destra (x 528), davanti alla serranda, e non in
 mezzo alla stanza: i vasi si disegnano **sopra** di lui — sono nodi aggiunti dopo
 `Character` nella scena — e uno in mezzo ai banconi si ritroverebbe le piante
 davanti alla faccia. È la stessa ragione per cui in cantina sta a x 470, ai
-piedi della scala, mentre i vasi stanno fra 177 e 360.
+piedi della scala, mentre i vasi stanno fra 177 e 360.)
 
 A differenza della cantina il garage **vede la luce**: la finestra rotta in alto a
 sinistra (`window_rect` e `window_quad`) e i vetri della serranda, quindi `daylight` resta acceso
 e la stanza cambia colore con l'ora. Non è solo atmosfera: è anche il motivo per
 cui lì **le lampade non si appendono** (vedi "Dove si coltiva").
+
+### L'ufficio al 21° piano, e la città vera dalla vetrata
+
+`Office.tscn` è l'interno della MERIDIAN TOWER, e ci si entra comprando
+`MeridianApt21` (un milione, all'agenzia di DOWNTOWN). La torre non si vende
+intera: la sua voce in `CityMap.BUILDINGS` ha `"owned": true` più
+`"property": "MeridianApt21"`, cioè "questa porta la apre quell'annuncio", e
+`EnterableBuilding.ownership_key()` guarda quello invece dell'id dell'edificio.
+
+La stanza è `ufficio()` in `blender_stanze.py`, sullo stile del disegno di
+riferimento: spaccato visto dall'alto, pavimento lucido, salotto di pelle,
+scrivania direzionale, vetrata a tutta altezza sul fondo. Cinque animazioni
+sporadiche: la palma che ondeggia (`swing`), la poltrona direzionale che ruota da
+sola, il grafico di borsa sul televisore, il vapore del caffè e la spia del
+telefono che lampeggia.
+
+**Dietro alla vetrata non c'è un disegno: c'è la città.** I vetri in Blender sono
+un materiale *holdout*, quindi nel PNG sono trasparenti (`"trasparente": True`
+nella stanza: pellicola trasparente e PNG RGBA; il vuoto intorno allo spaccato è
+un piano scuro vero, così l'unica trasparenza è il vetro). `import_room_art.py`
+conserva l'alfa, riducendo premoltiplicato, anche nelle strisce delle animazioni:
+una foglia che passa davanti al vetro resta opaca, il vetro che scopre resta buco.
+
+Sotto al fondale `room.gd` mette un `WindowView` (`view_building` e `view_floor`
+nella scena): una `SubViewport` 3D che ricostruisce la città dagli stessi dati
+della mappa, con la camera sulla facciata nord della torre all'altezza del 21°
+piano, che guarda a nord.
+
+- il **terreno** è `city_ground.gd` fotografato una volta dall'alto a un quarto
+  della scala e steso su un piano;
+- gli **edifici** sono i loro PNG in piedi sulla loro riga di terra (con le
+  mipmap fatte al volo: da quassù trecento pixel di disegno ne diventano dieci),
+  con le finestre accese (`lit`) la sera;
+- le **auto** girano sulle corsie di `CityMap.lanes()`, sdraiate sull'asfalto;
+- i **lampioni** di notte sono punti luce;
+- **cielo, nuvole e foschia** seguono ora e meteo (`window_sky.gdshader`), le
+  **montagne** all'orizzonte sono `window_mountains.gdshader`, con la valle
+  dove esce la strada a nord.
+
+Un pixel di mappa è un'unità, e l'altezza di uno sprite è la sua altezza: è la
+proporzione con cui la città si guarda in strada. Quindi la vista è onesta —
+oggi a nord della torre molti isolati sono ancora vuoti, e dalla vetrata si
+vedono vuoti; ogni edificio nuovo nella pianta ci compare da solo.
+
+`room_ambience.gd` non dipinge il suo cielo finto su una finestra con la vista
+vera, e la tinta della stanza sulla vista viene compensata come per le scritte.
+
+Per regolare camera, foschia e cielo senza passare dalla stanza:
+`scripts_tools/WindowViewShot.tscn` (con la finestra) fotografa la vista da sola
+a tre ore.
 
 Aggiungere una stanza: scrivila in `blender_stanze.py` (una funzione in
 `STANZE`), renderizzala e importala; poi duplica una delle scene ereditate,
@@ -2107,15 +1835,22 @@ poco sopra.
 
 ### La finestra del gestionale
 
-`scenes/ui/ManagementWindow.tscn` è la schermata da cui si tiene d'occhio
-l'attività e si piazza la merce senza uscire di casa. Tre schede:
+`scenes/ui/ManagementWindow.tscn` è la schermata da cui si manda avanti
+l'attività. Si apre dal PC sulla scrivania delle stanze: cliccando casa si
+arriva nel seminterrato, e lì c'è il PC. Schede:
 
 - **OVERVIEW** — soldi, giorno e ora, scorta, semi, vasi in uso, piante pronte,
   attenzione della polizia, e i totali della campagna.
 - **GROW** — una riga per vaso con stadio, avanzamento, resa prevista e se ha
   sete; poi `WATER ALL`, `HARVEST ALL` e `OPEN NEW POT` col prezzo.
+- **SHOP** — il negozio online.
 - **MARKET** — prezzo del giorno, prezzo di strada per confronto, valore della
-  scorta, e i tagli di vendita.
+  scorta, e l'ingrosso: furgone, autista, serbatoio, carichi.
+- **STAFF** — il personale, chi coltiva dove, la riserva per l'ingrosso.
+- **MESSAGGI** — i traguardi di Brian e degli altri, dal più recente, e il giro
+  dell'appuntamento coi semi finché è aperto.
+
+In fondo alla colonna, sopra a CHIUDI, il tasto **GUIDA**.
 
 Il contenuto è **creato dal codice**, non dalla scena: le righe dipendono dalla
 partita (quanti vasi hai, quali tagli ti puoi permettere) e sarebbero comunque
@@ -2141,15 +1876,19 @@ strada invece di schiantarsi.
 
 ## Coltivare e vendere
 
-Il giro completo è: **chiedi semi a Brian dal PC → vai all'appuntamento →
-pianta in cantina → annaffia → raccogli → vendi**. Tutti i numeri stanno in un posto solo,
+Il giro completo è: **compra i semi al banco del grossista → il coltivatore
+pianta, annaffia e raccoglie in cantina → lo spacciatore vende in strada**, o
+all'ingrosso col furgone. Si può ancora fare a mano dal seminterrato (i vasi
+si cliccano) e dal PC. Tutti i numeri stanno in un posto solo,
 `scripts/data/economy.gd`, perché tarare un tycoon vuol dire cambiare venti
 volte gli stessi dieci numeri: se sono sparsi nelle scene non si ritrovano più.
 
 | Cosa | Dove | Valore di partenza |
 |---|---|---|
-| Soldi iniziali | `Economy.STARTING_CASH` | 120 $ |
-| Semi iniziali | `Economy.STARTING_SEEDS` | 2 |
+| Soldi iniziali | `Economy.STARTING_CASH` | 2500 $ |
+| Semi iniziali | `Economy.STARTING_SEEDS` | 6 |
+| Personale iniziale | `Economy.STARTING_STAFF` | 1 coltivatore, 1 spacciatore |
+| Piante già avviate | `Economy.STARTING_GROWTH` | 3, al 75/45/15% del ciclo |
 | Costo di un seme | `STRAINS.regular.seed_price` | 40 $ |
 | Resa di una pianta curata | `STRAINS.regular.grams` | 20 g |
 | Prezzo base al grammo | `STRAINS.regular.base_price` | 10 $ |
@@ -2161,6 +1900,15 @@ Una pianta rende quindi circa 200 $ per 40 $ di seme: il primo ciclo si paga da
 sé cinque volte, ed è la rampa che serve a far partire la cosa.
 
 ### Comprare i semi
+
+**La fonte principale è il grossista**, il magazzino del COMMERCIAL DISTRICT:
+c'è dall'inizio (era il fornitore dello zio), si clicca e si apre il banco
+(`SeedWholesaleWindow.tscn`) con tre casse, 10/25/60 semi, sconto 10/20/30%. Si
+paga e i semi sono subito in magazzino (`SeedRun.order()`). Più avanti Kevin
+apre la stazione degli autobus, con casse più grandi (vedi "Il contatto fuori
+stato di Kevin").
+
+Brian c'è ancora, per una manciata di semi alla volta, ed è quello che segue.
 
 **Una pianta non fa semi.** L'erba da fumare è sinsemilla, cioè piante femmina
 non impollinate: `Grow.harvest()` restituisce grammi e svuota il vaso, e basta.
@@ -2177,8 +1925,9 @@ Il giro è:
 1. dal PC in cantina, scheda **GROW**, si clicca `ASK BRIAN FOR SEEDS`;
 2. dopo **2-4 ore di gioco** (`SeedDeal.WAIT_HOURS`, circa 30-60 secondi reali)
    arriva la notifica con il posto: `BRIAN: MAIN STREET BY THE LAUNDROMAT`;
-3. Brian compare lì, col rombo verde sopra la testa come ogni venditore, e ci
-   si parla per comprare;
+3. Brian compare lì, col rombo verde sopra la testa come ogni venditore: lo si
+   trova sulla mappa (la freccia verde al bordo aiuta) e **lo si clicca** per
+   comprare;
 4. finiti i semi che aveva addosso se ne va, e se ne può chiedere un altro
    carico.
 
@@ -2458,7 +2207,13 @@ Adesso è una **fase** della partita, e si apre in due passi:
 2. comprare il **furgone** (5000 $): un chilo non si porta in giro a piedi.
 
 Il primo è un traguardo, il secondo una spesa. Il traguardo si raggiunge
-producendo, quindi l'ingrosso arriva quando serve e non prima. Il furgone è nel
+producendo, quindi l'ingrosso arriva quando serve e non prima.
+
+E poi serve **un autista** (`Delivery.can_dispatch()`): non c'è più un
+protagonista che si mette al volante, e senza nessuno assunto il furgone resta
+nel vialetto. Comprato il furgone senza autista, Brian lo dice
+(`Staff.check_driver_hint()`, `MSG_DRIVER_BODY`), e la scheda MARKET lo ripete
+in una riga finché non lo si assume. Il furgone è nel
 negozio come tutto quello che si compra una volta e resta, ma il bottone compare
 anche nella scheda MARKET — è lì che ci si accorge di averne bisogno, com'è già
 per il vaso in più fra SHOP e GROW.
@@ -2604,6 +2359,11 @@ nella forma a quello del grossista in centro: tre tagli, `BusImport.PACKS`, da
 **cento, centocinquanta e duecentocinquanta semi**, con lo sconto più alto del
 gioco (35/40/45%, contro il 10/20/30% dei tagli di Kevin in centro). Il
 prezzo scende sul listino di `Economy.seed_price()`, come ovunque.
+
+**Al banco, come dal grossista in centro**: si paga e i semi sono subito in
+magazzino. Quello che segue — il viaggio di sei ore, il furgone, il secondo
+autista — è com'era prima del gestionale, e resta solo per leggere i ritiri
+rimasti in viaggio nei salvataggi vecchi.
 
 Stessa forma di `SeedRun` in tutto il resto: **il viaggio non è simulato**, si
 salva l'ora di rientro e lo stato è una funzione di che ore sono adesso — va
@@ -2795,6 +2555,10 @@ cambia.
 
 ## La fine del prologo
 
+**Solo nei salvataggi vecchi.** Una partita nuova comincia già al capitolo uno,
+col personale assunto: lo zio lascia un'attività avviata. Quello che segue vale
+per le partite cominciate prima.
+
 La prima volta che la cassa tocca `Economy.PROLOGUE_CASH` (1000 $) il prologo si
 chiude: `chapter` passa da `prologo` a `capitolo_uno`, il flag `staff_unlocked`
 va a true, arriva un messaggio del cugino sul telefono e nel PC compare la
@@ -2821,13 +2585,13 @@ e in cantina, e non sparisce se nel frattempo si cambia stanza. Si apre con
 
 ## Il personale
 
-Sbloccato dalla fine del prologo. Tre ruoli:
+C'è dall'inizio: lo zio lascia un coltivatore e uno spacciatore. Tre ruoli:
 
 | Ruolo | Assunzione | Come si paga | Cosa fa |
 |---|---|---|---|
 | GROWER | 420 $ | 81 $/giorno | pianta, annaffia e raccoglie; segue **sei vasi**, cioè tutto il seminterrato |
 | DEALER | 560 $ | **5% di quello che piazza** | piazza la merce, 2 g per ora di gioco |
-| DRIVER | 380 $ | 54 $/giorno | porta il furgone dal grossista: coi semi ordinabili **dal PC** invece che andandoci |
+| DRIVER | 380 $ | 54 $/giorno | guida il furgone: senza di lui i carichi all'ingrosso non partono |
 
 ### Quanti se ne possono avere
 
@@ -2850,24 +2614,13 @@ e dei posti dei coltivatori.
 
 ### L'autista, e perché esiste
 
-Il grossista dei semi sta in DOWNTOWN, e fino a lì ci si va **a piedi**: è due
-ore di viaggio per il furgone e una bella camminata per il protagonista. La
-prima volta che si compra una cassa di semi Brian scrive che c'è un modo di non
-rifare quella strada — un autista sul furgone — e da quel momento il ruolo si
-può assumere.
+Guida il furgone dell'ingrosso. Prima serviva a non farsi la strada fino al
+grossista dei semi; adesso i semi si comprano al banco, e l'autista è quello
+che porta fuori città i carichi: senza protagonista, qualcuno deve guidare.
+Uno solo, col furgone in casa (`Staff.max_drivers()`).
 
-Assunto, si presenta lui con un messaggio — ed è quello a far trovare il
-contatto nuovo in rubrica — e da lì i semi si ordinano in due posti: dalla sua
-chat sul telefono, scegliendo il taglio da un menu (vedi "Mandare l'autista dal
-telefono"), e dalla scheda GROW del PC, dove `MANDA L'AUTISTA` apre lo
-**stesso** sportello del grossista che sta sull'edificio: stessi tagli, stessi
-sconti, stesse due ore. Non è una seconda interfaccia con gli stessi numeri
-dentro, è la stessa scena caricata da un altro posto — due copie vorrebbero dire
-due posti in cui aggiustare uno sconto.
-
-Quello che l'autista **non** fa è ordinare da solo: la scorta di semi resta una
-decisione del giocatore, e un autista che ricompra quando finiscono toglierebbe
-di mezzo l'unica cosa per cui la scorta conta qualcosa.
+Assunto, si presenta con un messaggio (`MSG_DRIVER_HELLO`) che resta nella
+scheda MESSAGGI; i carichi si mandano dalla scheda MARKET.
 
 ### Due modi di pagare, e sono due mestieri diversi
 
@@ -3315,9 +3068,13 @@ senza stampare niente**: non è un blocco, è tutto morto in partenza. Va saputo
 perché sembra un altro problema.
 
 Il runner stampa il nome di ogni controllo prima di lanciarlo, con quanto ci ha
-messo. Alcuni durano secondi — la griglia dei percorsi si costruisce due volte e
-si provano centinaia di tragitti — e senza quelle righe uno che si pianta è
+messo. Alcuni durano secondi, e senza quelle righe uno che si pianta è
 indistinguibile da uno lento.
+
+Quasi tutti partono da `_fresh()`, che è una partita **nuda**: niente
+personale, vasi vuoti, prologo da giocare, 120 $. L'attività dello zio la
+controlla `_test_new_game()` a parte: il personale lavorerebbe da solo mentre i
+controlli avanzano l'orologio, e i conti smetterebbero di tornare.
 
 `scripts/tests/game_tests.gd` controlla il ciclo di coltivazione, la sete che
 rovina la resa, le vendite, i clienti di strada, l'ampliamento del seminterrato,
@@ -3333,12 +3090,12 @@ viaggio in corso sopravviva al giro del salvataggio con l'ora del ritorno ancora
 un float. E dove il furgone parcheggia: sull'asfalto, non davanti alla porta, e
 comunque a fianco di casa.
 
-Del **telefono** controlla la cosa che può sbagliare in silenzio: quando parte
-l'avviso dei semi. Che non parta coi semi in mano, che non parta a vasi tutti
+Degli **avvisi del personale** controlla la cosa che può sbagliare in silenzio:
+quando parte l'avviso dei semi. Che non parta coi semi in mano, che non parta a vasi tutti
 pieni, che parta una volta sola e non a ogni giro, che non riparta ricaricando
 la partita, e che riparta invece dopo che i semi sono arrivati e finiti di
-nuovo. Più il tetto di lunghezza delle voci del menù, che finisce dentro a
-`Strings.problems()` insieme alle altre regole del testo.
+nuovo. E che un messaggio di passaggio diventi un messaggino su una riga, col
+mittente davanti.
 
 Della **chat** controlla l'altra cosa che sbaglierebbe in silenzio: quali
 messaggi restano. Che i traguardi si ritrovino ricaricando la partita e con
@@ -3399,13 +3156,6 @@ del giorno nuovo non esca mai dalla tabella nemmeno partendo da una chiave
 sconosciuta, e soprattutto **che pesi**: che sotto la pioggia una giornata
 incassi meno di una di sole e lasci meno tracce.
 
-Controlla anche i **percorsi**: che dentro a un edificio non si cammini, che da
-casa si arrivi alla porta di ognuno dei centosessanta, che nessun percorso
-attraversi un muro, che un edificio grosso venga aggirato invece che attraversato
-e che il tragitto più lungo resti semplificato. È roba che si scopre solo
-camminandoci sopra, e per accorgersi che un edificio in fondo alla mappa è
-diventato irraggiungibile bisognerebbe andarci apposta.
-
 Controlla anche la **pianta della città**: che nessuno dei centosessanta edifici
 finisca sull'asfalto o sopra a un altro, che nessun terreno particolare invada
 una strada, che ogni corsia cada dentro al suo asfalto, che nessun NPC si fermi
@@ -3427,24 +3177,17 @@ lancia più nessuno.
 
 ## Comandi
 
-- **Click sinistro** sulla mappa: il protagonista ci va **seguendo le strade**
-  (vedi "Come si cammina"), con un'onda che segnala la destinazione
-  (`scenes/components/ClickRipple.tscn`). Oltre i 320 px di distanza **corre**
-  (`run_speed`), sotto torna a camminare: la città è larga più di cinquemila
-  pixel e attraversarla a passo d'uomo sarebbe un minuto e mezzo di niente, ma
-  l'ultimo tratto — quello in cui si mira a una porta o a una persona — deve
-  restare preciso.
-- **Click sinistro su un edificio**: ci si va davanti, e se ha un interno ci si
-  entra. Un click altrove mentre si sta andando annulla tutto.
-- **Click sinistro su una persona**: ci si va accanto e ci si parla.
-- **Tasto destro trascinando**: pan della camera. La camera segue il
-  protagonista, e guardarsi intorno la stacca finché non si dà un nuovo ordine
-  di movimento — con una città larga qualche migliaio di pixel, una camera ferma
-  la renderebbe inservibile.
-- **Rotellina**: zoom a scatti pixel-perfect (scale nette 1x → 8x, un passo per intero).
-- **Freccia su**: apre e chiude il telefono (vedi "Il telefono"). Si può anche
-  cliccare la linguetta in basso a sinistra.
-- **Esc**: chiude il telefono se è aperto, altrimenti torna al menu principale.
+- **Click sinistro su un edificio**: si apre subito quello che c'è dentro — la
+  stanza o la finestra dello sportello. Una proprietà non tua o uno sportello
+  non ancora aperto lo dicono con un messaggino.
+- **Click sinistro su una persona**: si apre subito il dialogo.
+- **Trascinare col sinistro** (sulla mappa) **o col destro**: pan della camera.
+  Col sinistro sotto ai quattro pixel è un click, sopra è una trascinata e il
+  click non conta (`camera_zoom.gd::DRAG_THRESHOLD`).
+- **Rotellina**: zoom a scatti pixel-perfect.
+- **PC**: sulla scrivania del seminterrato (click su casa), del garage e
+  dell'ufficio.
+- **Esc**: chiude la finestra aperta, altrimenti torna al menu principale.
 
 ## Perché lo zoom va a scatti interi
 
@@ -3473,7 +3216,7 @@ Tre cose lavorano insieme per non perdere mai risoluzione, e vanno tenute tutte:
 
 Il pan sta in `_input()` e non in `_unhandled_input()` come tutto il resto,
 perché l'interfaccia si mangia i click: un `Control` con `MOUSE_FILTER_STOP` —
-il telefono in fondo allo schermo, il tasto del menu in alto — consuma
+il telefono in fondo allo schermo (che non c'è più), il tasto del menu in alto — consuma
 **qualunque** tasto del mouse che cade dentro al suo rettangolo, anche se poi
 nel suo `_gui_input()` guarda solo il sinistro. Da lì venivano due difetti che
 sembravano uno solo:

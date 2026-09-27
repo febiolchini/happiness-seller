@@ -166,9 +166,6 @@ func _update_prints(delta: float, view: Rect2) -> void:
 
 func _walkers() -> Array[Node2D]:
 	var list: Array[Node2D] = []
-	var player := get_parent().get_node_or_null("Player") as Node2D
-	if player != null:
-		list.append(player)
 	for npc in get_tree().get_nodes_in_group(Npc.GROUP):
 		if npc is Node2D and (npc as Node2D).visible:
 			list.append(npc)

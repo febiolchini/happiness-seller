@@ -35,11 +35,10 @@ extends RefCounted
 ##
 ## `menu()` è `brush.fnt`, l'alfabeto scritto a pennello ricavato da due foto
 ## da `scripts_tools/import_brush_font.py`. Nato per i menu — quello
-## principale, impostazioni, salvataggi — copre **tutto il gioco tranne il
-## telefono**: HUD, finestre, i nomi sotto al puntatore, i fumetti di dialogo,
-## i messaggini, ogni cifra. Ha lettere (le minuscole sono le stesse maiuscole)
-## e cifre, con l'ombra cotta dentro. Il telefono resta con Nunito: è l'unica
-## schermata che tiene il suo font, apposta.
+## principale, impostazioni, salvataggi — copre **tutto il gioco**: HUD,
+## finestre, i nomi sotto al puntatore, i fumetti di dialogo, i messaggini,
+## ogni cifra. Ha lettere (le minuscole sono le stesse maiuscole) e cifre, con
+## l'ombra cotta dentro. (Il telefono, che teneva Nunito, è stato tolto.)
 ##
 ## La punteggiatura (":", "$", ".", "-"...) il pennello non ce l'ha ancora:
 ## per quella Nunito sta dietro al pennello come **font di riserva**, carattere
@@ -125,16 +124,17 @@ const INK_DISABLED := Color(0.541, 0.565, 0.600)
 ## Filetti e bordi.
 const LINE := Color(0.882, 0.894, 0.914)
 
-## Arancio: prezzi, cassa, titoli. È l'unico acceso che non vuol dire "bene"
-## o "male" — quelli sono il verde e il rosso qui sotto. Era anche il colore dei
-## bottoni, che adesso hanno il loro rosso (`BUTTON`, qui sotto).
-const ACCENT := Color(0.937, 0.424, 0.239)
-const ACCENT_DARK := Color(0.788, 0.322, 0.165)
-const ACCENT_SOFT := Color(0.992, 0.918, 0.886)
+## L'accento: prezzi, cassa, titoli. Era arancio; Federico l'ha voluto verde
+## (2026-09-27), come tutti i dettagli dei menu che erano arancio. Un verde più
+## scuro e più freddo di `GOOD`, così una cifra accentata non si legge come
+## "va bene" accanto a una che lo è davvero.
+const ACCENT := Color(0.153, 0.557, 0.353)
+const ACCENT_DARK := Color(0.106, 0.431, 0.267)
+const ACCENT_SOFT := Color(0.886, 0.957, 0.914)
 
 ## Rosso: i bottoni. Federico li ha voluti rossi e non arancioni (2026-09-25);
-## l'arancio qui sopra resta per il resto — prezzi, cassa, titoli della guida,
-## il segnalino sugli sportelli — che non si premono.
+## l'accento qui sopra resta per il resto — prezzi, cassa, titoli della guida —
+## che non si premono.
 const BUTTON := Color(0.824, 0.208, 0.196)
 const BUTTON_DARK := Color(0.671, 0.149, 0.141)
 const BUTTON_SOFT := Color(0.988, 0.906, 0.902)
@@ -319,9 +319,10 @@ static func card_box() -> StyleBoxFlat:
 # Federico, 2026-09-26: nelle finestre niente bottoni, niente contorni, niente
 # scritte colorate per la selezione. Restano le parole, nere; quella su cui si
 # e' (passandoci sopra, premendola, la scheda aperta) la cerchia il suo cerchio
-# d'oro disegnato a mano.
+# disegnato a mano: era d'oro, ricolorato di verde il 2026-09-27
+# (`import_segni_ui.py`).
 
-const RING := preload("res://assets/sprites/ui/cerchio_oro.png")
+const RING := preload("res://assets/sprites/ui/cerchio_verde.png")
 
 static func _margins(box: StyleBox, left: int, right: int, top: int, bottom: int) -> StyleBox:
 	box.content_margin_left = left
@@ -330,7 +331,7 @@ static func _margins(box: StyleBox, left: int, right: int, top: int, bottom: int
 	box.content_margin_bottom = bottom
 	return box
 
-## Il cerchio d'oro, stirato sulla parola. Esce dal bottone di qualche pixel
+## Il cerchio verde, stirato sulla parola. Esce dal bottone di qualche pixel
 ## (`expand_margin`): stretto sul riquadro, taglierebbe le lettere in punta.
 static func _ring() -> StyleBoxTexture:
 	var box := StyleBoxTexture.new()

@@ -25,7 +25,6 @@ const SHOTS := [
 func _ready() -> void:
 	GameState.save_dir = "user://tool_saves"
 	GameState.new_game()
-	GameState.current.set_flag(SeedRun.UNLOCK_FLAG, true)
 	# Senza il contatto di Kevin: la stazione c'e' lo stesso, e' lo sportello
 	# che resta chiuso. Lo scatto dice anche questo.
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
@@ -35,10 +34,9 @@ func _ready() -> void:
 	var station := city.find_child("BusStation", true, false)
 	print("stazione in citta': %s, sportello aperto: %s" % [
 		station != null, station != null and station.can_open()])
-	var player: Node2D = city.get_node("Player")
 	var camera: Camera2D = city.get_node("Camera2D")
 	for shot in SHOTS:
-		player.global_position = shot[0]
+		camera.jump_to(shot[0])
 		camera.set_level(int(shot[3]))
 		GameState.current.time_of_day = float(shot[1])
 		GameState.current.weather = "clear"

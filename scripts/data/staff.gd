@@ -55,10 +55,10 @@ const ROLES := {
 		"note": "STAFF_DEALER_NOTE",
 	},
 	# L'autista: paga fissa come il coltivatore, e per lo stesso motivo — il suo
-	# lavoro non produce soldi, produce viaggi risparmiati. Costa meno degli
-	# altri due perche' quello che fa e' comodita', non produzione: chi lo
-	# assume compra il non doversi fare la strada fino in centro ogni volta che
-	# finiscono i semi.
+	# lavoro non produce soldi da solo, porta il furgone. Senza di lui i carichi
+	# all'ingrosso non partono: non c'e' piu' un protagonista che si mette al
+	# volante. I semi invece non li va piu' a prendere nessuno, si comprano al
+	# banco del grossista cliccandoci sopra.
 	"driver": {
 		"name": "STAFF_DRIVER",
 		"hire": 380,
@@ -88,18 +88,17 @@ static func max_dealers(data: SaveData) -> int:
 		return MAX_DEALERS
 	return MAX_DEALERS + DEALERS_PER_PROPERTY * data.property_count()
 
-## Quanti autisti: uno col furgone in casa, due quando si apre la stazione
-## degli autobus.
+## Quanti autisti: uno, col furgone in casa. Un mezzo, un autista.
 ##
-## Il secondo ha un lavoro suo: il ritiro alla stazione (`BusImport`), che
-## con lui in organico non tiene piu' fermo il furgone di casa. Prima della
-## stazione non avrebbe niente da guidare. Zero senza furgone, e non e' un caso
+## Erano due dopo l'apertura della stazione degli autobus: il secondo faceva i
+## ritiri dei semi. Adesso i semi si comprano al banco e arrivano subito, e il
+## furgone serve solo all'ingrosso. Zero senza furgone, e non e' un caso
 ## limite — e' il modo in cui il ruolo resta nascosto finche' non ha senso,
 ## visto che `roles_for()` salta i ruoli che non si possono assumere.
 static func max_drivers(data: SaveData) -> int:
 	if data == null or not Delivery.has_van(data):
 		return 0
-	return 2 if BusImport.is_unlocked(data) else 1
+	return 1
 
 ## Vasi che un coltivatore riesce a seguire.
 ##
@@ -148,10 +147,24 @@ static func roles_for(data: SaveData) -> Array:
 			list.append(role)
 	return list
 
-## C'è un autista in organico? Da questo dipendono due cose: i semi ordinabili
-## dal PC, e il contatto in rubrica sul telefono (`Chat.contacts()`).
+## C'è un autista in organico? Senza, il furgone resta fermo nel vialetto e i
+## carichi all'ingrosso non partono (`Delivery.can_dispatch()`).
 static func has_driver(data: SaveData) -> bool:
 	return count(data, "driver") > 0
+
+## Il flag che ricorda che Brian ha già consigliato di prendere un autista.
+const DRIVER_HINT_FLAG := "seed_driver_hinted"
+
+## Il consiglio dell'autista: vero **solo il giro in cui scatta**, come gli
+## altri traguardi. Arriva col furgone in casa e nessuno a guidarlo — è lì che
+## il giocatore scopre che il carico non parte da solo.
+static func check_driver_hint(data: SaveData) -> bool:
+	if data == null or not Delivery.has_van(data) or has_driver(data):
+		return false
+	if bool(data.get_flag(DRIVER_HINT_FLAG, false)):
+		return false
+	data.set_flag(DRIVER_HINT_FLAG, true)
+	return true
 
 ## Il flag che ricorda che l'autista si è già presentato.
 const DRIVER_HELLO_FLAG := "driver_said_hello"
@@ -159,10 +172,9 @@ const DRIVER_HELLO_FLAG := "driver_said_hello"
 ## Assunto l'autista, il primo messaggio lo manda lui: vero **solo il giro in
 ## cui scatta**, come gli altri traguardi.
 ##
-## È quel messaggio a mettere il contatto in rubrica sotto agli occhi del
-## giocatore. La rubrica ce l'avrebbe comunque — `Chat.contacts()` guarda
-## l'organico — ma un contatto che compare in silenzio dentro a una schermata
-## che si apre solo se la si cerca non lo trova nessuno.
+## È quel messaggio a dire che da adesso il furgone si muove: senza, il
+## ruolo appena assunto non cambierebbe niente di visibile finché non si apre
+## la scheda MERCATO.
 static func check_driver_hello(data: SaveData) -> bool:
 	if data == null or not has_driver(data):
 		return false

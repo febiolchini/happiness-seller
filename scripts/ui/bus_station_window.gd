@@ -3,10 +3,8 @@ extends CanvasLayer
 ## Lo sportello del contatto fuori stato di Kevin: i tagli ordinabili e quanto
 ## costano.
 ##
-## Stessa forma di `seed_wholesale_window.gd`, e per lo stesso motivo: non
-## consegna i semi, manda il furgone. Ordinato un taglio la finestra si chiude,
-## e da lì in poi il lavoro è di `BusImport` — sei ore di gioco, e i semi
-## arrivano anche a partita chiusa.
+## Stessa forma di `seed_wholesale_window.gd`: si clicca la stazione, si
+## sceglie un taglio, si paga e i semi sono in magazzino. Vedi `BusImport`.
 ##
 ## Le righe vengono da `BusImport.PACKS` e i prezzi dal listino del giorno,
 ## quindi sono comunque da riempire a runtime: tenerle anche nella scena
@@ -61,21 +59,6 @@ func _rebuild() -> void:
 	var cash := data.cash if data != null else 0
 	_cash.text = UiFormat.money(cash)
 
-	# Il furgone è uno solo e fa un viaggio alla volta: se è già in giro — per
-	# la merce, per il grossista in centro, o per questo stesso contatto — qui
-	# non c'è niente da ordinare.
-	if BusImport.is_running(data):
-		_content.add_child(_card([_label(
-			tr("SW_ON_THE_WAY") % UiFormat.duration(
-				BusImport.hours_left(data, GameState.total_hours())),
-			UiTheme.INK, UiTheme.SIZE_VALUE, UiTheme.W_BOLD, true)]))
-		return
-	if not BusImport.has_own_driver(data) and (
-			Delivery.is_running(data) or SeedRun.is_running(data)):
-		_content.add_child(_card([_label(tr("SW_VAN_OUT"), UiTheme.WARN,
-			UiTheme.SIZE_VALUE, UiTheme.W_BOLD, true)]))
-		return
-
 	for entry in BusImport.PACKS:
 		_content.add_child(_pack_card(entry, data, cash))
 	_content.add_child(_card([_label(tr("BS_NOTE"), UiTheme.INK_FAINT,
@@ -124,13 +107,12 @@ func _pack_card(pack: Dictionary, data: SaveData, cash: int) -> Control:
 
 func _on_order(pack: Dictionary) -> void:
 	var seeds := BusImport.order(GameState.current, pack, GameState.total_hours())
-	if seeds <= 0:
-		_rebuild()
-		return
-	# Il furgone parte: la City lo fa uscire da casa e lo riporta quando è ora.
-	GameState.bus_order_left.emit(seeds)
-	GameState.save_game()
-	queue_free()
+	if seeds > 0:
+		GameState.notify(tr("NOTE_SEEDS_BOUGHT") % seeds)
+		GameState.save_game()
+	# La finestra resta aperta: la cassa scende, e chi sta riempiendo il
+	# magazzino spesso compra un altro taglio subito dopo.
+	_rebuild()
 
 # --- Mattoncini ------------------------------------------------------------
 

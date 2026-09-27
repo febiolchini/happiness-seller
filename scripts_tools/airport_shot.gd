@@ -49,7 +49,6 @@ func _ready() -> void:
 	var city := CITY.instantiate()
 	add_child(city)
 	await get_tree().process_frame
-	var player: Node2D = city.get_node("Player")
 	var camera: Camera2D = city.get_node("Camera2D")
 	print("sequenza: %.1f s, dalle %.2f alle %.2f" % [AirportPlan.duration(),
 		AirportPlan.START_HOUR, AirportPlan.hour_at(AirportPlan.duration())])
@@ -57,7 +56,7 @@ func _ready() -> void:
 	for actor in tappe:
 		print("  %s: %s" % [actor, str(tappe[actor])])
 	for shot in SHOTS:
-		player.global_position = shot[0]
+		camera.jump_to(shot[0])
 		camera.set_level(int(shot[3]))
 		var when := float(shot[1])
 		var hour := -when if when < 0.0 else AirportPlan.hour_at(when)

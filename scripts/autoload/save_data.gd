@@ -137,7 +137,7 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 @export var bus_run: Dictionary = {}
 
 # --- Messaggi --------------------------------------------------------------
-## La cronologia della chat del telefono: i messaggi dei traguardi, quelli che
+## La cronologia dei messaggi (scheda MESSAGGI del PC): i traguardi, quelli che
 ## il giocatore deve poter rileggere a distanza di giorni.
 ##
 ## **Dentro ci sono chiavi di traduzione, non frasi.** Una riga e'
@@ -195,7 +195,6 @@ const FACTIONS := ["strada", "polizia", "vicinato"]
 @export var day := 1
 ## Ora del giorno in formato 0.0 - 24.0.
 @export var time_of_day := 8.0
-@export var player_position := Vector2(320, 264)
 ## Scena della stanza in cui si è, "" quando si è fuori in strada. Serve a
 ## riprendere la partita esattamente dove la si era lasciata, anche dentro casa.
 @export var current_room := ""
@@ -315,8 +314,6 @@ func to_dict() -> Dictionary:
 		"weather": weather,
 		"day": day,
 		"time_of_day": time_of_day,
-		# Il JSON non conosce Vector2: lo salviamo come coppia di numeri.
-		"player_position": [player_position.x, player_position.y],
 		"current_room": current_room,
 		"stats": stats,
 	}
@@ -375,10 +372,6 @@ static func from_dict(raw: Dictionary) -> SaveData:
 	data.time_of_day = float(source.get("time_of_day", 8.0))
 	data.current_room = str(source.get("current_room", ""))
 	data.stats = _restore_ints(source.get("stats", {}))
-
-	var pos: Array = source.get("player_position", [320, 264])
-	if pos.size() == 2:
-		data.player_position = Vector2(float(pos[0]), float(pos[1]))
 
 	# Una fazione aggiunta dopo che la partita era già iniziata parte da 0.
 	for faction in FACTIONS:

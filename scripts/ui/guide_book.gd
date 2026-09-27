@@ -1,17 +1,14 @@
 extends CanvasLayer
 
-## La guida: come funziona il giro, aperta dal telefono e letta a tutto schermo.
+## La guida: come funziona il giro, aperta dal tasto GUIDA del PC e letta a
+## tutto schermo.
 ##
-## ## Perché non sta dentro al telefono
+## ## Perché il tasto sta nel PC
 ##
-## Il **tasto** sta lì, in fondo alla rubrica, e quello è giusto: il telefono è
-## il posto in cui uno va a cercare le cose, e una guida nascosta in un menu di
-## impostazioni non la trova nessuno. Ma il vetro del telefono è largo
-## centoquattordici pixel, e sei pagine di spiegazioni lì dentro vengono fuori a
-## quattro parole per riga: si scorre per un minuto e non si è letto niente.
-##
-## Quindi il telefono è dove la si **trova**, questa finestra è dove la si
-## **legge**. Sono due lavori diversi e li fanno due schermate diverse.
+## Stava in fondo alla rubrica del telefono, che è stato tolto insieme al
+## protagonista. Il PC è adesso il posto in cui si va a cercare tutto, e una
+## guida nascosta in un menu di impostazioni non la trova nessuno. Il PC è dove
+## la si **trova**, questa finestra è dove la si **legge**.
 ##
 ## ## Perché una guida e non un tutorial
 ##
@@ -121,7 +118,9 @@ func _build_rail() -> void:
 		var button := Button.new()
 		button.text = str(_sections[i]["title"])
 		button.focus_mode = Control.FOCUS_NONE
-		button.clip_text = true
+		# Niente `clip_text`: con la voce stretta sulla parola (vedi `_select()`)
+		# il testo tagliabile porta la larghezza minima a zero, e nella colonna
+		# restava solo il cerchio, senza nessuna parola dentro.
 		button.set_script(BUTTON_SCRIPT)
 		button.use_press_offset = false
 		button.pressed.connect(_select.bind(i))

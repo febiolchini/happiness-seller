@@ -22,12 +22,6 @@ const OUT_DIR := "user://shots"
 ## quello che c'è da guardare: il taglio di sole, la pioggia sul vetro, il
 ## rosso delle lampade in cantina.
 const ROOMS := [
-	["res://scenes/rooms/Kitchen.tscn", 9.0, "clear", "20_cucina_mattina"],
-	["res://scenes/rooms/Kitchen.tscn", 17.0, "clear", "21_cucina_pomeriggio"],
-	["res://scenes/rooms/Kitchen.tscn", 22.0, "clear", "22_cucina_notte"],
-	["res://scenes/rooms/Kitchen.tscn", 14.0, "storm", "23_cucina_temporale"],
-	["res://scenes/rooms/Entrance.tscn", 10.0, "clear", "24_ingresso_mattina"],
-	["res://scenes/rooms/Entrance.tscn", 21.0, "rain", "25_ingresso_pioggia"],
 	["res://scenes/rooms/Basement.tscn", 13.0, "clear", "26_cantina"],
 ]
 
