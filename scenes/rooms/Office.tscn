@@ -1,0 +1,30 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/rooms/Room.tscn" id="1_room"]
+[ext_resource type="Texture2D" path="res://assets/sprites/rooms/ufficio.png" id="2_bg"]
+[ext_resource type="PackedScene" path="res://scenes/components/RoomHotspot.tscn" id="3_hotspot"]
+[ext_resource type="PackedScene" path="res://scenes/ui/ManagementWindow.tscn" id="4_management"]
+
+[node name="Office" instance=ExtResource("1_room")]
+room_name = "ROOM_OFFICE"
+exits = {
+"ROOM_EXIT": "res://scenes/levels/City.tscn"
+}
+background_color = Color(0.0823529, 0.0745098, 0.101961, 1)
+window_rect = Rect2(111, 22, 418, 103)
+window_quad = PackedVector2Array(110.8, 22, 529.2, 22, 502.9, 125.3, 137.1, 125.3)
+art = "ufficio"
+view_building = "MeridianTower"
+view_floor = 21
+
+[node name="Backdrop" parent="." index="1"]
+texture = ExtResource("2_bg")
+
+[node name="PC" parent="." index="5" instance=ExtResource("3_hotspot")]
+layout_mode = 1
+offset_left = 395.0
+offset_top = 144.0
+offset_right = 437.0
+offset_bottom = 167.0
+text = "PC"
+window_scene = ExtResource("4_management")

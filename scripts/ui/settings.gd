@@ -24,7 +24,9 @@ extends "res://scripts/ui/menu_cursor.gd"
 
 const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
 
-const ACTIVE_COLOR := Color(1, 0.86, 0.35)
+## La scelta accesa: verde e non più giallo-oro, come tutti i dettagli dei
+## menu (Federico, 2026-09-27). Chiaro, perché qui si scrive su fondo scuro.
+const ACTIVE_COLOR := Color(0.45, 0.88, 0.55)
 const IDLE_COLOR := Color(0.78, 0.79, 0.82)
 const LABEL_COLOR := Color(0.55, 0.57, 0.62)
 

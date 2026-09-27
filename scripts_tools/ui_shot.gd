@@ -38,7 +38,9 @@ func _prepara() -> void:
 	data.set_flag("staff_unlocked", true)
 	data.set_flag("intro_seen", true)
 	data.set_flag("expand_advised", true)
-	data.set_flag(SeedRun.UNLOCK_FLAG, true)
+	# Il nome della banda già dato: senza, la finestra che lo chiede si apre
+	# sopra a ogni scatto in strada.
+	data.org_name = "Los Cugini"
 	GameState.clock_running = false
 
 func _ready() -> void:
@@ -48,8 +50,8 @@ func _ready() -> void:
 	var city := CITY.instantiate()
 	add_child(city)
 	await get_tree().process_frame
-	var player: Node2D = city.get_node("Player")
-	player.global_position = Vector2(320, 300)
+	var camera: Camera2D = city.get_node("Camera2D")
+	camera.jump_to(Vector2(320, 300))
 	await get_tree().create_timer(1.2).timeout
 	await _scatta("ui_hud")
 
@@ -64,7 +66,7 @@ func _ready() -> void:
 	var window := MANAGEMENT.instantiate()
 	tela.add_child(window)
 	await get_tree().create_timer(0.4).timeout
-	for indice in 5:
+	for indice in window._tabs.size():
 		if indice >= window._tabs.size():
 			break
 		window._select_tab(indice)
@@ -125,6 +127,12 @@ func _ready() -> void:
 	await get_tree().create_timer(0.4).timeout
 	await _scatta("ui_resoconto")
 	resoconto.queue_free()
+
+	# Il messaggio d'apertura: quello che racconta l'attività dello zio.
+	await get_tree().process_frame
+	GameState.contact_message(Chat.BRIAN, "MSG_INTRO_BODY")
+	await get_tree().create_timer(0.4).timeout
+	await _scatta("ui_intro")
 
 	print("fatto: %s" % ProjectSettings.globalize_path(OUT_DIR))
 	get_tree().quit()

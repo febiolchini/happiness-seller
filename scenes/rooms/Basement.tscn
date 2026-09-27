@@ -10,8 +10,6 @@
 [node name="Basement" instance=ExtResource("1_room")]
 room_name = "ROOM_BASEMENT"
 exits = {
-"ROOM_ENTRANCE": "res://scenes/rooms/Entrance.tscn",
-"ROOM_KITCHEN": "res://scenes/rooms/Kitchen.tscn",
 "ROOM_EXIT": "res://scenes/levels/City.tscn"
 }
 background_color = Color(0.0941176, 0.101961, 0.117647, 1)
@@ -21,12 +19,7 @@ art = "cantina"
 [node name="Backdrop" parent="." index="1"]
 texture = ExtResource("2_bg")
 
-[node name="Character" parent="." index="2"]
-position = Vector2(470, 233)
-scale = Vector2(3.17, 3.17)
-modulate = Color(0.84, 0.78, 0.74, 1)
-
-[node name="PC" parent="." index="6" instance=ExtResource("3_hotspot")]
+[node name="PC" parent="." index="5" instance=ExtResource("3_hotspot")]
 layout_mode = 1
 offset_left = 210.0
 offset_top = 73.0
@@ -35,7 +28,7 @@ offset_bottom = 102.0
 text = "PC"
 window_scene = ExtResource("4_management")
 
-[node name="Plot0" parent="." index="7" instance=ExtResource("5_plot")]
+[node name="Plot0" parent="." index="6" instance=ExtResource("5_plot")]
 layout_mode = 1
 offset_left = 177.0
 offset_top = 206.0
@@ -43,7 +36,7 @@ offset_right = 229.0
 offset_bottom = 248.0
 index = 0
 
-[node name="Plot1" parent="." index="8" instance=ExtResource("5_plot")]
+[node name="Plot1" parent="." index="7" instance=ExtResource("5_plot")]
 layout_mode = 1
 offset_left = 226.0
 offset_top = 178.0
@@ -51,7 +44,7 @@ offset_right = 278.0
 offset_bottom = 220.0
 index = 1
 
-[node name="Plot2" parent="." index="9" instance=ExtResource("5_plot")]
+[node name="Plot2" parent="." index="8" instance=ExtResource("5_plot")]
 layout_mode = 1
 offset_left = 274.0
 offset_top = 150.0
@@ -59,7 +52,7 @@ offset_right = 326.0
 offset_bottom = 192.0
 index = 2
 
-[node name="Plot3" parent="." index="10" instance=ExtResource("5_plot")]
+[node name="Plot3" parent="." index="9" instance=ExtResource("5_plot")]
 layout_mode = 1
 offset_left = 210.0
 offset_top = 225.0
@@ -67,7 +60,7 @@ offset_right = 262.0
 offset_bottom = 267.0
 index = 3
 
-[node name="Plot4" parent="." index="11" instance=ExtResource("5_plot")]
+[node name="Plot4" parent="." index="10" instance=ExtResource("5_plot")]
 layout_mode = 1
 offset_left = 258.0
 offset_top = 197.0
@@ -75,7 +68,7 @@ offset_right = 310.0
 offset_bottom = 239.0
 index = 4
 
-[node name="Plot5" parent="." index="12" instance=ExtResource("5_plot")]
+[node name="Plot5" parent="." index="11" instance=ExtResource("5_plot")]
 layout_mode = 1
 offset_left = 308.0
 offset_top = 169.0
@@ -83,7 +76,7 @@ offset_right = 360.0
 offset_bottom = 211.0
 index = 5
 
-[node name="Lamp0" parent="." index="13" instance=ExtResource("6_lamp")]
+[node name="Lamp0" parent="." index="12" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 171.0
 offset_top = 132.0
@@ -91,7 +84,7 @@ offset_right = 235.0
 offset_bottom = 202.0
 lamp_set = 0
 
-[node name="Lamp1" parent="." index="14" instance=ExtResource("6_lamp")]
+[node name="Lamp1" parent="." index="13" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 220.0
 offset_top = 104.0
@@ -99,7 +92,7 @@ offset_right = 284.0
 offset_bottom = 174.0
 lamp_set = 1
 
-[node name="Lamp2" parent="." index="15" instance=ExtResource("6_lamp")]
+[node name="Lamp2" parent="." index="14" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 268.0
 offset_top = 76.0
@@ -107,7 +100,7 @@ offset_right = 332.0
 offset_bottom = 146.0
 lamp_set = 2
 
-[node name="Lamp3" parent="." index="16" instance=ExtResource("6_lamp")]
+[node name="Lamp3" parent="." index="15" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 204.0
 offset_top = 151.0
@@ -115,7 +108,7 @@ offset_right = 268.0
 offset_bottom = 221.0
 lamp_set = 3
 
-[node name="Lamp4" parent="." index="17" instance=ExtResource("6_lamp")]
+[node name="Lamp4" parent="." index="16" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 252.0
 offset_top = 123.0
@@ -123,7 +116,7 @@ offset_right = 316.0
 offset_bottom = 193.0
 lamp_set = 4
 
-[node name="Lamp5" parent="." index="18" instance=ExtResource("6_lamp")]
+[node name="Lamp5" parent="." index="17" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 302.0
 offset_top = 95.0

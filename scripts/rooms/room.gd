@@ -2,12 +2,15 @@ extends Control
 
 ## Stanza interna a un edificio.
 ##
-## C'è il protagonista in grande e fermo, il nome della stanza in alto, i
-## collegamenti alle altre stanze in basso, e sopra a tutto l'atmosfera: la luce
-## che cambia con l'ora, il taglio di sole dalla finestra, la pioggia sui vetri.
+## C'è il nome della stanza in alto, l'uscita in basso, e sopra a tutto
+## l'atmosfera: la luce che cambia con l'ora, il taglio di sole dalla finestra,
+## la pioggia sui vetri. Il protagonista non c'è più: il gioco è un gestionale,
+## e una stanza è il posto in cui stanno i vasi, non uno in cui si cammina.
 ##
-## Tutte le stanze condividono questo script: `Entrance`, `Kitchen` e `Basement`
-## sono scene ereditate che cambiano solo nome, colore, uscite e finestra.
+## Tutte le stanze condividono questo script: `Basement`, `Garage` e `Office`
+## sono scene ereditate che cambiano solo nome, colore, uscite e finestra. Le
+## stanze di casa sono una sola, il seminterrato: cucina e ingresso sono state
+## tolte insieme alla camminata, e cliccando casa si apre direttamente lì.
 ##
 ## ## L'atmosfera si costruisce, non si mette nella scena
 ##
@@ -20,7 +23,6 @@ extends Control
 
 const EXIT_BUTTON := preload("res://scenes/ui/MenuTextButton.tscn")
 const ROOM_AMBIENCE := preload("res://scripts/systems/room_ambience.gd")
-const PHONE := preload("res://scenes/ui/Phone.tscn")
 const HAND_CURSOR := preload("res://assets/sprites/ui/cursors/hand_open.png")
 const HAND_HOTSPOT := Vector2(22, 22)
 const BACKDROP_ANIMATION := preload("res://scripts/rooms/backdrop_animation.gd")
@@ -55,6 +57,15 @@ const BACKDROP_ANIMATION := preload("res://scripts/rooms/backdrop_animation.gd")
 ## fondale (il lampadario che dondola, la fiamma della caldaia). Vuoto = un
 ## fondale fermo, o nessun fondale.
 @export var art := ""
+
+## Per una stanza in alto in un grattacielo: da quale edificio della pianta
+## (`CityMap.BUILDINGS`) e da che piano si guarda fuori. Con questi due, dietro
+## ai vetri trasparenti del fondale si vede la città vera (`WindowView`) invece
+## del cielo dipinto. Vuoto = una finestra normale.
+@export var view_building := ""
+@export var view_floor := 0
+
+var _window_view: WindowView = null
 
 @onready var _background: ColorRect = $Background
 @onready var _backdrop: TextureRect = $Backdrop
@@ -91,18 +102,15 @@ func _ready() -> void:
 		# rimpicciolito da 56 px a 18, con le frazioni che si arrotondano —
 		# l'ultima lettera sforava di un niente e spariva: "ENTRANC". Dopo
 		# `add_child()`: fuori dall'albero la chiave non e' ancora tradotta, e
-		# si misurerebbe "ROOM_ENTRANCE".
+		# si misurerebbe "ROOM_BASEMENT".
 		exit.custom_minimum_size.x = exit.get_minimum_size().x + 2.0
 
+	_build_window_view()
 	_build_backdrop_animations()
 	_build_ambience()
-	# Il telefono c'è anche in casa: i semi finiscono mentre si annaffia in
-	# cantina, ed è lì che serve poter chiamare Brian. Costruito da codice per
-	# la stessa ragione dell'atmosfera — vedi `_build_ambience()`.
-	add_child(PHONE.instantiate())
 
 ## Tira su la luce della stanza: un `CanvasModulate` che tinge tutto quello che
-## sta sulla tela della stanza — fondale, protagonista, vasi, lampade — e sopra
+## sta sulla tela della stanza — fondale, vasi, lampade — e sopra
 ## il velo che disegna il taglio di sole, la pioggia sul vetro e il pulviscolo.
 ##
 ## L'HUD non viene toccato: sta su una tela sua (`CanvasLayer`), e un
@@ -115,14 +123,35 @@ func _build_ambience() -> void:
 	ambience.name = "RoomAmbience"
 	# Nome della stanza e uscite sono interfaccia: la luce della sera non deve
 	# spegnerli. Vedi `room_ambience.gd::_keep_readable()`.
-	ambience.setup(tint, daylight, window_rect, [_title, _exits_box], window_quad)
+	# La vista ha gia' la luce di fuori: la tinta della stanza non ci si deve
+	# sommare sopra, quindi si compensa come le scritte.
+	var readable: Array = [_title, _exits_box]
+	if _window_view != null:
+		readable.append(_window_view)
+	ambience.setup(tint, daylight, window_rect, readable, window_quad, _window_view != null)
 	add_child(ambience)
+
+## La città vista dalla vetrata. Figlia del `Background` e non della stanza:
+## si disegna dopo il fondo e PRIMA del fondale, che la copre tutta tranne dove
+## ha i vetri trasparenti — ed e' li' che si vede. Non sposta gli indici dei
+## nodi, per la stessa ragione delle animazioni qui sotto.
+func _build_window_view() -> void:
+	if view_building.is_empty():
+		return
+	var rect := window_rect
+	if window_quad.size() == 4:
+		rect = Rect2(window_quad[0], Vector2.ZERO)
+		for corner in window_quad:
+			rect = rect.expand(corner)
+	rect = Rect2(rect.position.floor(), rect.size.ceil() + Vector2.ONE)
+	_window_view = WindowView.new()
+	_window_view.setup(rect, view_building, view_floor)
+	_background.add_child(_window_view)
 
 ## Appoggia sopra al fondale i pezzi che si muovono.
 ##
 ## Sono figli del `Backdrop` e non della stanza per due ragioni: si disegnano
-## subito dopo il fondale e prima di tutto il resto (protagonista, vasi,
-## lampade), com'è giusto per un pezzo di fondale; e non spostano gli indici
+## subito dopo il fondale e prima di tutto il resto (vasi, lampade), com'è giusto per un pezzo di fondale; e non spostano gli indici
 ## dei nodi, che le scene ereditate usano per riferirsi ai propri — vedi il
 ## commento in testa. Le coordinate della tabella sono pixel di schermo, e il
 ## `Backdrop` copre lo schermo a scala uno con un fondale da 640x360.

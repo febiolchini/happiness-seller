@@ -36,8 +36,7 @@ func _ready() -> void:
 	_wipe_saves()
 
 	# I controlli si annunciano prima di partire, con quanto ci hanno messo.
-	# Non è decorazione: alcuni durano secondi — la griglia dei percorsi si
-	# costruisce due volte e si provano centinaia di tragitti — e senza questa
+	# Non è decorazione: alcuni durano secondi, e senza questa
 	# riga un controllo che si pianta è indistinguibile da uno lento, con
 	# l'esecuzione ferma e lo schermo vuoto.
 	for test in [
@@ -47,8 +46,6 @@ func _ready() -> void:
 		["il meteo", _test_weather],
 		["la giornata dell'aeroporto", _test_airport],
 		["pianta della citta'", _test_city_layout],
-		["percorsi", _test_navigation],
-		["si cammina sul marciapiede", _test_sidewalks],
 		["attraversare col traffico", _test_crossing],
 		["partita nuova", _test_new_game],
 		["ciclo di coltivazione", _test_grow_cycle],
@@ -73,8 +70,8 @@ func _ready() -> void:
 		["la bolletta della luce", _test_power_bill],
 		["le tasse sulla proprieta", _test_property_tax],
 		["l'ingrosso col furgone", _test_delivery],
-		["il telefono", _test_phone_alerts],
-		["la chat con brian", _test_chat],
+		["gli avvisi del personale", _test_phone_alerts],
+		["i messaggi di brian", _test_chat],
 		["il tempo a gioco chiuso", _test_offline],
 		["l'agenzia immobiliare", _test_real_estate],
 		["il grossista dei semi", _test_seed_run],
@@ -132,15 +129,34 @@ func _advance(hours: float) -> void:
 		data.time_of_day -= 24.0
 		data.day += 1
 
-## Chiude i messaggi del telefono lasciati aperti da un controllo.
+## Chiude i riquadri dei messaggi lasciati aperti da un controllo.
 func _close_messages() -> void:
 	for child in GameState.get_children():
 		child.free()
 
+## Una partita **nuda**: niente personale, vasi vuoti, prologo ancora da
+## giocare.
+##
+## Una partita nuova vera parte con l'attività dello zio — un coltivatore, uno
+## spacciatore, tre piante già avviate (vedi `_test_new_game()`). Per provare un
+## meccanismo alla volta quel personale darebbe fastidio: lavora da solo mentre
+## si avanza l'orologio, e i conti dei controlli smetterebbero di tornare. Qui
+## lo si toglie, e ogni controllo si mette addosso solo quello che gli serve.
 func _fresh() -> SaveData:
 	GameState.new_game()
 	GameState.clock_running = false
-	return GameState.current
+	var data := GameState.current
+	data.staff = {}
+	data.grower_sites = {}
+	for plot in data.plots:
+		(plot as Dictionary).clear()
+	data.chapter = "prologo"
+	data.set_flag("staff_unlocked", false)
+	data.set_flag(GameState.ORG_NAME_FLAG, false)
+	# La cassa del vecchio avvio: parecchi controlli contano sul fatto che
+	# all'inizio non ci si possa permettere quasi niente.
+	data.cash = 120
+	return data
 
 # ---------------------------------------------------------------------------
 
@@ -345,169 +361,15 @@ func _test_city_layout() -> void:
 		int(roles.get(NpcRoster.ROLE_SEEDS, 0)), 0,
 		"nessun venditore di semi fisso nel roster")
 
-	# La casa iniziale e il punto di partenza devono restare d'accordo.
-	var doorstep := CityMap.home_doorstep()
-	var start := SaveData.new().player_position
-	_check(doorstep.distance_to(start) < 8.0, "si parte davanti alla casa iniziale")
-
-## I percorsi: si arriva dappertutto, e mai attraverso un muro.
-##
-## È il tipo di cosa che si scopre solo camminandoci sopra, e per accorgersi che
-## un edificio in fondo alla mappa è diventato irraggiungibile bisognerebbe
-## andarci apposta. Qui si prova ogni porta della città in un colpo solo.
-func _test_navigation() -> void:
-	var buildings := CityMap.all_buildings()
-	var nav := CityNavigation.new()
-	var started := Time.get_ticks_msec()
-	nav.build(buildings)
-	var build_ms := Time.get_ticks_msec() - started
-	_check(build_ms < 3000, "la griglia si costruisce in fretta (%d ms)" % build_ms)
-
-	var home := CityMap.home_doorstep()
-	_check(nav.is_walkable(home), "si può stare davanti a casa")
-
-	# Dentro a un edificio non ci si cammina.
-	var solid: Array = []
-	for entry in buildings:
-		if nav.is_walkable(CityMap.footprint(entry).get_center()):
-			solid.append(entry["id"])
-	_check_empty(solid, "il centro di un edificio non è calpestabile")
-
-	# Da casa si raggiunge ogni porta della città, e il percorso non passa
-	# attraverso niente.
-	#
-	# I fondali dentro agli isolati non hanno una porta e sono saltati: stanno
-	# murati dietro alla fila che dà sulla strada, non si cliccano e non si
-	# visitano. Vedi `CityMap._fill_interior()`.
-	var unreachable: Array = []
-	var through_walls: Array = []
-	for entry in buildings:
-		if bool(entry.get("backdrop", false)):
-			continue
-		var door: Vector2 = entry["base"] + _entry_offset(entry)
-		var path := nav.find_path(home, door)
-		if path.is_empty():
-			unreachable.append(entry["id"])
-			continue
-		for i in range(path.size() - 1):
-			if not nav.is_clear(path[i], path[i + 1]):
-				through_walls.append(entry["id"])
-				break
-	_check_empty(unreachable, "da casa si arriva a ogni edificio")
-	_check_empty(through_walls, "nessun percorso attraversa un edificio")
-
-	# Un edificio grosso va aggirato, non attraversato: il percorso da un lato
-	# all'altro deve essere sensibilmente più lungo della linea d'aria.
-	#
-	# "Sensibilmente" è mezza larghezza dell'edificio, ricavata dall'ingombro e
-	# non un fattore fisso: aggirarlo vuol dire per forza spostarsi di lato fino
-	# a passarne il fianco, ed è l'unica cosa che questo controllo deve dire. Un
-	# moltiplicatore scritto a mano invece descrive **quell'** edificio, e va
-	# ritarato ogni volta che l'ingombro cambia — com'è successo accostando le
-	# facciate, quando l'ingombro è passato dal disegno intero al solo muro.
-	#
-	# Si prova sul palazzo occupato, che è il pezzo più alto del quartiere: la
-	# fabbrica, che stava qui prima, era un segnaposto della zona industriale e
-	# non esiste più.
-	var condo := Rect2()
+	# Cliccando casa si apre direttamente il seminterrato: cucina e ingresso non
+	# ci sono più, e una porta che punta a una stanza che non esiste
+	# schianterebbe il cambio di scena.
 	for entry in CityMap.BUILDINGS:
-		if str(entry["id"]) == "Condo":
-			condo = CityMap.footprint(entry)
-	var north := Vector2(condo.get_center().x, condo.position.y - 40.0)
-	var south := Vector2(condo.get_center().x, condo.end.y + 40.0)
-	var around := nav.find_path(north, south)
-	_check(not around.is_empty(), "si passa da un lato all'altro del palazzo")
-	var walked := 0.0
-	for i in range(around.size() - 1):
-		walked += around[i].distance_to(around[i + 1])
-	var straight := north.distance_to(south)
-	_check(
-		walked > straight + condo.size.x * 0.5,
-		"il palazzo si aggira invece di attraversarlo (%d px contro %d in linea d'aria)"
-			% [int(walked), int(straight)])
-
-	# Attraversare mezza città deve funzionare e restare un percorso sensato.
-	var far := nav.find_path(home, Vector2(4600, 3600))
-	_check(not far.is_empty(), "si attraversa tutta la città")
-	_check(far.size() < 200, "il percorso lungo resta semplificato (%d tappe)" % far.size())
-
-## Si cammina sul marciapiede, non in mezzo alla strada.
-##
-## È la cosa che un percorso può sbagliare restando perfettamente valido: nessun
-## muro attraversato, destinazione raggiunta, e il protagonista che se ne va per
-## la carreggiata come un ubriaco. Non si controlla guardando una linea sola —
-## una qualunque può dover attraversare — ma la SOMMA: su un campione di
-## tragitti lunghi, quanti pixel si fanno su ogni terreno.
-func _test_sidewalks() -> void:
-	var nav := CityNavigation.new()
-	nav.build(CityMap.all_buildings())
-
-	# Lungo una strada, dallo stesso lato: qui di asfalto non ce n'è motivo,
-	# a parte gli incroci che tagliano la strada di traverso.
-	var road: Rect2 = CityMap.ROADS_H[0]
-	var from := Vector2(road.position.x + 600.0, road.position.y - 16.0)
-	var to := Vector2(road.position.x + 3000.0, road.position.y - 16.0)
-	var ground := _surfaces(nav, nav.find_path(from, to))
-	var along_total: float = ground["side"] + ground["road"] + ground["ground"]
-	_check(
-		ground["road"] / along_total < 0.15,
-		"lungo una strada si sta sul marciapiede (asfalto %d%%)"
-			% int(100.0 * ground["road"] / along_total))
-
-	# Attraversare: dritti, non in diagonale lungo la carreggiata. Il pezzo
-	# sull'asfalto non deve essere molto più largo della strada stessa.
-	var across := _surfaces(nav, nav.find_path(
-		Vector2(road.position.x + 600.0, road.position.y - 16.0),
-		Vector2(road.position.x + 600.0, road.end.y + 16.0)))
-	_check(
-		across["road"] <= CityMap.ROAD_WIDTH * 1.4,
-		"si attraversa perpendicolari (%d px di asfalto per una strada larga %d)"
-			% [int(across["road"]), int(CityMap.ROAD_WIDTH)])
-
-	# E su un campione di tragitti lunghi, la stragrande maggioranza dei passi
-	# è su un marciapiede.
-	seed(7)
-	var doors: Array[Vector2] = []
-	for entry in CityMap.all_buildings():
-		if bool(entry.get("backdrop", false)):
-			continue
-		doors.append(CityMap.footprint(entry).get_center() + Vector2(0, 90))
-	var totals := {"side": 0.0, "road": 0.0, "ground": 0.0}
-	for i in 12:
-		var path := nav.find_path(doors[randi() % doors.size()], doors[randi() % doors.size()])
-		var part := _surfaces(nav, path)
-		for key in totals:
-			totals[key] = float(totals[key]) + float(part[key])
-	var total: float = totals["side"] + totals["road"] + totals["ground"]
-	_check(total > 0.0, "i tragitti di prova esistono")
-	# Due terzi e non di più: un tragitto comincia e finisce davanti a una porta,
-	# e quei due pezzi attraversano per forza il cortile dell'edificio. Quello
-	# che si vuole escludere è l'asfalto, e infatti il numero severo è l'altro.
-	_check(
-		totals["side"] / total > 0.6,
-		"in giro per la città si cammina sul marciapiede (%d%%)"
-			% int(100.0 * totals["side"] / total))
-	_check(
-		totals["road"] / total < 0.15,
-		"e poco sull'asfalto (%d%%)" % int(100.0 * totals["road"] / total))
-
-## Quanti pixel di un percorso cadono su ciascun terreno.
-func _surfaces(nav: CityNavigation, path: PackedVector2Array) -> Dictionary:
-	var result := {"side": 0.0, "road": 0.0, "ground": 0.0}
-	for i in range(path.size() - 1):
-		var distance: float = path[i].distance_to(path[i + 1])
-		var steps := maxi(1, int(distance / 8.0))
-		for k in steps:
-			var point: Vector2 = path[i].lerp(path[i + 1], float(k) / float(steps))
-			var cost := nav.cost_at(point)
-			var piece := distance / float(steps)
-			if is_equal_approx(cost, CityNavigation.COST_SIDEWALK):
-				result["side"] = float(result["side"]) + piece
-			elif is_equal_approx(cost, CityNavigation.COST_ROAD):
-				result["road"] = float(result["road"]) + piece
-			else:
-				result["ground"] = float(result["ground"]) + piece
-	return result
+		var interior := str(entry.get("interior", ""))
+		if str(entry["id"]) == "FirstHouse":
+			_check_eq(interior, "res://scenes/rooms/Basement.tscn", "casa apre il seminterrato")
+		if not interior.is_empty():
+			_check(ResourceLoader.exists(interior), "la stanza di %s esiste" % entry["id"])
 
 ## Si attraversa solo se non si viene investiti.
 ##
@@ -614,13 +476,40 @@ func _entry_offset(entry: Dictionary) -> Vector2:
 		_:
 			return Vector2(0, 26.0)
 
+## L'avvio: lo zio lascia la sua attività già avviata.
 func _test_new_game() -> void:
-	var data := _fresh()
-	_check_eq(data.cash, Economy.STARTING_CASH, "soldi iniziali")
+	GameState.new_game()
+	GameState.clock_running = false
+	var data := GameState.current
+	_check_eq(data.cash, 2500, "lo zio lascia 2500 $")
+	_check_eq(Staff.count(data, "grower"), 1, "un coltivatore")
+	_check_eq(Staff.count(data, "dealer"), 1, "uno spacciatore")
+	_check_eq(Staff.count(data, "driver"), 0, "e nessun autista: il furgone non c'e'")
+	_check_eq(data.chapter, "capitolo_uno", "niente prologo")
+	_check(bool(data.get_flag("staff_unlocked", false)), "il personale si gestisce da subito")
 	_check_eq(Economy.seeds_owned(data), Economy.STARTING_SEEDS, "semi iniziali")
 	_check_eq(data.plot_slots, Economy.START_PLOTS, "vasi iniziali")
 	_check_eq(data.plots.size(), Economy.START_PLOTS, "array dei vasi allineato")
-	_check(Grow.is_empty(data.plot(0)), "il primo vaso parte vuoto")
+	_check_eq(Staff.growers_on(data, "basement") + Staff.idle_growers(data), 1,
+		"il coltivatore e' contato")
+	_check_eq(Staff.idle_growers(data), 0, "e sta gia' in cantina, non in panchina")
+	var now := GameState.total_hours()
+	for i in data.plot_slots:
+		var plot := data.plot(i)
+		_check(not Grow.is_empty(plot), "il vaso %d ha gia' una pianta" % i)
+		_check(not Grow.is_thirsty(plot, now), "e non ha sete")
+		_check(not Grow.is_ready(plot, now), "e non e' ancora pronta")
+	_check(Grow.progress(data.plot(0), now) > Grow.progress(data.plot(2), now),
+		"le piante hanno eta' diverse")
+	# Il grossista c'e' da subito, e i semi si comprano al banco.
+	_check(SeedRun.is_unlocked(data), "il grossista dei semi e' aperto")
+	# Il nome della banda si chiede subito: il flag c'e', il nome no.
+	_check(bool(data.get_flag(GameState.ORG_NAME_FLAG, false)), "il nome si chiede subito")
+	# Il primo giro dell'orologio non deve far lavorare il personale sulle ore
+	# prima dell'avvio: nessun raccolto fantasma, nessuna vendita dal nulla.
+	var report := Staff.work(data, now, {})
+	_check_eq(int(report["grams"]), 0, "al primo giro nessun raccolto")
+	_check_eq(int(report["sold"]), 0, "e nessuna vendita")
 
 func _test_grow_cycle() -> void:
 	var data := _fresh()
@@ -779,19 +668,15 @@ func _test_meet_spots() -> void:
 			off_street.append(str(point))
 	_check_empty(off_street, "ogni posto sta su una strada, non sul prolungamento di una")
 
-	# E soprattutto: ci si deve poter arrivare a piedi, e stare in piedi lì.
-	var nav := CityNavigation.new()
-	nav.build(CityMap.all_buildings())
-	var unwalkable: Array = []
-	var unreachable: Array = []
+	# E non deve cadere dentro a un edificio: Brian ci si mette in piedi, e il
+	# giocatore lo deve poter vedere e cliccare.
+	var inside: Array = []
 	for point: Vector2 in spots:
-		if not nav.is_walkable(point):
-			unwalkable.append(str(point))
-			continue
-		if nav.find_path(home, point).is_empty():
-			unreachable.append(str(point))
-	_check_empty(unwalkable, "ogni posto è calpestabile")
-	_check_empty(unreachable, "da casa si arriva a ogni posto")
+		for entry in CityMap.all_buildings():
+			if CityMap.footprint(entry).has_point(point):
+				inside.append(str(point))
+				break
+	_check_empty(inside, "nessun posto cade dentro a un edificio")
 
 ## Il giro completo dell'appuntamento con Brian: chiedo, aspetto, arriva la
 ## posizione, compro, e lui se ne va.
@@ -1607,8 +1492,7 @@ func _test_save_roundtrip() -> void:
 ## Al primo assunto Brian chiede il nome; col nome compare il prestigio, che
 ## parte dai pivelli e sopravvive al salvataggio.
 func _test_org_prestige() -> void:
-	GameState.new_game()
-	var data := GameState.current
+	var data := _fresh()
 	_check(not Prestige.active(data), "senza nome niente prestigio")
 	GameState._check_milestones()
 	_check(not bool(data.get_flag(GameState.ORG_NAME_FLAG, false)), "da soli non si chiede il nome")
@@ -1643,8 +1527,7 @@ func _test_continue_last() -> void:
 	var slot := GameState.current_slot
 	_check(slot != old_slot, "una partita nuova non sovrascrive la precedente")
 	data.cash = 4321
-	data.player_position = Vector2(1234, 567)
-	data.current_room = "res://scenes/rooms/Kitchen.tscn"
+	data.current_room = "res://scenes/rooms/Basement.tscn"
 	data.properties["Minimarket"] = {"livello": 2, "acquisito_il": 3}
 	data.chapter = "capitolo_uno"
 	data.set_flag("ha_conosciuto_milo")
@@ -1665,8 +1548,7 @@ func _test_continue_last() -> void:
 	if back == null:
 		return
 	_check_eq(back.cash, 4321, "soldi ripresi")
-	_check(back.player_position.is_equal_approx(Vector2(1234, 567)), "posizione ripresa")
-	_check_eq(back.current_room, "res://scenes/rooms/Kitchen.tscn", "stanza ripresa")
+	_check_eq(back.current_room, "res://scenes/rooms/Basement.tscn", "stanza ripresa")
 	_check_eq(int(back.properties["Minimarket"]["livello"]), 2, "proprietà riprese")
 	_check_eq(back.chapter, "capitolo_uno", "punto della storia ripreso")
 	_check(bool(back.get_flag("ha_conosciuto_milo")), "flag della storia ripresi")
@@ -1676,7 +1558,7 @@ func _test_continue_last() -> void:
 	_check(is_equal_approx(back.time_of_day, 15.5), "ora ripresa")
 	_check(not Grow.is_empty(back.plot(0)), "la pianta nel vaso c'è ancora")
 	_check_eq(
-		GameState.scene_for_current_state(), "res://scenes/rooms/Kitchen.tscn",
+		GameState.scene_for_current_state(), "res://scenes/rooms/Basement.tscn",
 		"si riapre nella stanza in cui si era")
 
 	# Salvare di nuovo deve aggiornare lo stesso slot, non crearne un altro.
@@ -2398,13 +2280,16 @@ func _test_phone_alerts() -> void:
 			Staff.seedless_alert(away, int(report["idle"])), false,
 			"quello che ha gia' detto il resoconto non lo ripete il telefono")
 
-	# `GameState.text_message()` tiene l'ultimo messaggio, cosi' il telefono lo
-	# ritrova cambiando stanza.
-	GameState.text_message("BRIAN", "MAIN STREET AT MILL ROAD")
-	_check_eq(str(GameState.last_text.get("sender", "")), "BRIAN", "il mittente resta")
-	_check_eq(
-		str(GameState.last_text.get("body", "")), "MAIN STREET AT MILL ROAD",
-		"e anche il testo")
+	# `GameState.text_message()` diventa un messaggino dell'HUD col mittente
+	# davanti, su una riga sola.
+	var seen: Array[String] = []
+	var listener := func(text: String) -> void: seen.append(text)
+	GameState.notice.connect(listener)
+	GameState.text_message("BRIAN", "Ti aspetto qui:\nMAIN STREET")
+	GameState.notice.disconnect(listener)
+	_check_eq(seen.size(), 1, "un messaggio di passaggio e' un messaggino")
+	if seen.size() == 1:
+		_check_eq(seen[0], "BRIAN: Ti aspetto qui: MAIN STREET", "col mittente, su una riga")
 
 # ---------------------------------------------------------------------------
 
@@ -2465,15 +2350,14 @@ func _test_chat() -> void:
 		Chat.thread(data, Chat.BRIAN, 40.0).size(), 2,
 		"chiuso l'appuntamento resta solo la cronologia")
 
-	# --- L'autista in rubrica ------------------------------------------------
-	# Il contatto non c'e' finche' non lo si assume: una chat con uno che non
-	# lavora per te e' un contatto che non risponde mai.
+	# --- L'autista fra i contatti --------------------------------------------
+	# Il contatto non c'e' finche' non lo si assume.
 	var rubrica := Chat.contacts(data)
-	_check_eq(rubrica.size(), 1, "in rubrica c'e' il solo Brian")
+	_check_eq(rubrica.size(), 1, "fra i contatti c'e' il solo Brian")
 	data.upgrades["van"] = 1
 	data.cash = Staff.hire_cost("driver")
 	_check(Staff.hire(data, "driver", 50.0), "si assume l'autista")
-	_check_eq(Chat.contacts(data).size(), 2, "e entra in rubrica")
+	_check_eq(Chat.contacts(data).size(), 2, "e entra fra i contatti")
 	_check_eq(
 		Chat.name_key(Chat.DRIVER), "MSG_DRIVER_SPEAKER",
 		"col suo nome, che e' una chiave come tutti gli altri")
@@ -2481,31 +2365,12 @@ func _test_chat() -> void:
 	_check(Staff.check_driver_hello(data), "assunto, scrive per primo")
 	_check(not Staff.check_driver_hello(data), "ma una volta sola")
 
-	# --- Il giro dei semi, che sparisce da solo ------------------------------
-	_check(
-		Chat.thread(data, Chat.DRIVER, 50.0).is_empty(),
-		"fermo, la sua chat non ha niente da dire")
+	# L'autista non ha un giro suo da raccontare: i semi si comprano al banco.
 	data.cash = SeedRun.pack_price(SeedRun.PACKS[0])
-	# Il grossista lo apre Brian col furgone, e qui il furgone e' arrivato di
-	# soppiatto: senza il flag `order()` rifiuterebbe e il resto non proverebbe
-	# niente.
-	data.set_flag(SeedRun.UNLOCK_FLAG, true)
-	_check(SeedRun.order(data, SeedRun.PACKS[0], 50.0) > 0, "lo si manda a prendere i semi")
+	_check(SeedRun.order(data, SeedRun.PACKS[0], 50.0) > 0, "i semi si comprano al banco")
 	_check_eq(
-		Chat.thread(data, Chat.DRIVER, 50.0).size(), 1,
-		"l'ordine compare subito")
-	var risposta := Chat.thread(data, Chat.DRIVER, 50.0 + Chat.REPLY_GAP)
-	_check_eq(risposta.size(), 2, "e un attimo dopo risponde")
-	_check(
-		Chat.body(risposta[0]).contains(str(int(SeedRun.PACKS[0]["seeds"]))),
-		"e nell'ordine c'e' scritto quanti semi")
-	SeedRun.tick(data, 50.0 + SeedRun.TRIP_HOURS)
-	_check(
-		Chat.thread(data, Chat.DRIVER, 60.0).is_empty(),
-		"rientrato, le due righe se ne vanno da sole")
-	_check_eq(
-		data.chat_log.size(), 2,
-		"e nessuno ha dovuto cancellare niente: non erano salvate")
+		Chat.thread(data, Chat.DRIVER, 50.0).size(), 0,
+		"e l'autista non scrive niente per quelli")
 
 	# Dieci chiamate di fila non lasciano dietro dieci richieste identiche: e'
 	# il motivo per cui il giro dei semi si ricava invece di scriverselo.
@@ -2628,6 +2493,14 @@ func _test_delivery() -> void:
 	_check_eq(
 		Delivery.fuel(data), Delivery.TANK_RUNS,
 		"e arriva col pieno fatto")
+	# --- E l'autista --------------------------------------------------------
+	# Non c'e' un protagonista che si mette al volante: senza autista il
+	# furgone resta nel vialetto.
+	data.add_item(Economy.PRODUCT, 1000)
+	_check(not Delivery.can_dispatch(data), "col furgone ma senza autista non si parte")
+	data.inventory.erase(Economy.PRODUCT)
+	data.cash = Staff.hire_cost("driver")
+	_check(Staff.hire(data, "driver", 0.0), "si assume l'autista")
 
 	# --- Il viaggio ---------------------------------------------------------
 	data.add_item(Economy.PRODUCT, 3000)
@@ -2704,6 +2577,7 @@ func _test_delivery() -> void:
 	saved.set_flag(Delivery.UNLOCK_FLAG, true)
 	saved.cash = 100000
 	Shop.buy(saved, Delivery.VAN_ITEM)
+	Staff.hire(saved, "driver", 0.0)
 	saved.add_item(Economy.PRODUCT, 2000)
 	Delivery.dispatch(saved, 1000, 12.5)
 	var reloaded := SaveData.from_dict(JSON.parse_string(JSON.stringify(saved.to_dict())))
@@ -2760,14 +2634,13 @@ func _test_real_estate() -> void:
 	var aperte_a_sbafo: Array = []
 	for listing in RealEstate.all():
 		var id := str(listing["id"])
-		# Gli appartamenti dentro a un edificio (la torre) non hanno ancora una
-		# porta loro: si comprano e basta. Il controllo vale per le proprieta'
-		# che SONO un edificio.
-		if listing.has("edificio"):
-			continue
+		# La porta che questo annuncio apre: l'edificio con lo stesso id, o
+		# quello che lo nomina in `property` (l'ufficio al 21 piano apre la
+		# torre). Un appartamento che non apre ancora niente (il 5 piano) si
+		# compra e basta.
 		var entry := {}
 		for candidate in CityMap.BUILDINGS:
-			if str(candidate["id"]) == id:
+			if str(candidate.get("property", candidate["id"])) == id:
 				entry = candidate
 		if entry.is_empty():
 			continue
@@ -2777,7 +2650,8 @@ func _test_real_estate() -> void:
 			continue
 		var porta := EnterableBuilding.new()
 		porta.interior_scene = interior
-		porta.building_id = id
+		porta.building_id = str(entry["id"])
+		porta.property_id = str(entry.get("property", ""))
 		porta.needs_ownership = bool(entry.get("owned", false))
 		data.properties.erase(id)
 		if porta.can_open():
@@ -2847,101 +2721,79 @@ func _write_fake_save(slot_id: String, saved_at: float, cash: int) -> void:
 
 # ---------------------------------------------------------------------------
 
-## Il grossista dei semi: lo sblocco col furgone, l'ordine e le due ore d'attesa.
+## Il grossista dei semi: aperto dall'inizio, e i semi si comprano al banco.
 func _test_seed_run() -> void:
 	var data := _fresh()
+	_check(SeedRun.is_unlocked(data), "il grossista e' aperto dall'inizio, senza furgone")
+	var supplier := {}
+	for entry in CityMap.all_buildings():
+		if str(entry["id"]) == "SeedSupplier":
+			supplier = entry
+	_check(not supplier.is_empty(), "il magazzino c'e' in citta' da subito")
+	_check(not supplier.is_empty() and str(supplier.get("window", "")).ends_with(
+		"SeedWholesaleWindow.tscn"), "e cliccandolo si apre il banco")
 
-	# --- Lo sblocco ---------------------------------------------------------
-	_check(not SeedRun.is_unlocked(data), "senza furgone il grossista non esiste")
-	_check(not SeedRun.check_unlock(data), "e non si sblocca da solo")
-	data.cash = Shop.price("van")
-	Shop.buy(data, "van")
-	_check(SeedRun.check_unlock(data), "comprato il furgone, il grossista si apre")
-	_check(
-		not SeedRun.check_unlock(data),
-		"ma una volta sola: il messaggio di Brian non si ripete")
-
-	# --- L'ordine -----------------------------------------------------------
 	var pack: Dictionary = SeedRun.PACKS[0]
 	var seeds := int(pack["seeds"])
 	var price := SeedRun.pack_price(pack)
 	_check(
 		price < Economy.seed_price(Economy.DEFAULT_STRAIN) * seeds,
-		"a cassette il seme costa meno che da Brian")
+		"a cassette il seme costa meno che a listino")
 
 	data.cash = price - 1
-	_check(not SeedRun.can_order(data, pack), "con i soldi corti non si ordina")
+	_check(not SeedRun.can_order(data, pack), "con i soldi corti non si compra")
+	_check_eq(SeedRun.order(data, pack, 10.0), 0, "e l'ordine non passa")
 	data.cash = price
-	# Una partita nuova parte gia' con qualche seme in mano: il confronto e'
-	# con quelli, non con lo zero.
 	var before := Economy.seeds_owned(data)
-	var now := 10.0
-	_check_eq(SeedRun.order(data, pack, now), seeds, "ordine partito")
-	_check_eq(data.cash, 0, "e pagato subito, non al ritorno")
-	_check(SeedRun.is_running(data), "il furgone e' in viaggio")
-	_check_eq(
-		Economy.seeds_owned(data), before,
-		"i semi NON sono ancora in mano: il viaggio dura")
+	_check_eq(SeedRun.order(data, pack, 10.0), seeds, "comprato")
+	_check_eq(data.cash, 0, "pagato")
+	_check_eq(Economy.seeds_owned(data), before + seeds, "e i semi sono subito in magazzino")
+	_check(not SeedRun.is_running(data), "nessun viaggio: niente furgone per i semi")
 
-	# --- L'attesa -----------------------------------------------------------
-	_check_eq(
-		SeedRun.tick(data, now + SeedRun.TRIP_HOURS - 0.1), 0,
-		"prima dell'ora il furgone non rientra")
-	_check_eq(
-		SeedRun.tick(data, now + SeedRun.TRIP_HOURS), seeds,
-		"scadute le due ore rientra coi semi")
-	_check_eq(
-		Economy.seeds_owned(data), before + seeds,
-		"e i semi entrano in inventario")
-	_check(not SeedRun.is_running(data), "il viaggio e' chiuso")
-	_check_eq(SeedRun.tick(data, now + 99.0), 0, "e non si scarica due volte")
-
-	# --- Il consiglio dell'autista ------------------------------------------
-	# Arriva al primo ordine e una volta sola. Un consiglio che si ripete a ogni
-	# cassa di semi non e' un consiglio, e' un promemoria che non si spegne.
-	_check(
-		bool(data.get_flag(SeedRun.BOUGHT_FLAG, false)),
-		"il primo ordine resta segnato")
-	_check(
-		not SeedRun.check_driver_hint(_fresh()),
-		"senza mai aver comprato semi Brian non consiglia niente")
-	var hinted := SaveData.from_dict(data.to_dict())
-	_check(SeedRun.check_driver_hint(hinted), "comprati i semi, Brian consiglia l'autista")
-	_check(not SeedRun.check_driver_hint(hinted), "ma una volta sola")
-
-	# --- Un furgone solo, un viaggio alla volta -----------------------------
-	# E' la regola che tiene insieme le due cose: lo stesso mezzo porta la merce
-	# all'ingrosso e va a ritirare i semi, quindi non puo' fare tutti e due.
-	data.cash = SeedRun.pack_price(pack)
-	# L'ingrosso della merce ha un suo sblocco, separato dal furgone: senza
-	# quello `dispatch()` non parte e la prova non proverebbe niente.
+	# Il furgone in giro per l'ingrosso non c'entra piu' niente coi semi.
+	data.cash = Shop.price("van")
+	Shop.buy(data, "van")
+	data.cash = Staff.hire_cost("driver")
+	Staff.hire(data, "driver", 10.0)
 	data.set_flag(Delivery.UNLOCK_FLAG, true)
 	data.add_item(Economy.PRODUCT, Delivery.LOADS[0])
-	_check_eq(
-		Delivery.dispatch(data, Delivery.LOADS[0], now), Delivery.LOADS[0],
+	_check_eq(Delivery.dispatch(data, Delivery.LOADS[0], 10.0), Delivery.LOADS[0],
 		"il carico per l'ingrosso e' partito")
-	_check(
-		not SeedRun.can_order(data, pack),
-		"col furgone gia' in giro per l'ingrosso non si ordina")
+	data.cash = price
+	_check(SeedRun.can_order(data, pack), "e i semi si comprano lo stesso")
 
-	# --- Il viaggio sopravvive al salvataggio -------------------------------
-	# Le ore sono float: un `back_at` di 12.5 che torna 12 farebbe arrivare i
-	# semi mezz'ora prima. E' lo stesso motivo per cui `van_run` ha il suo cast.
-	var fresh := _fresh()
-	fresh.set_flag(SeedRun.UNLOCK_FLAG, true)
-	fresh.cash = SeedRun.pack_price(pack)
-	SeedRun.order(fresh, pack, 12.25)
-	var reloaded := SaveData.from_dict(fresh.to_dict())
-	_check(SeedRun.is_running(reloaded), "il viaggio si ritrova ricaricando")
-	_check(
-		is_equal_approx(float(reloaded.seed_run["back_at"]), 12.25 + SeedRun.TRIP_HOURS),
-		"con l'ora di rientro intatta, mezz'ora compresa")
+	# Un ordine rimasto in viaggio in un salvataggio vecchio arriva comunque,
+	# all'ora prevista: era gia' pagato.
+	var old := _fresh()
+	old.seed_run = {"seeds": 25, "strain": Economy.DEFAULT_STRAIN, "left_at": 12.0,
+		"back_at": 12.25 + SeedRun.TRIP_HOURS}
+	var reloaded := SaveData.from_dict(old.to_dict())
+	var had := Economy.seeds_owned(reloaded)
+	_check_eq(SeedRun.tick(reloaded, 12.0), 0, "un vecchio ordine non arriva prima dell'ora")
+	_check_eq(SeedRun.tick(reloaded, 12.25 + SeedRun.TRIP_HOURS), 25, "e all'ora arriva")
+	_check_eq(Economy.seeds_owned(reloaded), had + 25, "coi suoi semi")
+	_check_eq(SeedRun.tick(reloaded, 99.0), 0, "una volta sola")
+
+	# --- L'autista serve solo all'ingrosso ------------------------------------
+	var van := _fresh()
+	_check(not Staff.check_driver_hint(van), "senza furgone Brian non parla di autisti")
+	van.cash = Shop.price("van")
+	Shop.buy(van, "van")
+	_check_eq(Staff.max_for(van, "driver"), 1, "un furgone, un autista")
+	van.set_flag(Delivery.UNLOCK_FLAG, true)
+	van.add_item(Economy.PRODUCT, Delivery.LOADS[0])
+	_check(not Delivery.can_dispatch(van), "senza autista il carico non parte")
+	_check_eq(Delivery.dispatch(van, Delivery.LOADS[0], 10.0), 0, "proprio no")
+	_check(Staff.check_driver_hint(van), "col furgone e nessuno a guidarlo Brian consiglia l'autista")
+	_check(not Staff.check_driver_hint(van), "una volta sola")
+	van.cash = Staff.hire_cost("driver")
+	_check(Staff.hire(van, "driver", 10.0), "autista assunto")
+	_check(Delivery.can_dispatch(van), "e adesso il carico parte")
 
 # ---------------------------------------------------------------------------
 
-## Il contatto fuori stato di Kevin: lo sblocco ai centomila dollari, l'ordine
-## fino a duecentocinquanta semi, e le sei ore d'attesa. Stessa forma di
-## `_test_seed_run()`.
+## Il contatto fuori stato di Kevin: lo sblocco ai centomila dollari, e poi i
+## semi al banco della stazione, come dal grossista in centro.
 func _test_bus_import() -> void:
 	var data := _fresh()
 
@@ -2957,116 +2809,38 @@ func _test_bus_import() -> void:
 		"ma una volta sola: il messaggio non si ripete")
 	_check(
 		Chat.KEVIN in Chat.contacts(data).map(func(c: Dictionary) -> String: return str(c["id"])),
-		"e kevin compare in rubrica")
+		"e kevin compare fra i contatti")
 
-	# --- L'ordine ---------------------------------------------------------
+	# --- Il banco ---------------------------------------------------------
 	var pack: Dictionary = BusImport.PACKS[-1]
 	var seeds := int(pack["seeds"])
 	_check_eq(seeds, 250, "il taglio piu' grande arriva a duecentocinquanta semi")
 	var price := BusImport.pack_price(pack)
-	_check(
-		price < Economy.seed_price(Economy.DEFAULT_STRAIN) * seeds,
-		"anche qui il seme costa meno che da Brian")
 	var seed_run_price := SeedRun.pack_price(SeedRun.PACKS[-1])
 	_check(
 		float(price) / float(seeds) < float(seed_run_price) / float(SeedRun.PACKS[-1]["seeds"]),
 		"e lo sconto e' il piu' alto del gioco, sopra a quello del grossista in centro")
 
+	var locked := _fresh()
+	locked.cash = price
+	_check(not BusImport.can_order(locked, pack), "senza contatto non si compra")
+
 	data.cash = price - 1
-	_check(not BusImport.can_order(data, pack), "con i soldi corti non si ordina")
+	_check(not BusImport.can_order(data, pack), "con i soldi corti non si compra")
 	data.cash = price
 	var before := Economy.seeds_owned(data)
-	var now := 10.0
-	_check_eq(BusImport.order(data, pack, now), seeds, "ordine partito")
-	_check_eq(data.cash, 0, "e pagato subito, non al ritorno")
-	_check(BusImport.is_running(data), "il furgone e' in viaggio")
-	_check_eq(
-		Economy.seeds_owned(data), before,
-		"i semi NON sono ancora in mano: il viaggio dura")
+	_check_eq(BusImport.order(data, pack, 10.0), seeds, "comprato")
+	_check_eq(data.cash, 0, "pagato")
+	_check_eq(Economy.seeds_owned(data), before + seeds, "e i semi sono subito in magazzino")
+	_check(not BusImport.is_running(data), "nessun viaggio")
+	data.cash = Shop.price("van")
+	Shop.buy(data, "van")
+	_check_eq(Staff.max_drivers(data), 1, "e la stazione non porta un secondo autista")
 
-	# --- L'attesa -----------------------------------------------------------
-	_check_eq(
-		BusImport.tick(data, now + BusImport.TRIP_HOURS - 0.1), 0,
-		"prima dell'ora il furgone non rientra")
-	_check_eq(
-		BusImport.tick(data, now + BusImport.TRIP_HOURS), seeds,
-		"scadute le sei ore rientra coi semi")
-	_check_eq(
-		Economy.seeds_owned(data), before + seeds,
-		"e i semi entrano in inventario")
-	_check(not BusImport.is_running(data), "il viaggio e' chiuso")
-	_check_eq(BusImport.tick(data, now + 99.0), 0, "e non si scarica due volte")
-
-	# --- Un furgone solo, un viaggio alla volta -----------------------------
-	# E' la stessa regola di `SeedRun`, estesa a tre viaggi: la merce
-	# all'ingrosso, i semi dal grossista in centro, i semi dal contatto fuori
-	# stato. Uno alla volta, in tutte e tre le direzioni.
-	data.cash = BusImport.pack_price(pack)
-	data.set_flag(Delivery.UNLOCK_FLAG, true)
-	data.add_item(Economy.PRODUCT, Delivery.LOADS[0])
-	_check_eq(
-		Delivery.dispatch(data, Delivery.LOADS[0], now), Delivery.LOADS[0],
-		"il carico per l'ingrosso e' partito")
-	_check(
-		not BusImport.can_order(data, pack),
-		"col furgone gia' in giro per l'ingrosso non si ordina da kevin")
-
-	var busy := _fresh()
-	busy.set_flag(BusImport.UNLOCK_FLAG, true)
-	busy.set_flag(SeedRun.UNLOCK_FLAG, true)
-	busy.cash = BusImport.pack_price(BusImport.PACKS[0])
-	BusImport.order(busy, BusImport.PACKS[0], now)
-	busy.cash = SeedRun.pack_price(SeedRun.PACKS[0])
-	_check(
-		not SeedRun.can_order(busy, SeedRun.PACKS[0]),
-		"e col furgone in giro dal contatto fuori stato non si ordina dal grossista in centro")
-
-	# --- Col secondo autista la stazione va per conto suo -------------------
-	var due := _fresh()
-	due.set_flag(BusImport.UNLOCK_FLAG, true)
-	due.set_flag(SeedRun.UNLOCK_FLAG, true)
-	due.cash = Shop.price("van")
-	Shop.buy(due, "van")
-	_check_eq(Staff.max_for(due, "driver"), 2, "con la stazione aperta gli autisti sono due")
-	for i in 2:
-		due.cash = Staff.hire_cost("driver")
-		_check(Staff.hire(due, "driver", now), "autista %d assunto" % (i + 1))
-	due.cash = SeedRun.pack_price(SeedRun.PACKS[0])
-	SeedRun.order(due, SeedRun.PACKS[0], now)
-	due.cash = BusImport.pack_price(BusImport.PACKS[0])
-	_check(
-		BusImport.can_order(due, BusImport.PACKS[0]),
-		"col furgone dal grossista il secondo autista va alla stazione")
-	var solo := _fresh()
-	solo.set_flag(BusImport.UNLOCK_FLAG, true)
-	solo.set_flag(SeedRun.UNLOCK_FLAG, true)
-	solo.cash = Shop.price("van")
-	Shop.buy(solo, "van")
-	solo.cash = Staff.hire_cost("driver") * 2
-	Staff.hire(solo, "driver", now)
-	solo.cash = BusImport.pack_price(BusImport.PACKS[0])
-	BusImport.order(solo, BusImport.PACKS[0], now)
-	solo.cash = SeedRun.pack_price(SeedRun.PACKS[0])
-	_check(
-		not SeedRun.can_order(solo, SeedRun.PACKS[0]),
-		"con un autista solo la stazione tiene fermo il furgone come prima")
-	due.cash = 0
-	due.bus_run = {}
-	due.cash = BusImport.pack_price(BusImport.PACKS[0])
-	BusImport.order(due, BusImport.PACKS[0], now)
-	due.seed_run = {}
-	due.cash = SeedRun.pack_price(SeedRun.PACKS[0])
-	_check(
-		SeedRun.can_order(due, SeedRun.PACKS[0]),
-		"e con due il grossista si ordina anche mentre il secondo e' alla stazione")
-
-	# --- Il viaggio sopravvive al salvataggio -------------------------------
-	var fresh := _fresh()
-	fresh.set_flag(BusImport.UNLOCK_FLAG, true)
-	fresh.cash = BusImport.pack_price(pack)
-	BusImport.order(fresh, pack, 12.25)
-	var reloaded := SaveData.from_dict(fresh.to_dict())
-	_check(BusImport.is_running(reloaded), "il viaggio si ritrova ricaricando")
-	_check(
-		is_equal_approx(float(reloaded.bus_run["back_at"]), 12.25 + BusImport.TRIP_HOURS),
-		"con l'ora di rientro intatta, mezz'ora compresa")
+	# Un ritiro rimasto in viaggio in un salvataggio vecchio arriva all'ora.
+	var old := _fresh()
+	old.bus_run = {"seeds": 100, "strain": Economy.DEFAULT_STRAIN, "left_at": 12.0,
+		"back_at": 12.25 + BusImport.TRIP_HOURS}
+	var reloaded := SaveData.from_dict(old.to_dict())
+	_check(BusImport.is_running(reloaded), "il vecchio ritiro si ritrova ricaricando")
+	_check_eq(BusImport.tick(reloaded, 12.25 + BusImport.TRIP_HOURS), 100, "e arriva all'ora")

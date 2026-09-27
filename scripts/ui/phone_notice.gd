@@ -1,7 +1,8 @@
 extends CanvasLayer
 
-## Il messaggio che arriva sul telefono: un riquadro con chi scrive, cosa dice e
-## un bottone per chiuderlo.
+## Il messaggio al centro dello schermo: un riquadro con chi scrive, cosa dice
+## e un bottone per chiuderlo. Il nome del file viene da quando c'era il
+## telefono, che è stato tolto.
 ##
 ## Serve per le cose che il giocatore non deve perdersi — la fine del prologo,
 ## il cugino che suggerisce di assumere qualcuno — e per quelle i messaggini
@@ -13,10 +14,9 @@ extends CanvasLayer
 ## alla scena corrente: così il messaggio compare uguale in strada e in cantina,
 ## e non sparisce se nel frattempo si cambia stanza. Vedi `GameState.message()`.
 ##
-## **Non è il posto dei messaggi di Brian.** Quelli arrivano sul telefono
-## (`GameState.text_message()`): lui scrive, non ti compare davanti. Qui ci
-## finisce solo quello che non ha un mittente umano — la bolletta, il personale
-## che se ne va, il resoconto di quello che è successo a gioco chiuso.
+## Ci finiscono la bolletta, il personale che se ne va, il resoconto di quello
+## che è successo a gioco chiuso, e i traguardi che scrive Brian — questi
+## ultimi restano anche nella scheda MESSAGGI del PC (`GameState.contact_message()`).
 
 const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
 

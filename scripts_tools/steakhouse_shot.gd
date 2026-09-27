@@ -51,15 +51,13 @@ func _ready() -> void:
 	# Il grossista entra in citta' solo a sblocco avvenuto: senza, dall'altra
 	# parte della strada non c'e' niente e lo scatto non dice se stanno bene
 	# insieme.
-	GameState.current.set_flag(SeedRun.UNLOCK_FLAG, true)
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	var city := CITY.instantiate()
 	add_child(city)
 	await get_tree().process_frame
-	var player: Node2D = city.get_node("Player")
 	var camera: Camera2D = city.get_node("Camera2D")
 	for shot in SHOTS:
-		player.global_position = shot[0]
+		camera.jump_to(shot[0])
 		camera.set_level(int(shot[3]))
 		GameState.current.time_of_day = float(shot[1])
 		GameState.current.weather = "clear"

@@ -42,10 +42,26 @@ const DEFAULT_STRAIN := "regular"
 
 ## Soldi che chiudono il prologo. La prima volta che si arriva qui il cugino
 ## si fa vivo e si sblocca il personale: vedi `GameState._check_prologue()`.
+##
+## Vale solo per i salvataggi vecchi: una partita nuova il prologo non ce l'ha,
+## perché lo zio lascia un'attività già avviata (vedi `setup_new_game()`).
 const PROLOGUE_CASH := 1000
 
-const STARTING_CASH := 120
-const STARTING_SEEDS := 2
+## Quello che lo zio lascia: la cassa, un po' di semi, e il personale.
+##
+## È la storia nuova. Prima lasciava la casa e basta, e i primi mille dollari
+## erano un prologo da giocare a mano — seminare, annaffiare, raccogliere,
+## vendere in strada — col protagonista che camminava fra cantina e quartiere.
+## Tolto il protagonista, quel prologo non si può più giocare: il gioco è un
+## gestionale, e comincia con un'attività piccola ma che gira già da sola.
+const STARTING_CASH := 2500
+const STARTING_SEEDS := 6
+const STARTING_STAFF := {"grower": 1, "dealer": 1}
+## A che punto del ciclo sono i vasi che si trovano già avviati. Tre età
+## diverse, così il primo raccolto arriva presto e i successivi non tutti
+## insieme: è un'attività avviata, non una semina fatta il giorno prima. Sono
+## frazioni del ciclo e non ore, così restano giuste se si ritocca la varietà.
+const STARTING_GROWTH := [0.75, 0.45, 0.15]
 ## Vasi disponibili all'inizio: "poche piante", il resto si compra.
 const START_PLOTS := 3
 ## Quanti vasi ci stanno in tutto, cantina e garage insieme: sei sotto casa e
@@ -124,6 +140,26 @@ static func setup_new_game(data: SaveData) -> void:
 	data.ensure_plots()
 	data.market_price = base_price(DEFAULT_STRAIN)
 	data.add_item(seed_item(DEFAULT_STRAIN), STARTING_SEEDS)
+	# L'attività dello zio: niente prologo, il personale c'è già ed è pagato.
+	data.chapter = "capitolo_uno"
+	data.set_flag("staff_unlocked", true)
+	var now := float(data.day - 1) * 24.0 + data.time_of_day
+	for role in STARTING_STAFF:
+		data.staff[role] = int(STARTING_STAFF[role])
+	# Il segnaposto del lavoro parte da adesso: altrimenti al primo giro il
+	# personale si troverebbe addosso le ore "passate" da mezzanotte del
+	# giorno uno, e le lavorerebbe tutte in un colpo.
+	data.staff_checked_at = now
+	Staff.sync_sites(data)
+	# I vasi aperti hanno già una pianta, annaffiata adesso. Non con
+	# `Grow.water()`: quello porta avanti prima la sete dalla semina, e una
+	# pianta di venti ore si troverebbe addosso otto ore di secca mai vissute.
+	for i in mini(START_PLOTS, STARTING_GROWTH.size()):
+		var plot := data.plot(i)
+		var age := float(STARTING_GROWTH[i]) * float(strain(DEFAULT_STRAIN)["grow_hours"])
+		Grow.plant(plot, DEFAULT_STRAIN, now - age)
+		plot["watered_at"] = now
+		plot["checked_at"] = now
 
 ## Quello che succede a mezzanotte: il prezzo del giorno nuovo e il
 ## raffreddamento dell'attenzione addosso al giocatore.

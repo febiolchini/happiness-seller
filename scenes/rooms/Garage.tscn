@@ -20,12 +20,7 @@ window_quad = PackedVector2Array(17.6, 60.9, 65.4, 24.3, 86.9, 86.1, 47.6, 129.5
 [node name="Backdrop" parent="." index="1"]
 texture = ExtResource("2_bg")
 
-[node name="Character" parent="." index="2"]
-position = Vector2(528, 262)
-scale = Vector2(3.07, 3.07)
-modulate = Color(0.84, 0.79, 0.72, 1)
-
-[node name="PC" parent="." index="6" instance=ExtResource("3_hotspot")]
+[node name="PC" parent="." index="5" instance=ExtResource("3_hotspot")]
 layout_mode = 1
 offset_left = 147.0
 offset_top = 67.0
@@ -34,7 +29,7 @@ offset_bottom = 91.0
 text = "PC"
 window_scene = ExtResource("5_management")
 
-[node name="Plot6" parent="." index="7" instance=ExtResource("4_plot")]
+[node name="Plot6" parent="." index="6" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 158.0
 offset_top = 154.0
@@ -42,7 +37,7 @@ offset_right = 202.0
 offset_bottom = 196.0
 index = 6
 
-[node name="Plot7" parent="." index="8" instance=ExtResource("4_plot")]
+[node name="Plot7" parent="." index="7" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 206.0
 offset_top = 154.0
@@ -50,7 +45,7 @@ offset_right = 250.0
 offset_bottom = 196.0
 index = 7
 
-[node name="Plot8" parent="." index="9" instance=ExtResource("4_plot")]
+[node name="Plot8" parent="." index="8" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 254.0
 offset_top = 154.0
@@ -58,7 +53,7 @@ offset_right = 298.0
 offset_bottom = 196.0
 index = 8
 
-[node name="Plot9" parent="." index="10" instance=ExtResource("4_plot")]
+[node name="Plot9" parent="." index="9" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 146.0
 offset_top = 185.0
@@ -66,7 +61,7 @@ offset_right = 190.0
 offset_bottom = 227.0
 index = 9
 
-[node name="Plot10" parent="." index="11" instance=ExtResource("4_plot")]
+[node name="Plot10" parent="." index="10" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 198.0
 offset_top = 185.0
@@ -74,7 +69,7 @@ offset_right = 242.0
 offset_bottom = 227.0
 index = 10
 
-[node name="Plot11" parent="." index="12" instance=ExtResource("4_plot")]
+[node name="Plot11" parent="." index="11" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 250.0
 offset_top = 185.0
@@ -82,7 +77,7 @@ offset_right = 294.0
 offset_bottom = 227.0
 index = 11
 
-[node name="Plot12" parent="." index="13" instance=ExtResource("4_plot")]
+[node name="Plot12" parent="." index="12" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 342.0
 offset_top = 154.0
@@ -90,7 +85,7 @@ offset_right = 386.0
 offset_bottom = 196.0
 index = 12
 
-[node name="Plot13" parent="." index="14" instance=ExtResource("4_plot")]
+[node name="Plot13" parent="." index="13" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 390.0
 offset_top = 154.0
@@ -98,7 +93,7 @@ offset_right = 434.0
 offset_bottom = 196.0
 index = 13
 
-[node name="Plot14" parent="." index="15" instance=ExtResource("4_plot")]
+[node name="Plot14" parent="." index="14" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 438.0
 offset_top = 154.0
@@ -106,7 +101,7 @@ offset_right = 482.0
 offset_bottom = 196.0
 index = 14
 
-[node name="Plot15" parent="." index="16" instance=ExtResource("4_plot")]
+[node name="Plot15" parent="." index="15" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 346.0
 offset_top = 185.0
@@ -114,7 +109,7 @@ offset_right = 390.0
 offset_bottom = 227.0
 index = 15
 
-[node name="Plot16" parent="." index="17" instance=ExtResource("4_plot")]
+[node name="Plot16" parent="." index="16" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 398.0
 offset_top = 185.0
@@ -122,7 +117,7 @@ offset_right = 442.0
 offset_bottom = 227.0
 index = 16
 
-[node name="Plot17" parent="." index="18" instance=ExtResource("4_plot")]
+[node name="Plot17" parent="." index="17" instance=ExtResource("4_plot")]
 layout_mode = 1
 offset_left = 450.0
 offset_top = 185.0
@@ -130,7 +125,7 @@ offset_right = 494.0
 offset_bottom = 227.0
 index = 17
 
-[node name="Lamp6" parent="." index="19" instance=ExtResource("6_lamp")]
+[node name="Lamp6" parent="." index="18" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 148.0
 offset_top = 80.0
@@ -138,7 +133,7 @@ offset_right = 212.0
 offset_bottom = 150.0
 lamp_set = 6
 
-[node name="Lamp7" parent="." index="20" instance=ExtResource("6_lamp")]
+[node name="Lamp7" parent="." index="19" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 196.0
 offset_top = 80.0
@@ -146,7 +141,7 @@ offset_right = 260.0
 offset_bottom = 150.0
 lamp_set = 7
 
-[node name="Lamp8" parent="." index="21" instance=ExtResource("6_lamp")]
+[node name="Lamp8" parent="." index="20" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 244.0
 offset_top = 80.0
@@ -154,7 +149,7 @@ offset_right = 308.0
 offset_bottom = 150.0
 lamp_set = 8
 
-[node name="Lamp9" parent="." index="22" instance=ExtResource("6_lamp")]
+[node name="Lamp9" parent="." index="21" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 136.0
 offset_top = 111.0
@@ -162,7 +157,7 @@ offset_right = 200.0
 offset_bottom = 181.0
 lamp_set = 9
 
-[node name="Lamp10" parent="." index="23" instance=ExtResource("6_lamp")]
+[node name="Lamp10" parent="." index="22" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 188.0
 offset_top = 111.0
@@ -170,7 +165,7 @@ offset_right = 252.0
 offset_bottom = 181.0
 lamp_set = 10
 
-[node name="Lamp11" parent="." index="24" instance=ExtResource("6_lamp")]
+[node name="Lamp11" parent="." index="23" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 240.0
 offset_top = 111.0
@@ -178,7 +173,7 @@ offset_right = 304.0
 offset_bottom = 181.0
 lamp_set = 11
 
-[node name="Lamp12" parent="." index="25" instance=ExtResource("6_lamp")]
+[node name="Lamp12" parent="." index="24" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 332.0
 offset_top = 80.0
@@ -186,7 +181,7 @@ offset_right = 396.0
 offset_bottom = 150.0
 lamp_set = 12
 
-[node name="Lamp13" parent="." index="26" instance=ExtResource("6_lamp")]
+[node name="Lamp13" parent="." index="25" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 380.0
 offset_top = 80.0
@@ -194,7 +189,7 @@ offset_right = 444.0
 offset_bottom = 150.0
 lamp_set = 13
 
-[node name="Lamp14" parent="." index="27" instance=ExtResource("6_lamp")]
+[node name="Lamp14" parent="." index="26" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 428.0
 offset_top = 80.0
@@ -202,7 +197,7 @@ offset_right = 492.0
 offset_bottom = 150.0
 lamp_set = 14
 
-[node name="Lamp15" parent="." index="28" instance=ExtResource("6_lamp")]
+[node name="Lamp15" parent="." index="27" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 336.0
 offset_top = 111.0
@@ -210,7 +205,7 @@ offset_right = 400.0
 offset_bottom = 181.0
 lamp_set = 15
 
-[node name="Lamp16" parent="." index="29" instance=ExtResource("6_lamp")]
+[node name="Lamp16" parent="." index="28" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 388.0
 offset_top = 111.0
@@ -218,7 +213,7 @@ offset_right = 452.0
 offset_bottom = 181.0
 lamp_set = 16
 
-[node name="Lamp17" parent="." index="30" instance=ExtResource("6_lamp")]
+[node name="Lamp17" parent="." index="29" instance=ExtResource("6_lamp")]
 layout_mode = 1
 offset_left = 440.0
 offset_top = 111.0

@@ -1,7 +1,7 @@
 class_name Guide
 extends RefCounted
 
-## La guida che si apre dal telefono: come funziona il giro, scritto da Brian.
+## La guida che si apre dal PC: come funziona il giro, scritto da Brian.
 ##
 ## ## Perché una guida e non un tutorial
 ##
@@ -13,14 +13,14 @@ extends RefCounted
 ## meno del previsto, e non c'è modo di capire perché.
 ##
 ## Un tutorial le direbbe una volta, all'inizio, quando non servono ancora e
-## infatti non le legge nessuno. La guida invece **sta sempre lì**, in fondo
-## alla rubrica, e si apre quando ci si impantana: è il momento in cui uno ha
+## infatti non le legge nessuno. La guida invece **sta sempre lì**, nella
+## colonna delle schede del PC, e si apre quando ci si impantana: è il momento in cui uno ha
 ## una domanda, che è l'unico momento in cui una risposta si legge davvero.
 ##
 ## È anche il motivo per cui il messaggio d'apertura di Brian
-## (`MSG_INTRO_BODY`) la nomina: "all inizio cresce piano non mollare, nel
-## telefono ti ho messo una guida". Il messaggio dice che la lentezza è
-## normale; la guida dice cosa farci.
+## (`MSG_INTRO_BODY`) la nomina: "si manda avanti tutto dal PC, lì dentro
+## trovi una guida e me". Il messaggio dice dove guardare; la guida dice cosa
+## farci.
 ##
 ## ## Solo chiavi
 ##

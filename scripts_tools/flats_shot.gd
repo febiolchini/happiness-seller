@@ -134,11 +134,10 @@ func _ready() -> void:
 	var city := CITY.instantiate()
 	add_child(city)
 	await get_tree().process_frame
-	var player: Node2D = city.get_node("Player")
 	var camera: Camera2D = city.get_node("Camera2D")
 
 	for shot in SHOTS:
-		player.global_position = shot[0]
+		camera.jump_to(shot[0])
 		var livello := int(shot[4])
 		if livello >= 0:
 			camera.set_level(livello)

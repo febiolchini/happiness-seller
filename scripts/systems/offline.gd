@@ -191,8 +191,8 @@ static func catch_up(data: SaveData, real_seconds: float, minutes_per_second: fl
 	# sete, e adesso lo so".
 	report["thirsty"] = Grow.count_thirsty(data.plots, _now(data))
 	# Se i semi sono finiti mentre il gioco era chiuso, lo dice il resoconto
-	# (`AWAY_IDLE`): segnare il flag qui evita che il telefono lo ripeta un
-	# frame dopo, come se fosse una notizia appena arrivata.
+	# (`AWAY_IDLE`): segnare il flag qui evita che il messaggino dell'HUD lo
+	# ripeta un frame dopo, come se fosse una notizia appena arrivata.
 	if int(report["idle"]) > 0:
 		Staff.seedless_alert(data, int(report["idle"]))
 	return report

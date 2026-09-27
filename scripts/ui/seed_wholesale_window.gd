@@ -2,18 +2,15 @@ extends CanvasLayer
 
 ## Il banco del grossista dei semi: i tagli ordinabili e quanto costano.
 ##
-## Si apre cliccando sul magazzino in centro, e come all'agenzia il protagonista
-## resta sul marciapiede: è uno sportello a cui ci si affaccia, non una stanza
+## Si apre cliccando sul magazzino in centro: è uno sportello, non una stanza
 ## in cui si entra. Se ne occupa `city.gd`, che per gli edifici con un `window`
 ## invece di un `interior` istanzia la scena indicata.
 ##
-## ## Cosa fa davvero il bottone
+## ## Cosa fa il bottone
 ##
-## Non consegna i semi: manda il furgone. Ordinato un taglio, la finestra si
-## chiude e da lì in poi il lavoro è di `SeedRun` — due ore di gioco, e i semi
-## arrivano anche a partita chiusa. Chiudere la finestra subito è voluto: da qui
-## in avanti non c'è più niente da decidere, e lasciarla aperta su tre bottoni
-## spenti farebbe sembrare rotto l'ordine appena fatto.
+## Compra: si paga e i semi sono subito in magazzino (`SeedRun.order()`). Una
+## volta mandava il furgone, e per non farsi la strada fino in centro si
+## assumeva un autista; adesso il furgone serve solo all'ingrosso della merce.
 ##
 ## ## Le righe sono costruite dal codice
 ##
@@ -71,20 +68,6 @@ func _rebuild() -> void:
 	var cash := data.cash if data != null else 0
 	_cash.text = UiFormat.money(cash)
 
-	# Il furgone è uno solo e fa un viaggio alla volta: se è già in giro — per i
-	# semi o per l'ingrosso della merce — qui non c'è niente da ordinare, e
-	# dirlo è meglio che mostrare tre bottoni spenti senza spiegare perché.
-	if SeedRun.is_running(data):
-		_content.add_child(_card([_label(
-			tr("SW_ON_THE_WAY") % UiFormat.duration(
-				SeedRun.hours_left(data, GameState.total_hours())),
-			UiTheme.INK, UiTheme.SIZE_VALUE, UiTheme.W_BOLD, true)]))
-		return
-	if Delivery.is_running(data) or BusImport.holds_van(data):
-		_content.add_child(_card([_label(tr("SW_VAN_OUT"), UiTheme.WARN,
-			UiTheme.SIZE_VALUE, UiTheme.W_BOLD, true)]))
-		return
-
 	for entry in SeedRun.PACKS:
 		_content.add_child(_pack_card(entry, data, cash))
 	_content.add_child(_card([_label(tr("SW_NOTE"), UiTheme.INK_FAINT,
@@ -133,13 +116,12 @@ func _pack_card(pack: Dictionary, data: SaveData, cash: int) -> Control:
 
 func _on_order(pack: Dictionary) -> void:
 	var seeds := SeedRun.order(GameState.current, pack, GameState.total_hours())
-	if seeds <= 0:
-		_rebuild()
-		return
-	# Il furgone parte: la City lo fa uscire da casa e lo riporta quando è ora.
-	GameState.seed_run_left.emit(seeds)
-	GameState.save_game()
-	queue_free()
+	if seeds > 0:
+		GameState.notify(tr("NOTE_SEEDS_BOUGHT") % seeds)
+		GameState.save_game()
+	# La finestra resta aperta: la cassa scende, e chi sta riempiendo il
+	# magazzino spesso compra un altro taglio subito dopo.
+	_rebuild()
 
 # --- Mattoncini ------------------------------------------------------------
 

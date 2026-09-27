@@ -57,10 +57,30 @@ TIPI = {"dondolo": "swing", "ciclo": "loop", "evento": "event"}
 
 
 def carica(percorso):
-    im = Image.open(percorso).convert("RGB")
+    """RGBA a 640x360, interi. Le stanze senza trasparenza hanno alfa 255 ovunque."""
+    im = Image.open(percorso)
+    if im.mode == "RGBA" and im.getchannel("A").getextrema()[0] < 255:
+        # Stanze coi vetri trasparenti (l'ufficio). Si media PREMOLTIPLICATO:
+        # i pixel trasparenti sono neri, e mediati cosi' come sono lascerebbero
+        # un bordo scuro intorno a ogni vetro. Stessa accortezza di
+        # `import_flats_art.py`.
+        a = np.asarray(im).astype(np.float64)
+        a[..., :3] *= a[..., 3:4] / 255.0
+        h, w = a.shape[0] // 2, a.shape[1] // 2
+        a = a[:h * 2, :w * 2].reshape(h, 2, w, 2, 4).mean(axis=(1, 3))
+        alfa = a[..., 3:4]
+        a[..., :3] = np.where(alfa > 0, a[..., :3] * 255.0 / np.maximum(alfa, 1e-6), 0)
+        return np.clip(np.rint(a), 0, 255).astype(np.int16)
     # Il render e' al doppio: `reduce` fa la media dei 2x2, cioe' esattamente
     # il supersampling. Un ricampionamento con filtro ammorbidirebbe i contorni.
-    return np.asarray(im.reduce(2)).astype(np.int16)
+    rgb = np.asarray(im.convert("RGB").reduce(2)).astype(np.int16)
+    return np.dstack([rgb, np.full(rgb.shape[:2], 255, dtype=np.int16)])
+
+
+def premoltiplicato(f):
+    """Per confrontare due fotogrammi: dove e' trasparente il colore non conta."""
+    f = f.astype(np.int32)
+    return np.dstack([f[..., :3] * f[..., 3:4] // 255, f[..., 3:4]])
 
 
 def dilata(maschera):
@@ -82,12 +102,14 @@ def striscia(fotogrammi, maschera, rett):
     colonne = max(1, min(n, LATO_MAX // w))
     righe = (n + colonne - 1) // colonne
     foglio = np.zeros((righe * h, colonne * w, 4), dtype=np.uint8)
-    alfa = (maschera[y:y + h, x:x + w] * 255).astype(np.uint8)
+    alfa = maschera[y:y + h, x:x + w].astype(np.int16)
     for i, f in enumerate(fotogrammi):
         r, c = divmod(i, colonne)
         pezzo = foglio[r * h:(r + 1) * h, c * w:(c + 1) * w]
-        pezzo[..., :3] = f[y:y + h, x:x + w]
-        pezzo[..., 3] = alfa
+        pezzo[..., :3] = f[y:y + h, x:x + w, :3]
+        # Dentro la maschera vale l'alfa del fotogramma: una foglia che passa
+        # davanti al vetro e' opaca, il vetro che lascia scoperto resta un buco.
+        pezzo[..., 3] = alfa * f[y:y + h, x:x + w, 3]
     return foglio, colonne, righe
 
 
@@ -96,7 +118,11 @@ def stanza(nome):
     with open(os.path.join(cartella, "stanza.json"), encoding="utf-8") as fh:
         dati = json.load(fh)
     fondo = carica(os.path.join(cartella, "fondale.png"))
-    Image.fromarray(fondo.astype(np.uint8)).save(os.path.join(DST, f"{nome}.png"))
+    if fondo[..., 3].min() == 255:
+        Image.fromarray(fondo[..., :3].astype(np.uint8)).save(os.path.join(DST, f"{nome}.png"))
+    else:
+        Image.fromarray(fondo.astype(np.uint8), "RGBA").save(os.path.join(DST, f"{nome}.png"))
+    fondo_p = premoltiplicato(fondo)
 
     animazioni = []
     for a in dati["animazioni"]:
@@ -108,7 +134,7 @@ def stanza(nome):
         fotogrammi = [carica(p) for p in percorsi]
         diff = np.zeros(fondo.shape[:2], dtype=bool)
         for f in fotogrammi:
-            diff |= np.abs(f - fondo).max(axis=2) > SOGLIA
+            diff |= np.abs(premoltiplicato(f) - fondo_p).max(axis=2) > SOGLIA
         if not diff.any():
             print(f"  {nome}/{a['nome']}: non si muove niente, salto")
             continue

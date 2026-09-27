@@ -40,27 +40,23 @@ const HAND_CLOSED := preload("res://assets/sprites/ui/cursors/hand_closed.png")
 const HAND_CLICK := preload("res://assets/sprites/ui/cursors/hand_click.png")
 const HAND_HOTSPOT := Vector2(22, 22)
 
-## Nodo da seguire, di solito il protagonista. Lo assegna `city.gd`.
+## Quanti pixel (di progetto, 640x360) deve fare il mouse, col sinistro premuto, prima che
+## il click diventi una trascinata.
 ##
-## La città è larga qualche migliaio di pixel: con una camera ferma il
-## giocatore uscirebbe dallo schermo dopo tre passi e la mappa sarebbe
-## inservibile. Il pan col tasto destro resta, ma diventa un'occhiata in giro.
-var follow: Node2D = null
-
-## Quanto velocemente la camera recupera il bersaglio. Non è una velocità in
-## pixel: è la rapidità con cui si chiude la distanza, quindi il movimento
-## parte deciso e arriva morbido senza dipendere dal frame rate.
-const FOLLOW_SPEED := 6.0
-## La camera guarda un po' sopra ai piedi del personaggio, altrimenti metà
-## schermo è il pavimento davanti a lui.
-const FOLLOW_OFFSET := Vector2(0, -24)
+## Col sinistro si fanno due cose: aprire un edificio e spostare la visuale. Un
+## click vero non resta mai fermo al pixel — la mano trema — quindi sotto a
+## questa soglia e' un click, sopra e' una trascinata e il click si perde.
+const DRAG_THRESHOLD := 4.0
 
 var _level := 0
 var _panning := false
 var _clicking := false
-## Falso mentre il giocatore si sta guardando intorno col tasto destro: la
-## camera resta dove l'ha lasciata finché non riprende a muoversi.
-var _following := true
+## Il sinistro e' giu' e non si e' ancora deciso se e' un click o una trascinata.
+var _left_down := false
+var _left_travel := 0.0
+## L'ultima pressione del sinistro e' diventata una trascinata: la mappa lo
+## chiede al rilascio per sapere se deve aprire quello che c'e' sotto.
+var _dragged := false
 ## Posizione continua della camera: `position` è la sua versione arrotondata.
 ## Serve per non perdere i movimenti di mouse più piccoli di un pixel mondo.
 var _pan_position := Vector2.ZERO
@@ -74,18 +70,17 @@ func _ready() -> void:
 	if interactive:
 		Input.set_custom_mouse_cursor(HAND_OPEN, Input.CURSOR_ARROW, HAND_HOTSPOT)
 
-func _process(delta: float) -> void:
-	if not _following or follow == null:
-		return
-	var target := follow.global_position + FOLLOW_OFFSET
-	_pan_position = _pan_position.lerp(target, 1.0 - exp(-delta * FOLLOW_SPEED))
+## Porta subito la visuale su un punto del mondo. Non c'e' piu' un personaggio
+## da seguire: la camera sta dove la lascia chi guarda, e all'avvio la mette
+## `city.gd` davanti a casa.
+func jump_to(point: Vector2) -> void:
+	_pan_position = point
 	_snap()
 
-## Riattacca la camera al personaggio. La mappa la chiama quando il giocatore
-## dà un ordine di movimento: chi ha appena cliccato dove andare vuole vedere
-## dove sta andando, anche se un momento prima stava guardando altrove.
-func recenter() -> void:
-	_following = true
+## L'ultima pressione del sinistro e' stata una trascinata? La mappa lo chiede
+## al rilascio: una trascinata sposta la visuale e non apre niente.
+func was_drag() -> bool:
+	return _dragged
 
 ## Limita l'inquadratura ai confini del mondo, così non si finisce a guardare
 ## il vuoto oltre il bordo della città.
@@ -99,8 +94,8 @@ func set_bounds(bounds: Rect2) -> void:
 ## contrario di tutto il resto.
 ##
 ## Il motivo e' che l'interfaccia si mangia i click. Un `Control` con
-## `MOUSE_FILTER_STOP` — il telefono in fondo allo schermo, il tasto del menu
-## in alto — consuma QUALUNQUE tasto del mouse che cade dentro al suo
+## `MOUSE_FILTER_STOP` — il tasto del menu in alto, il tasto PC, e prima il
+## telefono in fondo allo schermo — consuma QUALUNQUE tasto del mouse che cade dentro al suo
 ## rettangolo, anche se poi nel suo `_gui_input()` guarda solo il sinistro. Da
 ## `_unhandled_input()` questo faceva due danni:
 ##
@@ -118,18 +113,33 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
 		_panning = event.pressed
-		if _panning:
-			# Guardarsi intorno stacca la camera dal personaggio: se
-			# continuasse a inseguirlo, il pan tornerebbe indietro da solo.
-			_following = false
 		_update_cursor()
-	elif event is InputEventMouseMotion and _panning:
+	elif event is InputEventMouseMotion and (_panning or _left_dragging(event)):
 		# `event.relative` e' gia' nei 640x360 di progetto — Godot riporta gli
 		# eventi nello spazio di disegno prima di consegnarli — quindi basta
 		# dividere per lo zoom per sapere quanti pixel di MONDO ha percorso il
 		# cursore.
 		_pan_position -= event.relative / zoom
 		_snap()
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT 			and not event.pressed and _left_down:
+		# Il rilascio si guarda qui e non in `_unhandled_input()`: una
+		# trascinata che finisce sopra all'HUD deve chiudersi lo stesso, o la
+		# visuale resterebbe attaccata al mouse.
+		_left_down = false
+		_update_cursor()
+
+## Il sinistro trascina solo se la pressione e' cominciata sulla mappa (cioe' e'
+## arrivata a `_unhandled_input()`) e il mouse ha superato la soglia.
+func _left_dragging(event: InputEventMouseMotion) -> bool:
+	if not _left_down:
+		return false
+	if not _dragged:
+		_left_travel += event.relative.length()
+		if _left_travel < DRAG_THRESHOLD:
+			return false
+		_dragged = true
+		_update_cursor()
+	return true
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not interactive:
@@ -141,14 +151,19 @@ func _unhandled_input(event: InputEvent) -> void:
 			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
 				_step(-1)
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			# Il comando di movimento lo gestisce la mappa (city.gd): qui cambia
-			# solo il cursore, così il click resta "non gestito" e arriva a entrambi.
+			# Il click lo gestisce la mappa (city.gd) al rilascio: qui si decide
+			# solo se e' diventato una trascinata, e il click resta "non
+			# gestito" così arriva a entrambi.
 			_clicking = event.pressed
+			if event.pressed:
+				_left_down = true
+				_left_travel = 0.0
+				_dragged = false
 			_update_cursor()
 
 func _update_cursor() -> void:
 	var cursor := HAND_OPEN
-	if _panning:
+	if _panning or (_left_down and _dragged):
 		cursor = HAND_CLOSED
 	elif _clicking:
 		cursor = HAND_CLICK

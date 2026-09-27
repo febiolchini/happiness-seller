@@ -1,59 +1,33 @@
 class_name SeedRun
 extends RefCounted
 
-## Il viaggio dal grossista: si ordinano semi a cassette e il furgone va a
-## prenderli.
+## Il grossista dei semi: si comprano a cassette, al banco, e arrivano subito.
 ##
 ## ## Perché esiste, accanto a Brian
 ##
-## Brian porta due o tre semi per volta, quando riesce a staccare dalla clinica
-## (`SeedDeal`). Va benissimo per sei vasi in cantina; con dodici vasi in garage
-## e l'ingrosso da rifornire diventa il collo di bottiglia dell'intera attività
-## — si vende più in fretta di quanto si riesca a piantare.
+## Brian porta una manciata di semi per volta, quando riesce a staccare dalla
+## clinica (`SeedDeal`). Il grossista vende a cassette, e il prezzo al seme
+## scende con la quantità.
 ##
-## Il grossista è la risposta: quantità grosse, prezzo per seme più basso, ma
-## **non è immediato**. È la stessa forma dell'ingrosso della merce
-## (`Delivery`): si manda il furgone e si aspetta.
+## ## Al banco, non in viaggio
 ##
-## ## Perché si aspetta invece di avere i semi subito
+## Era un ordine: si mandava il furgone e si aspettavano due ore, e per non
+## farsi la strada fino in centro si assumeva un autista. Adesso il gioco è un
+## gestionale senza protagonista, e un edificio si clicca e si usa: i semi si
+## pagano e sono in magazzino. Il furgone e l'autista restano per l'ingrosso
+## della merce, che è l'unico viaggio vero.
 ##
-## Senza l'attesa questo non sarebbe un ordine, sarebbe un negozio: si
-## comprerebbero i semi nell'istante in cui servono e la scorta non sarebbe mai
-## una decisione. Due ore di gioco bastano a obbligare a ordinare **prima** di
-## restare a secco, che è tutto quello che serve perché la scorta di semi
-## diventi una cosa a cui pensare.
-##
-## ## Come è fatto, e perché come `Delivery`
-##
-## Non c'è nessun timer: si scrive l'ora di rientro dentro al salvataggio e si
-## guarda che ore sono adesso. È lo stesso schema di `Delivery` e `SeedDeal`, ed
-## è quello che fa funzionare l'attesa anche a gioco chiuso — chi ordina e
-## spegne ritrova i semi arrivati, invece di ritrovare un conto alla rovescia
-## fermo dove l'aveva lasciato.
+## `seed_run` nel salvataggio resta solo per le partite salvate con un ordine
+## in viaggio: `tick()` lo consegna all'ora prevista, e nessuno ne apre più.
 
-## Il flag che ricorda che il grossista si è fatto vivo. Lo accende
-## `GameState._check_milestones()` quando entra in casa il furgone: senza mezzo
-## non c'è nessuno che vada a ritirare.
-const UNLOCK_FLAG := "seed_wholesale_unlocked"
-
-## Ricorda che dal grossista ci si e' andati almeno una volta, e che il consiglio
-## di prendere un autista e' gia' arrivato.
-##
-## Sono due flag e non uno perche' dicono due cose diverse: la prima e' una cosa
-## che il giocatore ha fatto, la seconda una cosa che il gioco gli ha detto. Il
-## consiglio parte al primo ordine, ma il posto in cui si mandano i messaggi e'
-## `GameState._check_milestones()`, non qui — questo file non sa niente di
-## telefoni e di traduzioni, e non deve cominciare adesso.
-const BOUGHT_FLAG := "seed_wholesale_bought"
-const DRIVER_HINT_FLAG := "seed_driver_hinted"
-
-## Quanto ci mette il furgone, andata e ritorno. Due ore di gioco.
+## Quanto ci metteva il furgone, andata e ritorno: resta per leggere gli
+## ordini dei salvataggi vecchi.
 const TRIP_HOURS := 2.0
 
 ## I tagli ordinabili: quanti semi, e quanto si paga l'uno.
 ##
 ## Il prezzo al seme **scende** con la quantità, ed è il punto di tutto:
-## comprare da Brian è comodo e caro, comprare qui è scomodo e conveniente. Lo
+## comprare poco costa di più al seme, comprare tanto immobilizza la cassa. Lo
 ## sconto è sul listino di `Economy.seed_price()`, quindi cambiando quello
 ## questi restano coerenti da soli invece di diventare tre numeri da riallineare
 ## a mano.
@@ -65,32 +39,10 @@ const PACKS := [
 
 # --- Sbloccato? -------------------------------------------------------------
 
-static func is_unlocked(data: SaveData) -> bool:
-	return data != null and bool(data.get_flag(UNLOCK_FLAG, false))
-
-## Il grossista si apre quando in casa c'è un furgone: è il mezzo a rendere
-## possibile il ritiro, e la stessa spesa che apre l'ingrosso della merce apre
-## anche questo. Restituisce true **solo il giro in cui scatta**, così chi
-## chiama può mandare il messaggio una volta sola.
-static func check_unlock(data: SaveData) -> bool:
-	if data == null or is_unlocked(data):
-		return false
-	if not Delivery.has_van(data):
-		return false
-	data.set_flag(UNLOCK_FLAG, true)
-	return true
-
-## Il consiglio dell'autista: vero **solo il giro in cui scatta**, come
-## `check_unlock()`, cosi' chi chiama manda il messaggio una volta sola.
-##
-## Arriva al primo ordine e non al primo rientro: quello che stanca e' la strada
-## fino in centro, e quella e' gia' stata fatta nel momento in cui si ordina.
-static func check_driver_hint(data: SaveData) -> bool:
-	if data == null or not bool(data.get_flag(BOUGHT_FLAG, false)):
-		return false
-	if bool(data.get_flag(DRIVER_HINT_FLAG, false)):
-		return false
-	data.set_flag(DRIVER_HINT_FLAG, true)
+## Il grossista è aperto sempre: è il fornitore dello zio, e fa parte
+## dell'attività che si eredita. Resta una funzione perché chi mostra i semi
+## non deve sapere se un giorno tornerà a dipendere da qualcosa.
+static func is_unlocked(_data: SaveData) -> bool:
 	return true
 
 # --- Il viaggio -------------------------------------------------------------
@@ -114,43 +66,28 @@ static func pack_price(pack: Dictionary, strain_id := Economy.DEFAULT_STRAIN) ->
 	var unit := float(Economy.seed_price(strain_id)) * (1.0 - float(pack["discount"]))
 	return maxi(1, int(roundf(unit * float(seeds))))
 
-## Si può ordinare? No se il grossista non si è ancora fatto vivo, se il furgone
-## è già in giro (per i semi, per la merce, o per il contatto fuori stato di
-## Kevin: è sempre lo stesso mezzo), o se i soldi non bastano.
+## Si può comprare? Basta avere i soldi.
 static func can_order(data: SaveData, pack: Dictionary,
 		strain_id := Economy.DEFAULT_STRAIN) -> bool:
-	if data == null or not is_unlocked(data) or is_running(data):
-		return false
-	if Delivery.is_running(data) or BusImport.holds_van(data):
-		return false
-	return data.cash >= pack_price(pack, strain_id)
+	return data != null and data.cash >= pack_price(pack, strain_id)
 
-## Manda il furgone. Restituisce i semi ordinati, 0 se non si poteva.
+## Compra un taglio: si paga e i semi vanno subito in magazzino. Restituisce i
+## semi comprati, 0 se non si poteva.
 ##
-## I soldi si pagano **adesso**, non al ritorno: è un ordine, e un ordine si
-## paga quando lo si fa. Serve anche a evitare il giochino di ordinare a
-## credito e spendere la cassa nel frattempo.
-static func order(data: SaveData, pack: Dictionary, now: float,
+## `now` non serve più a niente — i semi non viaggiano — ma resta nella firma:
+## è la stessa di `BusImport.order()`, e chi chiama non deve sapere quale dei
+## due banchi sta usando.
+static func order(data: SaveData, pack: Dictionary, _now: float,
 		strain_id := Economy.DEFAULT_STRAIN) -> int:
 	if not can_order(data, pack, strain_id):
 		return 0
 	var seeds := int(pack["seeds"])
 	data.cash -= pack_price(pack, strain_id)
-	# Il primo ordine e' un traguardo: da li' Brian consiglia l'autista.
-	data.set_flag(BOUGHT_FLAG, true)
-	data.seed_run = {
-		"seeds": seeds,
-		"strain": strain_id,
-		"left_at": now,
-		"back_at": now + TRIP_HOURS,
-	}
+	data.add_item(Economy.seed_item(strain_id), seeds)
 	return seeds
 
-## Fa rientrare il furgone se è ora, e scarica i semi. Restituisce quanti ne ha
-## portati, 0 se non è ancora rientrato o se non era partito.
-##
-## Come `Delivery.tick()`: è l'unico pezzo che va spinto avanti, perché al
-## ritorno succede qualcosa e qualcuno deve accorgersene.
+## Consegna un ordine rimasto in viaggio in un salvataggio vecchio, quando è
+## ora. Restituisce i semi arrivati, 0 se non c'era niente o non è ancora ora.
 static func tick(data: SaveData, now: float) -> int:
 	if not is_running(data) or now < float(data.seed_run.get("back_at", now)):
 		return 0

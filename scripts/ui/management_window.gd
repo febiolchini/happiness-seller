@@ -1,10 +1,15 @@
 extends CanvasLayer
 
-## Il gestionale, aperto dal PC in cantina: la schermata da cui si tiene
-## d'occhio l'attività e si piazza la merce senza uscire di casa.
+## Il gestionale: la schermata da cui si manda avanti l'attività.
+##
+## Si apre dal PC sulla scrivania delle stanze (click su casa → seminterrato).
+## Per un giorno c'è stato anche un tasto PC nell'HUD, tolto su richiesta. Il gioco è
+## un gestionale quasi puro: non c'è un protagonista che cammina, e quasi tutto
+## quello che si decide passa di qui.
 ##
 ## Schede: OVERVIEW (come va), GROW (i vasi), SHOP (il negozio online), MARKET
-## (vendere) e, finito il prologo, STAFF (il personale).
+## (vendere), STAFF (il personale) e MESSAGGI (quello che hanno scritto Brian e
+## gli altri). In fondo alla colonna, sopra a CHIUDI, il tasto della GUIDA.
 ##
 ## L'elenco delle schede e' calcolato e non fisso: STAFF compare solo quando il
 ## cugino si e' fatto vivo (vedi `GameState._check_prologue()`). Una scheda
@@ -25,7 +30,7 @@ extends CanvasLayer
 ## bottoni sotto al mouse mentre il giocatore ci sta cliccando sopra.
 ##
 ## Viene istanziata da `scripts/components/room_hotspot.gd` come figlia della
-## scena corrente, quindi si chiude liberandosi (`queue_free()`): la stanza
+## scena corrente, quindi si chiude liberandosi (`queue_free()`): la scena
 ## sotto non sa che esiste e non va avvisata.
 ##
 ## ## Perché la radice è un CanvasLayer e non un Control
@@ -39,9 +44,6 @@ extends CanvasLayer
 ## dell'agenzia.
 
 const BUTTON_SCRIPT := preload("res://scripts/ui/interactive_button.gd")
-## Lo sportello del grossista dei semi. È lo stesso file che apre l'edificio in
-## città: vedi `_send_driver()`.
-const SEED_WINDOW := "res://scenes/ui/SeedWholesaleWindow.tscn"
 
 const REFRESH_INTERVAL := 0.2
 ## I colori dei dati vengono da `UiTheme` come tutto il resto. Restano degli
@@ -61,6 +63,7 @@ const TAB_GROW := "PC_TAB_GROW"
 const TAB_SHOP := "PC_TAB_SHOP"
 const TAB_MARKET := "PC_TAB_MARKET"
 const TAB_STAFF := "PC_TAB_STAFF"
+const TAB_MESSAGES := "PC_TAB_MESSAGES"
 
 ## Schede sempre presenti, nell'ordine in cui compaiono.
 const BASE_TABS := [TAB_OVERVIEW, TAB_GROW, TAB_SHOP, TAB_MARKET]
@@ -96,6 +99,9 @@ var _elapsed := 0.0
 ## Stato dell'appuntamento con Brian all'ultima costruzione della scheda.
 ## Serve ad accorgersi che è cambiato mentre la finestra era aperta.
 var _seed_state := ""
+## Quanti messaggi c'erano all'ultima costruzione della scheda MESSAGGI: se ne
+## arriva uno mentre la si guarda, la scheda va rifatta.
+var _chat_count := -1
 
 func _ready() -> void:
 	# L'HUD si nasconde finche' c'e' qualcuno in questo gruppo: questa finestra
@@ -104,6 +110,7 @@ func _ready() -> void:
 	add_to_group(UiTheme.MODAL_GROUP)
 	_dress()
 	_close_button.pressed.connect(close)
+	_build_guide_button()
 	_build_tab_bar()
 	_select_tab(0)
 
@@ -154,6 +161,7 @@ func _build_tab_bar() -> void:
 	_tabs.assign(BASE_TABS)
 	if _staff_unlocked:
 		_tabs.append(TAB_STAFF)
+	_tabs.append(TAB_MESSAGES)
 	for i in _tabs.size():
 		var button := Button.new()
 		button.text = _tabs[i]
@@ -168,6 +176,26 @@ func _build_tab_bar() -> void:
 		_tab_bar.add_child(button)
 		_tab_buttons.append(button)
 	_tab = clampi(_tab, 0, _tabs.size() - 1)
+
+## La guida: un tasto in fondo alla colonna delle schede, sopra a CHIUDI.
+##
+## Stava nel telefono, che è stato tolto; il PC è adesso il posto in cui si
+## cerca tutto, quindi è qui che la guida si deve trovare. Non è una scheda:
+## è una finestra a sé (`GameState.open_guide()`), che si apre sopra al PC.
+func _build_guide_button() -> void:
+	var guide := Button.new()
+	guide.name = "Guide"
+	guide.text = "GUIDE_TITLE"
+	guide.focus_mode = Control.FOCUS_NONE
+	UiTheme.dress_button(guide, UiTheme.ghost_boxes(), UiTheme.INK_SOFT, UiTheme.SIZE_TAB)
+	UiTheme.dress_window_text(guide, tr(guide.text), UiTheme.WIN_BUTTON, UiTheme.SIZE_TAB)
+	guide.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	guide.set_script(BUTTON_SCRIPT)
+	guide.use_press_offset = false
+	guide.pressed.connect(func() -> void: GameState.open_guide())
+	var rail := _close_button.get_parent()
+	rail.add_child(guide)
+	rail.move_child(guide, _close_button.get_index())
 
 ## Il tempo di gioco continua a scorrere col gestionale aperto — le piante
 ## crescono mentre si fanno i conti — quindi i valori vanno riletti, non solo
@@ -232,11 +260,14 @@ func _build_tab() -> void:
 			_build_market()
 		TAB_STAFF:
 			_build_staff()
+		TAB_MESSAGES:
+			_build_messages()
 		_:
 			_build_overview()
 	if GameState.current != null:
 		_seed_state = SeedDeal.state(GameState.current)
 		_grow_slots = GameState.current.plot_slots
+		_chat_count = _chat_size(GameState.current)
 	_refresh()
 
 func _refresh() -> void:
@@ -275,6 +306,9 @@ func _refresh() -> void:
 	# fino al prossimo giro di schede. Stessa ragione dell'appuntamento qui
 	# sopra e della barra delle schede.
 	if _tabs[_tab] == TAB_GROW and data.plot_slots != _grow_slots:
+		_build_tab()
+		return
+	if _tabs[_tab] == TAB_MESSAGES and _chat_size(data) != _chat_count:
 		_build_tab()
 		return
 	for field in _fields:
@@ -458,23 +492,6 @@ func _build_seeds() -> void:
 	if data == null:
 		return
 
-	# L'autista: c'è solo se è stato assunto, e allora i semi si ordinano da
-	# qui. Senza di lui la riga non compare affatto — un bottone spento che
-	# dice "assumi un autista" sarebbe pubblicità, e il consiglio lo dà già
-	# Brian al momento giusto (`MSG_DRIVER_BODY`).
-	if Staff.has_driver(data) and SeedRun.is_unlocked(data):
-		var driver_text := func(d: SaveData) -> String:
-			var now := GameState.total_hours()
-			if SeedRun.is_running(d):
-				return tr("SW_ON_THE_WAY") % UiFormat.duration(SeedRun.hours_left(d, now))
-			return tr("PC_SEND_DRIVER")
-		var driver_enabled := func(d: SaveData) -> bool:
-			return (
-				not SeedRun.is_running(d) and not Delivery.is_running(d)
-				and not BusImport.holds_van(d))
-		_add_action(driver_text, driver_enabled, _send_driver)
-		_add_note(tr("PC_DRIVER_NOTE"))
-
 	if SeedDeal.is_ready(data):
 		_add_note(tr("PC_BRIAN_NOTE_READY") % [
 			SeedDeal.seeds_left(data), SeedDeal.place(data),
@@ -483,19 +500,10 @@ func _build_seeds() -> void:
 		_add_note(tr("PC_BRIAN_NOTE_WAITING"))
 	elif Economy.seeds_owned(data) <= 0:
 		_add_note(tr("PC_BRIAN_NOTE_EMPTY"))
-
-## Il grossista aperto dal PC, che è tutto quello che l'autista fa: lo stesso
-## sportello che sta sull'edificio nel COMMERCIAL DISTRICT, ma senza doverci andare.
-##
-## Si riusa la finestra invece di rifare qui i tagli e i prezzi: sono gli stessi
-## ordini, e averne due copie vorrebbe dire due posti in cui aggiustare uno
-## sconto. La finestra sta su una tela più alta di questa (layer 6 contro 4),
-## quindi si apre sopra e il PC resta dietro dov'era.
-func _send_driver() -> void:
-	var scena: PackedScene = load(SEED_WINDOW)
-	if scena == null:
-		return
-	add_child(scena.instantiate())
+	# I semi a cassette non si ordinano da qui: si comprano cliccando il
+	# magazzino del grossista in città. Lo si dice, perché è l'unica cosa del
+	# gioco che non passa dal PC.
+	_add_note(tr("PC_SEEDS_WHERE"))
 
 func _ask_brian() -> void:
 	if SeedDeal.ask(GameState.current, GameState.total_hours()):
@@ -627,6 +635,14 @@ func _build_van_runs() -> void:
 	var fuel_color := func(d: SaveData) -> Color:
 		return WARN_COLOR if Delivery.needs_fuel(d) else VALUE_COLOR
 	_add_field("PC_VAN_TANK", fuel, fuel_color, false)
+	# Senza autista il furgone resta nel vialetto: non c'è più un protagonista
+	# che si mette al volante. La riga c'è finché non lo si assume, e manda
+	# alla scheda giusta.
+	var driver := func(d: SaveData) -> String:
+		return tr("PC_DRIVER_YES") if Staff.has_driver(d) else tr("PC_DRIVER_NO")
+	var driver_color := func(d: SaveData) -> Color:
+		return VALUE_COLOR if Staff.has_driver(d) else WARN_COLOR
+	_add_field("PC_VAN_DRIVER", driver, driver_color)
 
 	var refuel_text := func(d: SaveData) -> String:
 		return tr("PC_REFUEL") % UiFormat.money(Delivery.TANK_PRICE)
@@ -646,7 +662,9 @@ func _build_van_runs() -> void:
 			return Delivery.can_dispatch(d) and Economy.stock(d) >= grams
 		_add_action(text, enabled, func() -> void: _dispatch(grams))
 
-	if Delivery.needs_fuel(data):
+	if not Staff.has_driver(data):
+		_add_note(tr("PC_VAN_NO_DRIVER"))
+	elif Delivery.needs_fuel(data):
 		_add_note(tr("PC_VAN_DRY"))
 	else:
 		_add_note(tr("PC_MARKET_NOTE") % int(roundf((Economy.RETAIL_MULTIPLIER - 1.0) * 100.0)))
@@ -897,6 +915,42 @@ func _shift_split(amount: int) -> void:
 	var data := GameState.current
 	Staff.set_wholesale_share(data, Staff.wholesale_share(data) + amount)
 	_refresh()
+
+# --- MESSAGGI --------------------------------------------------------------
+
+## Quello che hanno scritto: un riquadro per contatto, dal messaggio più
+## recente in giù.
+##
+## Era la chat del telefono. Qui non si scrive niente — l'unica cosa che si
+## mandava, la richiesta di semi a Brian, è il bottone della scheda GROW — quindi
+## è un elenco da rileggere e basta: i traguardi che restano (`Chat.kept()`) e,
+## finché c'è, il giro dell'appuntamento coi semi (`Chat.live()`).
+func _build_messages() -> void:
+	var data := GameState.current
+	if data == null:
+		return
+	var now := GameState.total_hours()
+	var any := false
+	for entry in Chat.contacts(data):
+		var contact := str((entry as Dictionary)["id"])
+		var rows := Chat.thread(data, contact, now)
+		if rows.is_empty():
+			continue
+		any = true
+		_add_separator()
+		_add_field(tr(str((entry as Dictionary)["name_key"])),
+			func(_d: SaveData) -> String: return "", Callable(), true)
+		rows.reverse()
+		for row in rows:
+			var line := Chat.body(row).replace("\n", " ")
+			if Chat.is_mine(row):
+				line = tr("PC_MSG_YOU") % line
+			_add_note(line)
+	if not any:
+		_add_note(tr("CHAT_EMPTY"))
+
+func _chat_size(data: SaveData) -> int:
+	return data.chat_log.size() + Chat.live(data, GameState.total_hours()).size()
 
 # --- Costruzione delle righe ----------------------------------------------
 

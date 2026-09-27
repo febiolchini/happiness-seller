@@ -62,34 +62,35 @@ const GROUP := "enterable"
 @export var building_id := ""
 ## Ci si entra solo se è roba propria.
 @export var needs_ownership := false
+## La proprietà che apre la porta, se non è l'edificio intero: un appartamento
+## della torre apre la torre. Vuoto = `building_id`.
+@export var property_id := ""
 
 # --- Il segnalino ----------------------------------------------------------
-## Un triangolino sopra alla porta, per dire a colpo d'occhio che lì si fa
+## Un triangolo sopra al tetto, per dire a colpo d'occhio che lì si fa
 ## qualcosa. La città è fatta di disegni e non di cartelli: senza, l'unico modo
 ## di sapere quali dei trenta edifici si aprono era provarli tutti.
 ##
 ## Due colori, e la differenza è "è tuo o no":
 ##
 ## - **verde** — ci entri quando vuoi: casa, e le proprietà che hai comprato;
-## - **arancione** — ci si affaccia ma non è tuo: per ora solo l'agenzia.
+## - **giallo-arancio** — uno sportello: l'agenzia, il grossista, la stazione.
 ##
-## Una proprietà in vendita e non ancora comprata **non ha segnalino**: non c'è
-## ancora niente da farci, e accenderlo prima sarebbe promettere una porta che
-## non si apre.
+## Una proprietà in vendita e non ancora comprata **non ha segnalino**, e
+## nemmeno uno sportello ancora chiuso: non c'è niente da farci, e accenderlo
+## prima sarebbe promettere una porta che non si apre.
 ##
-## Quello verde è il triangolo disegnato da Federico, grande, sopra al tetto e
-## che dondola: una cosa tua si deve trovare da lontano. L'arancione resta il
-## triangolino sopra alla porta.
+## Tutti e due sono il triangolo disegnato da Federico, grande, sopra al tetto e
+## che dondola (quello giallo-arancio è lo stesso ricolorato da
+## `import_segni_ui.py`). Prima lo sportello aveva un triangolino disegnato
+## a codice sopra alla porta, sette pixel: in una città vista da lontano non
+## lo trovava nessuno.
 const OWNED_MARKER := preload("res://assets/sprites/ui/triangolo_verde.png")
-## Quanto sta sopra al tetto la punta del triangolo verde, e quanto dondola.
+const WINDOW_MARKER := preload("res://assets/sprites/ui/triangolo_arancio.png")
+## Quanto sta sopra al tetto la punta del triangolo, e quanto dondola.
 const OWNED_MARKER_GAP := 6.0
-const OWNED_MARKER_BOB := 2.0
+const OWNED_MARKER_BOB := 3.0
 const OWNED_MARKER_PERIOD := 1.6
-const MARKER_SIZE := Vector2(7.0, 5.0)
-## Quanto sta sopra al punto in cui si ferma il protagonista. Sessantaquattro e
-## non sopra al tetto: il palazzo è alto settecento pixel, e un segnalino sul
-## colmo sarebbe fuori schermo proprio quando ci si è davanti.
-const MARKER_HEIGHT := 64.0
 
 var _tween: Tween
 var _owned_marker: Sprite2D
@@ -105,7 +106,6 @@ func _ready() -> void:
 	# È lo stesso giro dei lampioni.
 	add_to_group(Daylight.LIGHT_GROUP)
 	_owned_marker = Sprite2D.new()
-	_owned_marker.texture = OWNED_MARKER
 	# Sopra agli edifici davanti: il triangolo sta in aria, sopra al tetto, e
 	# con l'ordinamento per y lo coprirebbe il palazzo della fila sotto.
 	_owned_marker.z_index = 50
@@ -129,7 +129,11 @@ func is_unlocked() -> bool:
 		return true
 	if not window_flag.is_empty() and not bool(data.get_flag(window_flag, false)):
 		return false
-	return not needs_ownership or data.owns(building_id)
+	return not needs_ownership or data.owns(ownership_key())
+
+## L'id che la partita deve possedere perché la porta si apra.
+func ownership_key() -> String:
+	return building_id if property_id.is_empty() else property_id
 
 func contains_point(global_point: Vector2) -> bool:
 	return click_rect.has_point(to_local(global_point))
@@ -152,20 +156,19 @@ func press() -> void:
 
 
 func _on_property_bought(id: String) -> void:
-	if id == building_id:
+	if id == ownership_key():
 		_update_owned_marker()
-		queue_redraw()
-
-func _is_owned_marker() -> bool:
-	return marker_color() == UiTheme.GOOD
 
 func _update_owned_marker() -> void:
-	var visibile := _is_owned_marker()
+	var texture := marker_texture()
+	var visibile := texture != null
 	_owned_marker.visible = visibile
 	set_process(visibile)
 	if not visibile:
 		return
-	# Come il triangolino: non si spegne di notte insieme al muro.
+	_owned_marker.texture = texture
+	# Non si spegne di notte insieme al muro: `emissive()` pre-divide il colore
+	# per la luce dell'ora, e il `CanvasModulate` della città lo riporta pieno.
 	_owned_marker.modulate = Daylight.emissive(Color.WHITE, Daylight.light(GameState.current))
 	_place_owned_marker()
 
@@ -173,7 +176,7 @@ func _place_owned_marker() -> void:
 	# Lo script sta sullo Sprite2D dell'edificio (vedi in cima), ma e' scritto
 	# come Node2D: il riquadro del disegno si chiede per nome.
 	var tetto: Rect2 = call("get_rect") if has_method("get_rect") else click_rect
-	var alto := OWNED_MARKER.get_height() * 0.5
+	var alto := _owned_marker.texture.get_height() * 0.5
 	var dondolo := roundf(sin(_bob_time * TAU / OWNED_MARKER_PERIOD) * OWNED_MARKER_BOB)
 	# A pixel interi: il resto della città è pixel art, e un triangolo che
 	# galleggia fra un pixel e l'altro tremolerebbe invece di dondolare.
@@ -185,48 +188,21 @@ func _process(delta: float) -> void:
 	_bob_time += delta
 	_place_owned_marker()
 
-## Di che colore è il segnalino, o `null` se questo edificio non ne ha uno.
+## Quale segnalino ha questo edificio, o `null` se non ne ha uno.
 ##
 ## Si ricava da quello che l'edificio SA FARE, non da un elenco di id scritto a
 ## parte: un interno libero è casa tua, un interno da comprare è tuo solo quando
 ## l'hai comprato, una finestra è uno sportello. Aggiungendo un edificio nuovo
 ## il segnalino viene da sé.
-func marker_color() -> Variant:
+func marker_texture() -> Texture2D:
 	if needs_ownership:
-		return UiTheme.GOOD if is_unlocked() else null
+		return OWNED_MARKER if is_unlocked() else null
 	if not interior_scene.is_empty():
-		return UiTheme.GOOD
+		return OWNED_MARKER
 	if not window_scene.is_empty():
-		return UiTheme.ACCENT if is_unlocked() else null
+		return WINDOW_MARKER if is_unlocked() else null
 	return null
 
 ## Chiamata da `atmosphere.gd` quando la luce è cambiata abbastanza da vedersi.
 func on_light_changed() -> void:
 	_update_owned_marker()
-	queue_redraw()
-
-func _draw() -> void:
-	var tinta = marker_color()
-	if tinta == null or tinta == UiTheme.GOOD:
-		return
-	# Il segnalino non deve spegnersi di notte insieme al muro: `emissive()`
-	# pre-divide il colore per la luce dell'ora, così il `CanvasModulate` della
-	# città lo riporta esattamente a questo. Stessa cosa che fanno i lampioni.
-	var ambient := Daylight.light(GameState.current)
-	var centro := Vector2(entry_offset.x, -MARKER_HEIGHT)
-	var mezza := MARKER_SIZE.x * 0.5
-	# Contorno scuro prima, triangolo sopra: un poligono leggermente più grande
-	# disegnato sotto fa da bordo, e senza il verde sparisce su una facciata
-	# chiara.
-	draw_colored_polygon(_triangolo(centro, mezza + 1.0, MARKER_SIZE.y + 1.0),
-		Daylight.emissive(Color(0.09, 0.08, 0.07), ambient))
-	draw_colored_polygon(_triangolo(centro, mezza, MARKER_SIZE.y),
-		Daylight.emissive(tinta, ambient))
-
-## Un triangolo che punta in giù, verso la porta.
-static func _triangolo(centro: Vector2, mezza: float, alta: float) -> PackedVector2Array:
-	return PackedVector2Array([
-		centro + Vector2(-mezza, 0.0),
-		centro + Vector2(mezza, 0.0),
-		centro + Vector2(0.0, alta),
-	])

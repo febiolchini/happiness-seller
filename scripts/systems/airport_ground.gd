@@ -114,7 +114,7 @@ func _draw_helipad(center: Vector2) -> void:
 	draw_line(center + Vector2(-12, 0), center + Vector2(12, 0), WHITE, 4.0)
 
 ## La recinzione: una rete bassa coi paletti. E' anche il motivo, a vederla,
-## per cui dentro non si entra a piedi (vedi `CityNavigation`).
+## per cui dentro non ci vanno i passanti.
 func _draw_fence(r: Rect2) -> void:
 	var inner := r.grow(-4.0)
 	var corners := PackedVector2Array([inner.position, Vector2(inner.end.x, inner.position.y),

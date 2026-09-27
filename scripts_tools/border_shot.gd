@@ -43,7 +43,6 @@ func _ready() -> void:
 	var city := CITY.instantiate()
 	add_child(city)
 	await get_tree().process_frame
-	var player: Node2D = city.get_node("Player")
 	var camera: Camera2D = city.get_node("Camera2D")
 
 	var w := CityMap.WORLD_BOUNDS
@@ -58,7 +57,7 @@ func _ready() -> void:
 	}
 
 	for shot in SHOTS:
-		player.global_position = points[shot[0]]
+		camera.jump_to(points[shot[0]])
 		camera.set_level(int(shot[3]))
 		GameState.current.time_of_day = float(shot[1])
 		GameState.current.weather = "clear"

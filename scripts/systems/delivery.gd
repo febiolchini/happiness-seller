@@ -88,11 +88,15 @@ static func check_unlock(data: SaveData) -> bool:
 static func has_van(data: SaveData) -> bool:
 	return Shop.owned(data, VAN_ITEM) > 0
 
-## Se si può spedire: serve il traguardo, il furgone, benzina nel serbatoio e
-## nessun viaggio già in corso.
+## Se si può spedire: serve il traguardo, il furgone, **un autista** che lo
+## guidi, benzina nel serbatoio e nessun viaggio già in corso.
+##
+## L'autista c'è da quando non c'è più il protagonista: prima al volante ci
+## stava il giocatore, adesso il mezzo senza nessuno assunto resta nel
+## vialetto.
 static func can_dispatch(data: SaveData) -> bool:
 	return (
-		is_unlocked(data) and has_van(data)
+		is_unlocked(data) and has_van(data) and Staff.has_driver(data)
 		and fuel(data) > 0 and not is_running(data))
 
 # --- Il carburante ---------------------------------------------------------

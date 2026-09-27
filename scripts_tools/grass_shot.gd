@@ -7,13 +7,11 @@ extends Node
 ##     Godot_v4.7.2-stable_win64_console.exe --path . scripts_tools/GrassShot.tscn
 ##
 ## I PNG finiscono in `%APPDATA%/Godot/app_userdata/Happiness Seller/shots`.
-## L'ultimo scatto fa camminare il protagonista in mezzo al prato e lo prende a
-## metà strada: serve a vedere la scia dell'erba che si rialza.
 
 const CITY := preload("res://scenes/levels/City.tscn")
 const OUT_DIR := "user://shots"
 
-## posizione del protagonista, ora, tempo, nome del file, livello di zoom
+## dove guarda la camera, ora, tempo, nome del file, livello di zoom
 const SHOTS := [
 	[Vector2(320, 264), 13.0, "clear", "erba_casa_largo", 2],
 	[Vector2(300, -330), 13.0, "clear", "erba_dietro_giorno", -1],
@@ -36,11 +34,10 @@ func _ready() -> void:
 	var city := CITY.instantiate()
 	add_child(city)
 	await get_tree().process_frame
-	var player: Node2D = city.get_node("Player")
 	var camera: Camera2D = city.get_node("Camera2D")
 
 	for shot in SHOTS:
-		player.global_position = shot[0]
+		camera.jump_to(shot[0])
 		var livello := int(shot[4])
 		camera.set_level(livello if livello >= 0 else camera.default_level)
 		GameState.current.time_of_day = float(shot[1])
@@ -51,20 +48,6 @@ func _ready() -> void:
 		await RenderingServer.frame_post_draw
 		_save(str(shot[3]))
 
-	# La scia: da sinistra a destra, a passo d'uomo, scatto a metà.
-	GameState.current.weather = "clear"
-	GameState.current.time_of_day = 13.0
-	camera.set_level(5)
-	player.global_position = Vector2(180, -300)
-	await get_tree().create_timer(SETTLE).timeout
-	var t := 0.0
-	while t < 1.4:
-		var delta := get_process_delta_time()
-		player.global_position += Vector2(70.0, 0.0) * delta
-		t += delta
-		await get_tree().process_frame
-	await RenderingServer.frame_post_draw
-	_save("erba_scia")
 	get_tree().quit()
 
 func _save(name_: String) -> void:

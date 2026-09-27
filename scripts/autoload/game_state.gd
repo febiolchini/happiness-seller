@@ -55,13 +55,6 @@ signal day_started(day: int)
 ## Messaggio breve da mostrare al giocatore ("+20 G HARVESTED"). L'HUD li
 ## impila in un angolo; chi lo emette non deve sapere come vengono mostrati.
 signal notice(text: String)
-## Un messaggio **da qualcuno**, che arriva sul telefono in basso a sinistra.
-##
-## Diverso da `notice`: quello è il gioco che segna un fatto con la coda
-## dell'occhio, questo è una persona che scrive e ha un mittente. E diverso da
-## `message()`, che ferma tutto con un riquadro a tutto schermo per le cose che
-## non si possono perdere. Vedi `scripts/ui/phone.gd`.
-signal phone_message(sender: String, body: String)
 ## Il furgone è appena partito per una consegna, o è appena rientrato.
 ## Ci si aggancia `city.gd` per farlo attraversare la strada; chi non è in
 ## strada in quel momento si perde l'animazione e legge il messaggino, che è
@@ -69,17 +62,6 @@ signal phone_message(sender: String, body: String)
 signal van_left(grams: int)
 signal van_back(revenue: int)
 
-## Il furgone è partito per il grossista dei semi, e ne è rientrato coi semi.
-## Servono alla City per far muovere il mezzo: sono due segnali a parte e non
-## `van_left`/`van_back` perché quelli portano grammi e incassi, e chi li
-## ascolta li usa per dire cosa è successo.
-signal seed_run_left(seeds: int)
-signal seed_run_back(seeds: int)
-## Il furgone è partito per il contatto fuori stato di Kevin, e ne è rientrato
-## coi semi. Stessa ragione di `seed_run_left`/`seed_run_back`: è lo stesso
-## mezzo, un altro fornitore. Vedi `BusImport`.
-signal bus_order_left(seeds: int)
-signal bus_order_back(seeds: int)
 ## Brian ha mandato la posizione: da qui in poi c'è un appuntamento sulla mappa.
 ## Ci si aggancia `city.gd` per tirarlo su dove aspetta.
 signal seed_spot_ready(spot: Vector2, place: String)
@@ -100,10 +82,9 @@ signal property_bought(id: String)
 ## Emesso subito prima di scrivere su disco.
 ##
 ## Chi tiene in scena uno stato che non è ancora dentro a `current` lo riversa
-## qui: la mappa, per esempio, sa dove sta il protagonista mentre `SaveData` no.
-## Senza questo gancio un salvataggio automatico scriverebbe una posizione
-## vecchia, e riprendendo la partita il protagonista ricomparirebbe dove stava
-## qualche minuto prima.
+## qui. Oggi non c'è nessuno — lo usava la mappa per la posizione del
+## protagonista, che non esiste più — ma il gancio resta: è il posto giusto per
+## il prossimo stato che vive in scena.
 signal saving()
 
 ## Partita attualmente in memoria, `null` quando siamo nei menu senza aver
@@ -115,14 +96,6 @@ var current_slot := ""
 ## giocate. La City lo accende entrando e lo spegne uscendo, così nei menu il
 ## tempo resta fermo.
 var clock_running := false
-
-## L'ultimo messaggio arrivato sul telefono: `{"sender": ..., "body": ...}`.
-##
-## Vive qui e non dentro al telefono perché il telefono è per scena — ce n'è uno
-## in strada e uno in ogni stanza — e un messaggio arrivato in cantina deve
-## potersi rileggere uscendo di casa. Non finisce nel salvataggio: è quello che
-## è appena successo, non un pezzo di partita.
-var last_text: Dictionary = {}
 
 ## Secondi reali dall'ultimo salvataggio, per il salvataggio automatico.
 var _since_autosave := 0.0
@@ -139,8 +112,7 @@ func _process(delta: float) -> void:
 	_tick_seed_deal()
 	_tick_staff()
 	_tick_van()
-	_tick_seed_run()
-	_tick_bus_order()
+	_tick_legacy_seed_orders()
 	_check_intro()
 	_check_prologue()
 	_check_milestones()
@@ -176,30 +148,26 @@ func total_hours() -> float:
 func notify(text: String) -> void:
 	notice.emit(text)
 
-## Manda un messaggio sul telefono, da parte di qualcuno.
+## Un avviso breve da parte di qualcuno: "BRIAN: fra poco me ne vado".
 ##
-## Se in scena non c'è nessun telefono — il menu principale — non succede
-## niente, e va bene così: il messaggio resta in `last_text` e si legge appena
-## si rientra in partita.
-func text_message(sender: String, body: String, contact := "") -> void:
-	last_text = {"sender": sender, "body": body, "contact": contact}
-	phone_message.emit(sender, body)
+## Era il telefono, che è stato tolto insieme al protagonista: adesso tutto si
+## gestisce dal PC. Quello che resta di un messaggio di passaggio è un
+## messaggino dell'HUD col mittente davanti — si legge con la coda dell'occhio
+## e se ne va, come prima faceva il telefono che si riabbassava da solo.
+func text_message(sender: String, body: String) -> void:
+	notify("%s: %s" % [sender, body.replace("\n", " ")])
 
-## Un messaggio da qualcuno che sta in rubrica: arriva sul telefono come tutti
-## gli altri, **e resta nella sua chat**.
+## Un messaggio da qualcuno che sta in rubrica: **resta nella scheda MESSAGGI
+## del PC**, e intanto compare nel riquadro al centro dello schermo.
 ##
 ## È la differenza fra i due modi di scrivere al giocatore, e non è una
 ## sfumatura: `text_message()` è un avviso e basta — lo si legge quando arriva e
-## poi è andato — mentre quello che passa di qui si rilegge aprendo il telefono
-## anche tre giorni dopo. Ci vanno **i traguardi**: l'apertura, la fine del
-## prologo, il consiglio di allargarsi, il chilo, il grossista. Sono le cose che
+## poi è andato — mentre quello che passa di qui si rilegge dal PC anche tre
+## giorni dopo. Ci vanno **i traguardi**: l'apertura, il consiglio di
+## allargarsi, il chilo, l'autista, il contatto di Kevin. Sono le cose che
 ## dicono al giocatore cos'è cambiato nel gioco, ed è esattamente la roba che
-## uno vuole poter riguardare.
-##
-## Non ci vanno invece i messaggi dell'appuntamento coi semi, che pure sono di
-## Brian: quelli nella chat ci compaiono lo stesso, ma ricavati
-## dall'appuntamento (`Chat.live()`), e spariscono quando l'appuntamento si
-## chiude. Vedi `Chat`.
+## uno vuole poter riguardare — e per questo fermano lo schermo invece di
+## passare in un angolo.
 ##
 ## Si passa la **chiave** e non la frase: la cronologia è fatta di chiavi, così
 ## cambiando lingua cambiano anche i messaggi vecchi.
@@ -208,7 +176,7 @@ func contact_message(contact: String, key: String, arg := "") -> void:
 		return
 	var row := {"contact": contact, "from": Chat.THEM, "key": key, "arg": arg}
 	Chat.keep(current, contact, key, arg, total_hours())
-	text_message(tr(Chat.name_key(contact)), Chat.body(row), contact)
+	message(tr(Chat.name_key(contact)), Chat.body(row))
 
 ## Porta avanti l'appuntamento con Brian e avvisa quando cambia qualcosa.
 ##
@@ -221,18 +189,13 @@ func _tick_seed_deal() -> void:
 		SeedDeal.STATE_READY:
 			var place := SeedDeal.place(current)
 			notify(tr("NOTE_BRIAN_SPOT") % place)
-			text_message(tr("MSG_COUSIN_SPEAKER"), tr("PHONE_BRIAN_READY") % place,
-				Chat.BRIAN)
 			seed_spot_ready.emit(SeedDeal.spot(current), place)
 			# Un appuntamento fissato è roba che il giocatore ricorda: se il
 			# gioco si chiude male, riaprirlo deve ritrovarlo, non farglielo
 			# richiedere da capo.
 			save_game()
 		SeedDeal.EVENT_LEAVING:
-			# Sul telefono e non fra i messaggini: è una cosa che qualcuno dice,
-			# e soprattutto non deve sparire dopo due secondi e mezzo mentre si
-			# sta guardando altrove. Vedi `scripts/ui/phone.gd`.
-			text_message(tr("MSG_COUSIN_SPEAKER"), tr("PHONE_BRIAN_LEAVING"), Chat.BRIAN)
+			text_message(tr("MSG_COUSIN_SPEAKER"), tr("PHONE_BRIAN_LEAVING"))
 		SeedDeal.EVENT_GONE:
 			notify(tr("NOTE_BRIAN_LEFT"))
 			seed_deal_closed.emit()
@@ -264,6 +227,10 @@ func _tick_staff() -> void:
 
 ## La prima volta che si arriva a `Economy.PROLOGUE_CASH` il prologo si chiude:
 ## il cugino si fa vivo e nel PC compare la scheda del personale.
+##
+## Una partita nuova il prologo non ce l'ha più: lo zio lascia un'attività già
+## avviata, col personale assunto (`Economy.setup_new_game()`). Il controllo
+## resta per i salvataggi cominciati prima, che il prologo lo stanno giocando.
 ##
 ## Il controllo sta qui e non dentro alla vendita perché i soldi entrano da
 ## troppe parti — il PC, i clienti in strada, un domani gli affitti — e
@@ -305,16 +272,11 @@ func _check_milestones() -> void:
 	if Delivery.check_unlock(current):
 		contact_message(Chat.BRIAN, "MSG_KILO_BODY")
 		save_game()
-	# Comprato il furgone, Brian presenta il grossista della clinica: da lì in
-	# poi i semi si comprano a cassette invece che due alla volta da lui.
-	if SeedRun.check_unlock(current):
-		contact_message(Chat.BRIAN, "MSG_SEED_WHOLESALE_BODY")
-		save_game()
-	# Fatto il primo giro di persona, Brian dice che c'è un modo di non farlo
-	# più: l'autista. È il consiglio giusto nel momento giusto — arriva quando
-	# si è appena camminato fino in centro, non prima, quando sarebbe stato un
-	# ruolo in più in una lista di ruoli.
-	if SeedRun.check_driver_hint(current):
+	# Comprato il furgone senza nessuno che lo guidi, Brian dice che serve un
+	# autista: il carico all'ingrosso non parte da solo. È il consiglio giusto
+	# nel momento giusto — arriva quando il mezzo c'è, non prima, quando
+	# sarebbe stato un ruolo in più in una lista di ruoli.
+	if Staff.check_driver_hint(current):
 		contact_message(Chat.BRIAN, "MSG_DRIVER_BODY")
 		save_game()
 	# Il primo assunto, chiunque sia: non si è più soli, è un'attività vera, e
@@ -324,8 +286,8 @@ func _check_milestones() -> void:
 		current.set_flag(ORG_NAME_FLAG, true)
 		contact_message(Chat.BRIAN, "MSG_ORG_NAME_BODY")
 		save_game()
-	# Assunto l'autista, si presenta lui: è il messaggio che porta il giocatore
-	# nella sua chat, che è il posto da cui lo si manda a prendere i semi.
+	# Assunto l'autista, si presenta lui: da lì in poi i carichi all'ingrosso
+	# partono dalla scheda MERCATO del PC.
 	if Staff.check_driver_hello(current):
 		contact_message(Chat.DRIVER, "MSG_DRIVER_HELLO")
 		save_game()
@@ -336,7 +298,8 @@ func _check_milestones() -> void:
 		contact_message(Chat.KEVIN, "MSG_KEVIN_BUS_STATION_BODY")
 		save_game()
 
-## Il messaggio d'apertura: da dove viene la casa, e cosa ci si fa.
+## Il messaggio d'apertura: lo zio ha lasciato la sua attività, e cosa c'è
+## dentro — la cassa, un coltivatore, uno spacciatore.
 ##
 ## Non sta in `new_game()` ma qui, agganciato all'orologio, perché `new_game()`
 ## gira anche dal menu — e un fumetto che compare dietro ai bottoni del menu
@@ -348,25 +311,17 @@ func _check_intro() -> void:
 	contact_message(Chat.BRIAN, "MSG_INTRO_BODY")
 	save_game()
 
-## Fa rientrare il furgone dal grossista quando è ora, e scarica i semi.
-func _tick_seed_run() -> void:
-	var seeds := SeedRun.tick(current, total_hours())
+## Scarica i semi di un ordine rimasto in viaggio in un salvataggio vecchio.
+##
+## Dal grossista e dalla stazione i semi adesso si comprano al banco e arrivano
+## subito (vedi `SeedRun.order()`), quindi nessuna partita nuova apre più un
+## viaggio. Una partita salvata a metà strada però ce l'ha scritto dentro, e
+## quei semi erano già pagati: li si consegna all'ora prevista, come prima.
+func _tick_legacy_seed_orders() -> void:
+	var seeds := SeedRun.tick(current, total_hours()) + BusImport.tick(current, total_hours())
 	if seeds <= 0:
 		return
 	notify(tr("NOTE_SEEDS_IN") % seeds)
-	seed_run_back.emit(seeds)
-	# Semi arrivati è roba che il giocatore ricorda: non deve dipendere dal
-	# prossimo salvataggio automatico.
-	save_game()
-
-## Fa rientrare il furgone dal contatto fuori stato di Kevin quando è ora, e
-## scarica i semi. Stessa forma di `_tick_seed_run()`, altro fornitore.
-func _tick_bus_order() -> void:
-	var seeds := BusImport.tick(current, total_hours())
-	if seeds <= 0:
-		return
-	notify(tr("NOTE_SEEDS_IN") % seeds)
-	bus_order_back.emit(seeds)
 	save_game()
 
 ## Fa rientrare il furgone quando è ora, e paga.
@@ -382,10 +337,10 @@ func _tick_van() -> void:
 
 ## Un riquadro che ferma tutto finché non lo si chiude.
 ##
-## È per le cose che vanno lette prima di continuare e che **non ha scritto
-## nessuno**: la società elettrica, il personale che se ne va, il resoconto di
-## quello che è successo a gioco chiuso. Quando invece a scrivere è una persona
-## — Brian — il posto è il telefono (`text_message()`), non questo.
+## È per le cose che vanno lette prima di continuare: la società elettrica, il
+## personale che se ne va, il resoconto di quello che è successo a gioco
+## chiuso, e i traguardi che scrive Brian (`contact_message()`), che in più
+## restano nella scheda MESSAGGI del PC.
 ##
 ## Il riquadro viene appeso a questo singleton, non alla scena corrente: è un
 ## autoload, quindi sta sopra alla scena, e il messaggio compare uguale in
@@ -401,7 +356,7 @@ func message(speaker: String, body: String) -> Node:
 	add_child(popup)
 	return popup
 
-## La guida, aperta dal tasto in fondo alla rubrica del telefono.
+## La guida, aperta dal tasto GUIDA nella colonna delle schede del PC.
 ##
 ## Appesa a questo singleton e non alla scena corrente, per il motivo di sempre:
 ## è un autoload, quindi sta sopra alla scena, e la guida si apre uguale in
@@ -422,8 +377,8 @@ func open_guide() -> Node:
 	return book
 
 ## Il filmato della partenza del furgone. Sta qui e non nella City per il
-## motivo di sempre: l'ingrosso si ordina dal PC in cantina, dove la City non
-## c'e'. Appeso a questo singleton si vede da qualunque stanza.
+## motivo di sempre: l'ingrosso si ordina dal PC, che si apre anche da una
+## stanza, dove la City non c'e'. Appeso a questo singleton si vede ovunque.
 ##
 ## Se la scena manca non succede niente: la consegna e' gia' partita nei dati,
 ## e il filmato e' la ciliegina. Vedi `scripts/ui/van_cutscene.gd`.
@@ -497,6 +452,11 @@ func new_game() -> SaveData:
 	# I valori di partenza del gestionale (soldi, vasi, primi semi) li mette
 	# `Economy`: `SaveData` è solo il formato, il bilanciamento sta altrove.
 	Economy.setup_new_game(current)
+	# Col personale già assunto il nome della banda si chiede subito: la
+	# finestra la apre l'HUD appena vede il flag (`hud.gd::_check_org_name()`).
+	# Il messaggio di Brian che di solito lo accompagna non serve — lo dice già
+	# quello d'apertura — quindi lo si segna come già mandato.
+	current.set_flag(ORG_NAME_FLAG, true)
 	current_slot = _make_slot_id()
 	save_game()
 	game_started.emit(current)
