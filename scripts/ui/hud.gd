@@ -3,7 +3,8 @@ extends CanvasLayer
 ## HUD: quello che sta addosso alla città mentre si gioca.
 ##
 ## Poca roba, e è il punto: la **sveglia** in alto a destra
-## (`digital_clock.gd`), sotto di lei una riga che compare solo quando c'è
+## (`digital_clock.gd`), sotto di lei l'ingranaggio delle impostazioni e i tasti
+## del tempo (`speed_controls.gd`), poi una riga che compare solo quando c'è
 ## qualcosa da dire, e sul bordo sinistro, col centro a metà altezza, la
 ## **lavagna** (`chalkboard.gd`) con l'erba,
 ## i semi e il personale. Più la cassa in cima al centro, il prestigio accanto
@@ -82,6 +83,7 @@ const DOT := "·"
 const PRESTIGE_BADGE := preload("res://scripts/ui/prestige_badge.gd")
 const ORG_NAME_WINDOW := preload("res://scripts/ui/org_name_window.gd")
 const CHALKBOARD := preload("res://scripts/ui/chalkboard.gd")
+const SPEED_CONTROLS := preload("res://scripts/ui/speed_controls.gd")
 ## Quanto sta lontana la lavagna dal bordo sinistro: come la sveglia dal destro.
 const BOARD_MARGIN := 8.0
 
@@ -195,6 +197,15 @@ func _build_meters() -> void:
 	badge.offset_top = 14.0
 	badge.offset_bottom = 48.0
 	root.add_child(badge)
+	# Ingranaggio e tasti del tempo, subito sotto alla sveglia e sopra alla
+	# riga del posto di Brian. Vedi `speed_controls.gd`.
+	var speed := Control.new()
+	speed.set_script(SPEED_CONTROLS)
+	speed.name = "Speed"
+	speed.size_flags_horizontal = Control.SIZE_SHRINK_END
+	var corner: VBoxContainer = $Root/Corner
+	corner.add_child(speed)
+	corner.move_child(speed, 1)
 	# La lavagna sul bordo sinistro, col centro a metà altezza dello schermo:
 	# a destra c'è la colonna della sveglia e dei messaggini.
 	var board := Control.new()

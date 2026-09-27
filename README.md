@@ -1242,6 +1242,22 @@ per una.
                                        └───────────┘
 ```
 
+### Il tempo e le impostazioni
+
+Sotto alla sveglia (`scripts/ui/speed_controls.gd`): **⚙ ◀◀ ❚❚ ▶▶**, come nei
+gestionali di città. ◀◀ e ▶▶ scorrono fra le tre velocità di
+`GameState.SPEEDS` — 0.5×, normale, 2× — senza andare oltre; ❚❚ ferma
+l'orologio (diventa ▶ per ripartire), e anche la **barra spaziatrice**. Il
+tasto della velocità in uso resta acceso di verde. Cambia solo l'orologio di
+gioco: piante, personale, furgone e bollette leggono tutti `total_hours()`,
+quindi seguono da soli; passanti e traffico no. La velocità non si salva: una
+partita riaperta riparte normale e non in pausa. L'autosalvataggio conta secondi
+veri anche in pausa.
+
+L'ingranaggio apre le impostazioni sopra al gioco (`settings.gd`, `in_game`):
+senza la città finta del menu dietro, e "indietro" o Esc chiudono la finestra
+invece di tornare al menu principale.
+
 ### La lavagna
 
 `scripts/ui/chalkboard.gd`, sul disegno di Federico `assets/sprites/ui/board.png`.

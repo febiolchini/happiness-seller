@@ -55,7 +55,25 @@ var _buttons: Dictionary = {}
 ## I due bottoni del mondo offline, nell'ordine [acceso, spento].
 var _offline_buttons: Array[Button] = []
 
+## Aperte dall'ingranaggio in partita (`speed_controls.gd`) invece che dal menu
+## principale: niente città finta dietro (c'è già quella vera), un velo scuro,
+## e "indietro" chiude la finestra invece di tornare al menu.
+var in_game := false
+
 func _ready() -> void:
+	if in_game:
+		$CityBackground.queue_free()
+		var ui: CanvasLayer = $UI
+		ui.layer = 40
+		var veil := ColorRect.new()
+		veil.color = Color(0, 0, 0, 0.8)
+		veil.set_anchors_preset(Control.PRESET_FULL_RECT)
+		ui.add_child(veil)
+		ui.move_child(veil, 0)
+		var back: Button = $UI/BackButton
+		back.target_scene = ""
+		back.pressed.connect(queue_free)
+		add_to_group(UiTheme.MODAL_GROUP)
 	super()
 	_build_language_column()
 	_build_offline_column()
@@ -153,3 +171,9 @@ func _highlight_offline() -> void:
 		_offline_buttons[i].add_theme_color_override(
 			"font_color",
 			ACTIVE_COLOR if (i == 0) == GameSettings.offline_progress else IDLE_COLOR)
+
+## Esc chiude le impostazioni aperte in partita, invece di uscire dal gioco.
+func _unhandled_input(event: InputEvent) -> void:
+	if in_game and event.is_action_pressed("ui_cancel"):
+		get_viewport().set_input_as_handled()
+		queue_free()

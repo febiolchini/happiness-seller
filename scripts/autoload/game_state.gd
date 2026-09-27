@@ -108,7 +108,14 @@ func _process(delta: float) -> void:
 	if not clock_running or current == null:
 		return
 	current.play_time += delta
-	_advance_clock(delta)
+	# L'autosalvataggio conta secondi veri anche in pausa: una pausa lunga non
+	# deve lasciare la partita senza un salvataggio recente.
+	_since_autosave += delta
+	if _since_autosave >= AUTOSAVE_SECONDS:
+		save_game()
+	if paused:
+		return
+	_advance_clock(delta * speed())
 	_tick_seed_deal()
 	_tick_staff()
 	_tick_van()
@@ -117,12 +124,40 @@ func _process(delta: float) -> void:
 	_check_prologue()
 	_check_milestones()
 
-	# L'orologio gira solo mentre si gioca davvero (non nei menu), quindi
-	# agganciare qui il salvataggio automatico vuol dire salvare solo quando
-	# c'è qualcosa di nuovo da salvare.
-	_since_autosave += delta
-	if _since_autosave >= AUTOSAVE_SECONDS:
-		save_game()
+# --- La velocità del tempo ---------------------------------------------------
+# Come nei gestionali di città: pausa, metà velocità, normale, doppia. I tasti
+# stanno sotto alla sveglia (`speed_controls.gd`). Cambia solo quanto corre
+# l'orologio di gioco: piante, personale, furgone e bollette leggono tutti
+# `total_hours()`, quindi vanno più piano o più forte da soli. Passanti e
+# traffico no — sono la città che si guarda, non il tempo del gestionale.
+#
+# Non finisce nel salvataggio: riaprendo una partita si riparte a velocità
+# normale e non in pausa, che è quello che ci si aspetta.
+
+## Le velocità fra cui si sceglie, dalla più lenta. `NORMAL_SPEED` è l'indice
+## di quella normale.
+const SPEEDS := [0.5, 1.0, 2.0]
+const NORMAL_SPEED := 1
+signal speed_changed()
+var speed_index := NORMAL_SPEED
+var paused := false
+
+func speed() -> float:
+	return float(SPEEDS[speed_index])
+
+## Un passo più veloce o più lento, fermandosi agli estremi.
+func change_speed(step: int) -> void:
+	speed_index = clampi(speed_index + step, 0, SPEEDS.size() - 1)
+	speed_changed.emit()
+
+func toggle_pause() -> void:
+	paused = not paused
+	speed_changed.emit()
+
+func _reset_speed() -> void:
+	speed_index = NORMAL_SPEED
+	paused = false
+	speed_changed.emit()
 
 func _advance_clock(delta: float) -> void:
 	current.time_of_day += delta * GAME_MINUTES_PER_SECOND / 60.0
@@ -448,6 +483,7 @@ func _pay_property_tax() -> void:
 ## anche se il giocatore chiude il gioco un secondo dopo.
 func new_game() -> SaveData:
 	var index := _next_campaign_index()
+	_reset_speed()
 	current = SaveData.create_new("partita %d" % index)
 	# I valori di partenza del gestionale (soldi, vasi, primi semi) li mette
 	# `Economy`: `SaveData` è solo il formato, il bilanciamento sta altrove.
@@ -474,6 +510,7 @@ func load_slot(slot_id: String) -> bool:
 	var raw := _read_save(_path_for(slot_id))
 	if raw.is_empty():
 		return false
+	_reset_speed()
 	current = SaveData.from_dict(raw)
 	current_slot = slot_id
 	# Prima di dire a chiunque che la partita è cominciata: chi si aggancia a
